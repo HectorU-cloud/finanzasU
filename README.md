@@ -54,17 +54,27 @@ Por ahora los días de corte se definen al crear cada tarjeta. Puedes:
 
 Está definido como `LIMITE_MENSUAL` en `backend/main.py`.
 
-## Pasar a PostgreSQL más adelante
+## Base de datos en producción (Supabase o Neon, gratis)
 
-Por defecto todo corre sobre un archivo SQLite (`finanzas.db`), que es suficiente
-para uso personal. Si más adelante quieres PostgreSQL, solo necesitas:
+En vez de depender de un disco persistente de pago en Render, usa una base de
+datos Postgres gratuita externa:
 
-1. Instalar `psycopg2-binary` (`pip install psycopg2-binary`).
-2. Definir la variable de entorno `DATABASE_URL`, por ejemplo:
-   ```
-   DATABASE_URL=postgresql://usuario:password@localhost:5432/finanzas
-   ```
-3. Volver a levantar el backend — las tablas se crean solas al arrancar.
+1. Crea una cuenta y un proyecto nuevo en [supabase.com](https://supabase.com)
+   o [neon.tech](https://neon.tech) (cualquiera de los dos sirve, ambos tienen
+   plan gratuito permanente).
+2. Copia la **connection string** que te dan (empieza con `postgresql://...`).
+   - En Supabase: Project Settings → Database → Connection string → modo "URI".
+   - En Neon: la ves directo en el dashboard del proyecto.
+3. En Render, ve a tu servicio → **Environment** → agrega una variable:
+   - Key: `DATABASE_URL`
+   - Value: la connection string que copiaste
+4. Vuelve a desplegar (Render lo hace solo al guardar la variable). Al arrancar,
+   el backend crea las tablas automáticamente en esa base de datos — ya no
+   depende del disco local, así que los datos sobreviven aunque la instancia
+   se duerma o se redepliegue.
+
+Con esto puedes quedarte tranquilamente en el plan Free de Render.
+
 
 ## Desplegarla para usarla desde el celular
 
