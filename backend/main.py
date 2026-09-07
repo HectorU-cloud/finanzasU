@@ -31,8 +31,8 @@ def seed_tarjetas():
     db = next(get_db())
     if db.query(models.Tarjeta).count() == 0:
         db.add_all([
-            models.Tarjeta(nombre="Tarjeta 1", dia_corte=31),
-            models.Tarjeta(nombre="Tarjeta 2", dia_corte=4),
+            models.Tarjeta(nombre="Dinners", dia_corte=31),
+            models.Tarjeta(nombre="Visa Produbanco", dia_corte=4),
         ])
         db.commit()
 
