@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Wallet, PiggyBank, Plus, Trash2, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { api } from "./api.js";
 import TarjetasPanel from "./TarjetasPanel.jsx";
+import CardCarousel from "./CardCarousel.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -160,20 +161,7 @@ export default function App() {
         </div>
       </header>
 
-      <div className="cards">
-        {resumen?.tarjetas.map((t) => (
-          <div key={t.id} className={"card" + (t.en_rojo ? " rojo" : "")}>
-            <div className="row-top">
-              <span className="label">{t.nombre}</span>
-              <span className="badge">{t.en_rojo ? "Excedido" : "Al día"}</span>
-            </div>
-            <p className="monto">${Number(t.gastado_mes).toFixed(2)}</p>
-            <p className="corte">
-              Corte día {t.dia_corte} · faltan {t.dias_para_corte} días
-            </p>
-          </div>
-        ))}
-      </div>
+      <CardCarousel tarjetas={resumen?.tarjetas} />
 
       <div className={"total-bar" + (enRojo ? " rojo" : "")}>
         <div>

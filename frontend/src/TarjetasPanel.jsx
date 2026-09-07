@@ -2,16 +2,18 @@ import { useState } from "react";
 import { ChevronDown, CreditCard, Pencil, Trash2, Check, X, Plus } from "lucide-react";
 import { api } from "./api.js";
 
+const REDES = ["Visa", "Mastercard", "American Express", "Diners Club", "Otra"];
+
 export default function TarjetasPanel({ tarjetas, onChange }) {
   const [abierto, setAbierto] = useState(false);
   const [editandoId, setEditandoId] = useState(null);
-  const [borrador, setBorrador] = useState({ nombre: "", dia_corte: "" });
-  const [nueva, setNueva] = useState({ nombre: "", dia_corte: "" });
+  const [borrador, setBorrador] = useState({ nombre: "", dia_corte: "", red: "" });
+  const [nueva, setNueva] = useState({ nombre: "", dia_corte: "", red: REDES[0] });
   const [error, setError] = useState("");
 
   function empezarEdicion(t) {
     setEditandoId(t.id);
-    setBorrador({ nombre: t.nombre, dia_corte: t.dia_corte });
+    setBorrador({ nombre: t.nombre, dia_corte: t.dia_corte, red: t.red || REDES[0] });
   }
 
   async function guardarEdicion(id) {
@@ -21,7 +23,11 @@ export default function TarjetasPanel({ tarjetas, onChange }) {
       return;
     }
     setError("");
-    await api.actualizarTarjeta(id, { nombre: borrador.nombre.trim(), dia_corte: dia });
+    await api.actualizarTarjeta(id, {
+      nombre: borrador.nombre.trim(),
+      dia_corte: dia,
+      red: borrador.red,
+    });
     setEditandoId(null);
     onChange();
   }
@@ -43,8 +49,8 @@ export default function TarjetasPanel({ tarjetas, onChange }) {
       return;
     }
     setError("");
-    await api.crearTarjeta({ nombre: nueva.nombre.trim(), dia_corte: dia });
-    setNueva({ nombre: "", dia_corte: "" });
+    await api.crearTarjeta({ nombre: nueva.nombre.trim(), dia_corte: dia, red: nueva.red });
+    setNueva({ nombre: "", dia_corte: "", red: REDES[0] });
     onChange();
   }
 
@@ -77,6 +83,17 @@ export default function TarjetasPanel({ tarjetas, onChange }) {
                     value={borrador.dia_corte}
                     onChange={(e) => setBorrador({ ...borrador, dia_corte: e.target.value })}
                   />
+                  <select
+                    value={borrador.red}
+                    onChange={(e) => setBorrador({ ...borrador, red: e.target.value })}
+                    style={{ width: "auto" }}
+                  >
+                    {REDES.map((r) => (
+                      <option key={r} value={r}>
+                        {r}
+                      </option>
+                    ))}
+                  </select>
                   <div className="acciones-tarjeta">
                     <button className="mini-btn" onClick={() => guardarEdicion(t.id)} title="Guardar">
                       <Check size={16} />
@@ -89,7 +106,7 @@ export default function TarjetasPanel({ tarjetas, onChange }) {
               ) : (
                 <>
                   <span style={{ flex: 1, fontSize: 14 }}>{t.nombre}</span>
-                  <span className="corte-label">Corte día {t.dia_corte}</span>
+                  <span className="corte-label">{t.red || "Sin red"} · corte día {t.dia_corte}</span>
                   <div className="acciones-tarjeta">
                     <button className="mini-btn" onClick={() => empezarEdicion(t)} title="Editar">
                       <Pencil size={15} />
@@ -122,6 +139,17 @@ export default function TarjetasPanel({ tarjetas, onChange }) {
               value={nueva.dia_corte}
               onChange={(e) => setNueva({ ...nueva, dia_corte: e.target.value })}
             />
+            <select
+              value={nueva.red}
+              onChange={(e) => setNueva({ ...nueva, red: e.target.value })}
+              style={{ width: "auto" }}
+            >
+              {REDES.map((r) => (
+                <option key={r} value={r}>
+                  {r}
+                </option>
+              ))}
+            </select>
             <button type="submit" className="mini-btn" title="Agregar tarjeta">
               <Plus size={18} />
             </button>

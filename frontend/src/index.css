@@ -451,3 +451,165 @@ ul.gastos .acciones .monto {
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
+
+/* Card carousel */
+.carousel {
+  margin-bottom: 16px;
+}
+
+.carousel-track {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.carousel-track::-webkit-scrollbar {
+  display: none;
+}
+
+.credit-card {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  border-radius: 20px;
+  padding: 22px;
+  min-height: 168px;
+  position: relative;
+  color: #ffffff;
+  box-shadow: 0 10px 26px rgba(20, 40, 80, 0.22);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.credit-card.rojo {
+  background: linear-gradient(135deg, #d9534f 0%, #7a1f1c 100%);
+}
+
+.credit-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.cc-label {
+  font-size: 12px;
+  opacity: 0.85;
+  margin: 0 0 6px;
+}
+
+.cc-monto {
+  font-family: var(--font-display);
+  font-size: 30px;
+  font-weight: 600;
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.cc-top-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.cc-badge {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.2);
+  white-space: nowrap;
+}
+
+.cc-chip {
+  width: 38px;
+  height: 28px;
+  border-radius: 6px;
+  background: linear-gradient(135deg, #f4d878 0%, #c99a2e 100%);
+  position: relative;
+}
+
+.cc-chip::before,
+.cc-chip::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  height: 1px;
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.cc-chip::before {
+  top: 9px;
+}
+
+.cc-chip::after {
+  top: 18px;
+}
+
+.credit-card-bottom {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.cc-mini-label {
+  font-size: 10px;
+  opacity: 0.75;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 3px;
+}
+
+.cc-mini-valor {
+  font-size: 13px;
+  font-weight: 500;
+  margin: 0;
+}
+
+.cc-nombre {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.cc-red {
+  font-size: 11px;
+  font-weight: 600;
+  font-style: italic;
+  letter-spacing: 0.03em;
+  margin: 2px 0 0;
+}
+
+.carousel-dots {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  border: none;
+  padding: 0;
+  background: var(--border);
+  cursor: pointer;
+}
+
+.dot.activo {
+  background: var(--brand);
+  width: 18px;
+  border-radius: 4px;
+}
+
+.carousel-hint {
+  text-align: center;
+  font-size: 11px;
+  color: var(--ink-faint);
+  margin: 6px 0 0;
+}

@@ -9,6 +9,7 @@ class Tarjeta(Base):
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(50), nullable=False)
     dia_corte = Column(Integer, nullable=False)  # día del mes, 1-31
+    red = Column(String(20), nullable=True)  # Visa, Mastercard, American Express, Diners Club, etc.
 
     gastos = relationship("Gasto", back_populates="tarjeta", cascade="all, delete-orphan")
 

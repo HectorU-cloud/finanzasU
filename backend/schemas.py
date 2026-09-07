@@ -6,6 +6,7 @@ from pydantic import BaseModel, Field, ConfigDict
 class TarjetaBase(BaseModel):
     nombre: str
     dia_corte: int = Field(ge=1, le=31)
+    red: str | None = None
 
 
 class TarjetaCreate(TarjetaBase):
@@ -15,6 +16,7 @@ class TarjetaCreate(TarjetaBase):
 class TarjetaUpdate(BaseModel):
     nombre: str | None = None
     dia_corte: int | None = Field(default=None, ge=1, le=31)
+    red: str | None = None
 
 
 class Tarjeta(TarjetaBase):
@@ -42,6 +44,7 @@ class ResumenTarjeta(BaseModel):
     id: int
     nombre: str
     dia_corte: int
+    red: str | None = None
     dias_para_corte: int
     gastado_mes: Decimal
     en_rojo: bool

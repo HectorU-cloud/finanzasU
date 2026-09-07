@@ -34,8 +34,8 @@ def seed_tarjetas():
     db = next(get_db())
     if db.query(models.Tarjeta).count() == 0:
         db.add_all([
-            models.Tarjeta(nombre="Diners", dia_corte=31),
-            models.Tarjeta(nombre="Visa Produbanco", dia_corte=4),
+            models.Tarjeta(nombre="Diners", dia_corte=31, red="Diners Club"),
+            models.Tarjeta(nombre="Visa Produbanco", dia_corte=4, red="Visa"),
         ])
         db.commit()
 
@@ -192,6 +192,7 @@ def resumen_mensual(anio: int | None = None, mes: int | None = None, db: Session
             id=t.id,
             nombre=t.nombre,
             dia_corte=t.dia_corte,
+            red=t.red,
             dias_para_corte=dias_para_corte(t.dia_corte, hoy),
             gastado_mes=Decimal(gastado),
             en_rojo=en_rojo,
