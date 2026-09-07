@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
+import { Wallet, PiggyBank, Plus, Trash2 } from "lucide-react";
 import { api } from "./api.js";
+import TarjetasPanel from "./TarjetasPanel.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -27,7 +29,12 @@ export default function App() {
     setTarjetas(tarjetasData);
     setGastos(gastosData);
     setResumen(resumenData);
-    setForm((f) => ({ ...f, tarjeta_id: f.tarjeta_id || tarjetasData[0]?.id || "" }));
+    setForm((f) => ({
+      ...f,
+      tarjeta_id: tarjetasData.some((t) => t.id === Number(f.tarjeta_id))
+        ? f.tarjeta_id
+        : tarjetasData[0]?.id || "",
+    }));
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -69,15 +76,27 @@ export default function App() {
 
   return (
     <div className="app">
-      <header>
-        <h1>Control de gastos</h1>
-        <p>{now.toLocaleString("es-EC", { month: "long", year: "numeric" })}</p>
+      <header className="app-header">
+        <div className="brand">
+          <span className="brand-icon">
+            <Wallet size={18} />
+          </span>
+          <div>
+            <h1>Control de gastos</h1>
+            <p className="periodo">
+              {now.toLocaleString("es-EC", { month: "long", year: "numeric" })}
+            </p>
+          </div>
+        </div>
       </header>
 
       <div className="cards">
         {resumen?.tarjetas.map((t) => (
           <div key={t.id} className={"card" + (t.en_rojo ? " rojo" : "")}>
-            <p className="label">{t.nombre}</p>
+            <div className="row-top">
+              <span className="label">{t.nombre}</span>
+              <span className="badge">{t.en_rojo ? "Excedido" : "Al día"}</span>
+            </div>
             <p className="monto">${Number(t.gastado_mes).toFixed(2)}</p>
             <p className="corte">
               Corte día {t.dia_corte} · faltan {t.dias_para_corte} días
@@ -87,63 +106,74 @@ export default function App() {
       </div>
 
       <div className={"total-bar" + (enRojo ? " rojo" : "")}>
-        <span>Total del mes (ambas tarjetas)</span>
-        <span className="monto">
-          ${Number(resumen?.total_mes ?? 0).toFixed(2)} / ${Number(resumen?.limite ?? 350)}
-        </span>
+        <div>
+          <div className="titulo">Total del mes (ambas tarjetas)</div>
+        </div>
+        <div className="monto">
+          ${Number(resumen?.total_mes ?? 0).toFixed(2)}{" "}
+          <span className="limite">/ ${Number(resumen?.limite ?? 350)}</span>
+        </div>
       </div>
 
-      <form className="gasto-form" onSubmit={handleSubmit}>
-        <p className="titulo">Registrar gasto</p>
-        <div className="form-row">
-          <div>
-            <label>Fecha</label>
-            <input
-              type="date"
-              value={form.fecha}
-              onChange={(e) => setForm({ ...form, fecha: e.target.value })}
-            />
+      <TarjetasPanel tarjetas={tarjetas} onChange={cargarDatos} />
+
+      <div className="panel">
+        <form className="gasto-form" onSubmit={handleSubmit}>
+          <p className="titulo">
+            <PiggyBank size={16} />
+            Registrar gasto
+          </p>
+          <div className="form-row">
+            <div>
+              <label>Fecha</label>
+              <input
+                type="date"
+                value={form.fecha}
+                onChange={(e) => setForm({ ...form, fecha: e.target.value })}
+              />
+            </div>
+            <div>
+              <label>Tarjeta</label>
+              <select
+                value={form.tarjeta_id}
+                onChange={(e) => setForm({ ...form, tarjeta_id: e.target.value })}
+              >
+                {tarjetas.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-          <div>
-            <label>Tarjeta</label>
-            <select
-              value={form.tarjeta_id}
-              onChange={(e) => setForm({ ...form, tarjeta_id: e.target.value })}
-            >
-              {tarjetas.map((t) => (
-                <option key={t.id} value={t.id}>
-                  {t.nombre}
-                </option>
-              ))}
-            </select>
+          <div className="form-row">
+            <div>
+              <label>Monto</label>
+              <input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={form.monto}
+                onChange={(e) => setForm({ ...form, monto: e.target.value })}
+              />
+            </div>
+            <div>
+              <label>Descripción (opcional)</label>
+              <input
+                type="text"
+                placeholder="ej. almuerzo"
+                value={form.descripcion}
+                onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
+              />
+            </div>
           </div>
-        </div>
-        <div className="form-row">
-          <div>
-            <label>Monto</label>
-            <input
-              type="number"
-              step="0.01"
-              placeholder="0.00"
-              value={form.monto}
-              onChange={(e) => setForm({ ...form, monto: e.target.value })}
-            />
-          </div>
-          <div>
-            <label>Descripción (opcional)</label>
-            <input
-              type="text"
-              placeholder="ej. almuerzo"
-              value={form.descripcion}
-              onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
-            />
-          </div>
-        </div>
-        {error && <p className="error">{error}</p>}
-        <button className="submit" type="submit">
-          Agregar gasto
-        </button>
-      </form>
+          {error && <p className="error">{error}</p>}
+          <button className="submit" type="submit">
+            <Plus size={16} />
+            Agregar gasto
+          </button>
+        </form>
+      </div>
 
       <p className="lista-titulo">Gastos del mes</p>
       {gastos.length === 0 ? (
@@ -155,14 +185,18 @@ export default function App() {
             return (
               <li key={g.id}>
                 <div className="detalle">
-                  <span className="fecha">{g.fecha}</span>
-                  <span className="sep">·</span>
-                  <span className="tarjeta">{tarjeta?.nombre}</span>
-                  {g.descripcion && <span className="desc"> — {g.descripcion}</span>}
+                  <span className="linea1">
+                    {g.fecha}
+                    <span className="sep">·</span>
+                    {tarjeta?.nombre}
+                  </span>
+                  {g.descripcion && <span className="desc">{g.descripcion}</span>}
                 </div>
                 <div className="acciones">
                   <span className="monto">${Number(g.monto).toFixed(2)}</span>
-                  <button onClick={() => handleDelete(g.id)}>quitar</button>
+                  <button className="mini-btn peligro" onClick={() => handleDelete(g.id)} title="Quitar">
+                    <Trash2 size={15} />
+                  </button>
                 </div>
               </li>
             );

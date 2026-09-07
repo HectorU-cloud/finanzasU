@@ -12,6 +12,11 @@ class TarjetaCreate(TarjetaBase):
     pass
 
 
+class TarjetaUpdate(BaseModel):
+    nombre: str | None = None
+    dia_corte: int | None = Field(default=None, ge=1, le=31)
+
+
 class Tarjeta(TarjetaBase):
     model_config = ConfigDict(from_attributes=True)
     id: int

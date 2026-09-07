@@ -23,4 +23,9 @@ export const api = {
   crearGasto: (gasto) =>
     request("/gastos", { method: "POST", body: JSON.stringify(gasto) }),
   eliminarGasto: (id) => request(`/gastos/${id}`, { method: "DELETE" }),
+  crearTarjeta: (tarjeta) =>
+    request("/tarjetas", { method: "POST", body: JSON.stringify(tarjeta) }),
+  actualizarTarjeta: (id, cambios) =>
+    request(`/tarjetas/${id}`, { method: "PUT", body: JSON.stringify(cambios) }),
+  eliminarTarjeta: (id) => request(`/tarjetas/${id}`, { method: "DELETE" }),
 };

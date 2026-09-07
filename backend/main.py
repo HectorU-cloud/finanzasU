@@ -66,6 +66,29 @@ def crear_tarjeta(tarjeta: schemas.TarjetaCreate, db: Session = Depends(get_db))
     return nueva
 
 
+@app.put("/api/tarjetas/{tarjeta_id}", response_model=schemas.Tarjeta)
+def actualizar_tarjeta(tarjeta_id: int, payload: schemas.TarjetaUpdate, db: Session = Depends(get_db)):
+    tarjeta = db.query(models.Tarjeta).get(tarjeta_id)
+    if not tarjeta:
+        raise HTTPException(status_code=404, detail="Tarjeta no encontrada")
+    if payload.nombre is not None:
+        tarjeta.nombre = payload.nombre
+    if payload.dia_corte is not None:
+        tarjeta.dia_corte = payload.dia_corte
+    db.commit()
+    db.refresh(tarjeta)
+    return tarjeta
+
+
+@app.delete("/api/tarjetas/{tarjeta_id}", status_code=204)
+def eliminar_tarjeta(tarjeta_id: int, db: Session = Depends(get_db)):
+    tarjeta = db.query(models.Tarjeta).get(tarjeta_id)
+    if not tarjeta:
+        raise HTTPException(status_code=404, detail="Tarjeta no encontrada")
+    db.delete(tarjeta)
+    db.commit()
+
+
 # ---------- Gastos ----------
 
 @app.get("/api/gastos", response_model=list[schemas.Gasto])
