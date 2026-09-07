@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Wallet, PiggyBank, Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Wallet, PiggyBank, Plus, Trash2, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { api } from "./api.js";
 import TarjetasPanel from "./TarjetasPanel.jsx";
 
@@ -62,6 +62,44 @@ export default function App() {
       }
       return { anio, mes };
     });
+  }
+
+  const [rangoExport, setRangoExport] = useState("mes");
+  const [exportando, setExportando] = useState(false);
+
+  async function handleExport() {
+    let desde, hasta;
+    if (rangoExport === "dia") {
+      desde = hasta = todayISO();
+    } else if (rangoExport === "semana") {
+      const fin = new Date();
+      const inicio = new Date();
+      inicio.setDate(fin.getDate() - 6);
+      desde = inicio.toISOString().slice(0, 10);
+      hasta = fin.toISOString().slice(0, 10);
+    } else {
+      const ultimoDia = new Date(periodo.anio, periodo.mes, 0).getDate();
+      desde = `${periodo.anio}-${String(periodo.mes).padStart(2, "0")}-01`;
+      hasta = `${periodo.anio}-${String(periodo.mes).padStart(2, "0")}-${ultimoDia}`;
+    }
+
+    setExportando(true);
+    setError("");
+    try {
+      const { blob, filename } = await api.exportarGastos(desde, hasta);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setExportando(false);
+    }
   }
 
   async function handleSubmit(e) {
@@ -207,7 +245,39 @@ export default function App() {
         </form>
       </div>
 
-      <p className="lista-titulo">Gastos del mes</p>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          marginBottom: 10,
+        }}
+      >
+        <p className="lista-titulo" style={{ marginBottom: 0 }}>
+          Gastos del mes
+        </p>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <select
+            value={rangoExport}
+            onChange={(e) => setRangoExport(e.target.value)}
+            style={{ width: "auto", fontSize: 12, padding: "6px 8px" }}
+          >
+            <option value="dia">Hoy</option>
+            <option value="semana">Últimos 7 días</option>
+            <option value="mes">
+              {NOMBRES_MES[periodo.mes - 1]} {periodo.anio}
+            </option>
+          </select>
+          <button
+            className="icon-btn"
+            onClick={handleExport}
+            disabled={exportando}
+            title="Descargar CSV"
+          >
+            <Download size={16} />
+          </button>
+        </div>
+      </div>
       {gastos.length === 0 ? (
         <p className="vacio">Todavía no registras gastos este mes.</p>
       ) : (

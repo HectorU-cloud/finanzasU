@@ -28,4 +28,12 @@ export const api = {
   actualizarTarjeta: (id, cambios) =>
     request(`/tarjetas/${id}`, { method: "PUT", body: JSON.stringify(cambios) }),
   eliminarTarjeta: (id) => request(`/tarjetas/${id}`, { method: "DELETE" }),
+  exportarGastos: async (desde, hasta) => {
+    const res = await fetch(`${BASE}/gastos/export?desde=${desde}&hasta=${hasta}`);
+    if (!res.ok) throw new Error("No se pudo generar el archivo.");
+    const blob = await res.blob();
+    const disposition = res.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    return { blob, filename: match?.[1] || "gastos.csv" };
+  },
 };

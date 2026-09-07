@@ -1,9 +1,12 @@
 import calendar
+import csv
+import io
 from datetime import date
 from decimal import Decimal
 
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from sqlalchemy import extract, func
 from sqlalchemy.orm import Session
 
@@ -120,6 +123,41 @@ def eliminar_gasto(gasto_id: int, db: Session = Depends(get_db)):
         raise HTTPException(status_code=404, detail="Gasto no encontrado")
     db.delete(gasto)
     db.commit()
+
+
+@app.get("/api/gastos/export")
+def exportar_gastos(desde: date, hasta: date, db: Session = Depends(get_db)):
+    if hasta < desde:
+        raise HTTPException(status_code=400, detail="El rango de fechas es inválido")
+
+    gastos = (
+        db.query(models.Gasto)
+        .filter(models.Gasto.fecha >= desde, models.Gasto.fecha <= hasta)
+        .order_by(models.Gasto.fecha)
+        .all()
+    )
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["Fecha", "Tarjeta", "Monto", "Descripción"])
+    for g in gastos:
+        writer.writerow([
+            g.fecha.isoformat(),
+            g.tarjeta.nombre if g.tarjeta else "",
+            f"{g.monto:.2f}",
+            g.descripcion or "",
+        ])
+    total = sum((g.monto for g in gastos), Decimal("0"))
+    writer.writerow([])
+    writer.writerow(["", "", "Total", f"{total:.2f}"])
+    buffer.seek(0)
+
+    nombre_archivo = f"gastos_{desde.isoformat()}_a_{hasta.isoformat()}.csv"
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{nombre_archivo}"'},
+    )
 
 
 # ---------- Resumen mensual ----------
