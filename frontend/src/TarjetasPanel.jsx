@@ -26,7 +26,11 @@ export default function TarjetasPanel({ tarjetas, onChange }) {
     onChange();
   }
 
-  async function eliminar(id) {
+  async function eliminar(id, nombre) {
+    const ok = window.confirm(
+      `¿Eliminar "${nombre}"? Esto también borra todos sus gastos registrados. Esta acción no se puede deshacer.`
+    );
+    if (!ok) return;
     await api.eliminarTarjeta(id);
     onChange();
   }
@@ -92,7 +96,7 @@ export default function TarjetasPanel({ tarjetas, onChange }) {
                     </button>
                     <button
                       className="mini-btn peligro"
-                      onClick={() => eliminar(t.id)}
+                      onClick={() => eliminar(t.id, t.nombre)}
                       title="Eliminar (borra también sus gastos)"
                     >
                       <Trash2 size={15} />

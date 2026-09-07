@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { Wallet, PiggyBank, Plus, Trash2 } from "lucide-react";
+import { Wallet, PiggyBank, Plus, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
 import { api } from "./api.js";
 import TarjetasPanel from "./TarjetasPanel.jsx";
 
@@ -7,8 +7,16 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
+const NOMBRES_MES = [
+  "enero", "febrero", "marzo", "abril", "mayo", "junio",
+  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+];
+
 export default function App() {
-  const now = new Date();
+  const hoy = new Date();
+  const [periodo, setPeriodo] = useState({ anio: hoy.getFullYear(), mes: hoy.getMonth() + 1 });
+  const esMesActual = periodo.anio === hoy.getFullYear() && periodo.mes === hoy.getMonth() + 1;
+
   const [tarjetas, setTarjetas] = useState([]);
   const [gastos, setGastos] = useState([]);
   const [resumen, setResumen] = useState(null);
@@ -23,8 +31,8 @@ export default function App() {
   const cargarDatos = useCallback(async () => {
     const [tarjetasData, gastosData, resumenData] = await Promise.all([
       api.getTarjetas(),
-      api.getGastos(now.getFullYear(), now.getMonth() + 1),
-      api.getResumen(now.getFullYear(), now.getMonth() + 1),
+      api.getGastos(periodo.anio, periodo.mes),
+      api.getResumen(periodo.anio, periodo.mes),
     ]);
     setTarjetas(tarjetasData);
     setGastos(gastosData);
@@ -35,11 +43,26 @@ export default function App() {
         ? f.tarjeta_id
         : tarjetasData[0]?.id || "",
     }));
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [periodo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     cargarDatos().catch((e) => setError(e.message));
   }, [cargarDatos]);
+
+  function cambiarMes(delta) {
+    setPeriodo((p) => {
+      let mes = p.mes + delta;
+      let anio = p.anio;
+      if (mes > 12) {
+        mes = 1;
+        anio += 1;
+      } else if (mes < 1) {
+        mes = 12;
+        anio -= 1;
+      }
+      return { anio, mes };
+    });
+  }
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -84,9 +107,18 @@ export default function App() {
           <div>
             <h1>Control de gastos</h1>
             <p className="periodo">
-              {now.toLocaleString("es-EC", { month: "long", year: "numeric" })}
+              {NOMBRES_MES[periodo.mes - 1]} de {periodo.anio}
+              {esMesActual && " · actual"}
             </p>
           </div>
+        </div>
+        <div style={{ display: "flex", gap: 6 }}>
+          <button className="icon-btn" onClick={() => cambiarMes(-1)} title="Mes anterior">
+            <ChevronLeft size={18} />
+          </button>
+          <button className="icon-btn" onClick={() => cambiarMes(1)} title="Mes siguiente">
+            <ChevronRight size={18} />
+          </button>
         </div>
       </header>
 
