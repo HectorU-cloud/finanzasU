@@ -305,3 +305,35 @@ def resumen_mensual(
         en_rojo=en_rojo,
         tarjetas=resumen_tarjetas,
     )
+
+import secrets
+
+@app.post("/api/grupos", response_model=schemas.GrupoOut)
+def crear_grupo(
+    datos: schemas.GrupoCreate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    # Generar código único de 8 caracteres alfanuméricos
+    codigo = secrets.token_urlsafe(6)  # ej: "aB3dEfG8"
+    while db.query(models.Grupo).filter(models.Grupo.codigo_invitacion == codigo).first():
+        codigo = secrets.token_urlsafe(6)
+
+    nuevo_grupo = models.Grupo(
+        nombre=datos.nombre,
+        creado_por_id=usuario.id,
+        codigo_invitacion=codigo,
+    )
+    db.add(nuevo_grupo)
+    db.flush()  # para obtener el id
+
+    # Agregar al creador como administrador
+    miembro = models.MiembroGrupo(
+        grupo_id=nuevo_grupo.id,
+        usuario_id=usuario.id,
+        rol="admin",
+    )
+    db.add(miembro)
+    db.commit()
+    db.refresh(nuevo_grupo)
+    return nuevo_grupo
