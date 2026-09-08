@@ -81,3 +81,59 @@ class Resumen(BaseModel):
     limite: Decimal
     en_rojo: bool
     tarjetas: list[ResumenTarjeta]
+
+# schemas.py (adiciones)
+
+class GrupoCreate(BaseModel):
+    nombre: str = Field(min_length=1, max_length=80)
+
+
+class GrupoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    nombre: str
+    codigo_invitacion: str
+    creado_por_id: int
+    miembros: list["MiembroGrupoOut"] = []
+
+
+class MiembroGrupoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    usuario_id: int
+    rol: str
+    usuario: UsuarioOut  # reutilizas el existente
+
+
+class GastoCompartidoCreate(BaseModel):
+    grupo_id: int
+    fecha: date
+    monto: Decimal = Field(gt=0)
+    descripcion: str | None = None
+    categoria: str | None = None
+    # Lista de usuarios y montos (opcional, si no se provee se divide en partes iguales)
+    divisiones: list[tuple[int, Decimal]] | None = None  # (usuario_id, monto)
+
+
+class GastoCompartidoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    grupo_id: int
+    pagado_por_id: int
+    fecha: date
+    monto: Decimal
+    descripcion: str | None
+    categoria: str | None
+    divisiones: list["DivisionGastoOut"]
+
+
+class DivisionGastoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    usuario_id: int
+    monto: Decimal
+    pagado: bool
+
+
+class SaldoUsuario(BaseModel):
+    usuario_id: int
+    nombre: str
+    debe: Decimal  # positivo = debe a la caja común, negativo = le deben
