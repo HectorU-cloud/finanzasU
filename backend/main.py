@@ -337,3 +337,140 @@ def crear_grupo(
     db.commit()
     db.refresh(nuevo_grupo)
     return nuevo_grupo
+
+@app.post("/api/grupos/unirse", response_model=schemas.GrupoOut)
+def unirse_grupo(
+    codigo: str,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    grupo = db.query(models.Grupo).filter(models.Grupo.codigo_invitacion == codigo).first()
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Código inválido")
+
+    # Verificar que no sea ya miembro
+    existe = db.query(models.MiembroGrupo).filter(
+        models.MiembroGrupo.grupo_id == grupo.id,
+        models.MiembroGrupo.usuario_id == usuario.id,
+    ).first()
+    if existe:
+        raise HTTPException(status_code=400, detail="Ya eres miembro de este grupo")
+
+    nuevo_miembro = models.MiembroGrupo(
+        grupo_id=grupo.id,
+        usuario_id=usuario.id,
+        rol="miembro",
+    )
+    db.add(nuevo_miembro)
+    db.commit()
+    db.refresh(grupo)
+    return grupo
+
+@app.get("/api/grupos", response_model=list[schemas.GrupoOut])
+def listar_grupos(
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    return db.query(models.Grupo).join(models.MiembroGrupo).filter(
+        models.MiembroGrupo.usuario_id == usuario.id
+    ).all()
+
+@app.post("/api/gastos-compartidos", response_model=schemas.GastoCompartidoOut)
+def crear_gasto_compartido(
+    datos: schemas.GastoCompartidoCreate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    # Verificar que el usuario es miembro del grupo
+    miembro = db.query(models.MiembroGrupo).filter(
+        models.MiembroGrupo.grupo_id == datos.grupo_id,
+        models.MiembroGrupo.usuario_id == usuario.id,
+    ).first()
+    if not miembro:
+        raise HTTPException(status_code=403, detail="No eres miembro de este grupo")
+
+    # Si no se especifican divisiones, se reparte equitativamente entre todos los miembros
+    if datos.divisiones is None:
+        miembros = db.query(models.MiembroGrupo.usuario_id).filter(
+            models.MiembroGrupo.grupo_id == datos.grupo_id
+        ).all()
+        ids = [m[0] for m in miembros]
+        monto_por_persona = datos.monto / len(ids)
+        divisiones = [(uid, monto_por_persona) for uid in ids]
+    else:
+        divisiones = datos.divisiones
+        total_division = sum(m for _, m in divisiones)
+        if total_division != datos.monto:
+            raise HTTPException(status_code=400, detail="La suma de las divisiones no coincide con el monto total")
+
+    # Crear el gasto
+    nuevo_gasto = models.GastoCompartido(
+        grupo_id=datos.grupo_id,
+        pagado_por_id=usuario.id,
+        fecha=datos.fecha,
+        monto=datos.monto,
+        descripcion=datos.descripcion,
+        categoria=datos.categoria,
+    )
+    db.add(nuevo_gasto)
+    db.flush()
+
+    # Crear las divisiones
+    for uid, monto in divisiones:
+        div = models.DivisionGasto(
+            gasto_compartido_id=nuevo_gasto.id,
+            usuario_id=uid,
+            monto=monto,
+            pagado=0,
+        )
+        db.add(div)
+
+    db.commit()
+    db.refresh(nuevo_gasto)
+    return nuevo_gasto
+
+@app.get("/api/grupos/{grupo_id}/saldos", response_model=list[schemas.SaldoUsuario])
+def saldos_grupo(
+    grupo_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    # Verificar membresía
+    miembro = db.query(models.MiembroGrupo).filter(
+        models.MiembroGrupo.grupo_id == grupo_id,
+        models.MiembroGrupo.usuario_id == usuario.id,
+    ).first()
+    if not miembro:
+        raise HTTPException(status_code=403, detail="No eres miembro de este grupo")
+
+    # Obtener todos los miembros del grupo
+    miembros = db.query(models.Usuario).join(models.MiembroGrupo).filter(
+        models.MiembroGrupo.grupo_id == grupo_id
+    ).all()
+
+    saldos = {}
+    for m in miembros:
+        # Total que ha pagado (crédito a favor)
+        pagado = db.query(func.coalesce(func.sum(models.GastoCompartido.monto), 0)).filter(
+            models.GastoCompartido.grupo_id == grupo_id,
+            models.GastoCompartido.pagado_por_id == m.id,
+        ).scalar()
+
+        # Total que debe (sus divisiones)
+        debe = db.query(func.coalesce(func.sum(models.DivisionGasto.monto), 0)).join(
+            models.GastoCompartido
+        ).filter(
+            models.GastoCompartido.grupo_id == grupo_id,
+            models.DivisionGasto.usuario_id == m.id,
+        ).scalar()
+
+        # Saldo = pagado - debe (positivo = le deben, negativo = debe)
+        saldo = Decimal(pagado) - Decimal(debe)
+        saldos[m.id] = {
+            "usuario_id": m.id,
+            "nombre": m.nombre,
+            "debe": saldo,  # si es positivo, le deben; si es negativo, debe
+        }
+
+    return list(saldos.values())
+
