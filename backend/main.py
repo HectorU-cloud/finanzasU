@@ -389,16 +389,33 @@ def crear_gasto_compartido(
     if not miembro:
         raise HTTPException(status_code=403, detail="No eres miembro de este grupo")
 
-    # Si no se especifican divisiones, se reparte equitativamente entre todos los miembros
-    if datos.divisiones is None:
-        miembros = db.query(models.MiembroGrupo.usuario_id).filter(
+    ids_miembros = {
+        m[0] for m in db.query(models.MiembroGrupo.usuario_id).filter(
             models.MiembroGrupo.grupo_id == datos.grupo_id
         ).all()
-        ids = [m[0] for m in miembros]
-        monto_por_persona = datos.monto / len(ids)
-        divisiones = [(uid, monto_por_persona) for uid in ids]
+    }
+
+    # Si no se especifican divisiones, se reparte equitativamente entre todos los miembros,
+    # repartiendo el resto en centavos para que la suma cuadre exacto con el monto total.
+    if datos.divisiones is None:
+        ids = sorted(ids_miembros)
+        n = len(ids)
+        total_centavos = int((datos.monto * 100).to_integral_value())
+        base_centavos = total_centavos // n
+        resto_centavos = total_centavos - base_centavos * n
+        divisiones = [
+            (uid, Decimal(base_centavos + (1 if i < resto_centavos else 0)) / 100)
+            for i, uid in enumerate(ids)
+        ]
     else:
         divisiones = datos.divisiones
+        ids_division = {uid for uid, _ in divisiones}
+        ids_ajenos = ids_division - ids_miembros
+        if ids_ajenos:
+            raise HTTPException(
+                status_code=400,
+                detail="Una o más divisiones incluyen usuarios que no son miembros de este grupo",
+            )
         total_division = sum(m for _, m in divisiones)
         if total_division != datos.monto:
             raise HTTPException(status_code=400, detail="La suma de las divisiones no coincide con el monto total")
@@ -473,4 +490,52 @@ def saldos_grupo(
         }
 
     return list(saldos.values())
+
+
+def verificar_miembro(db: Session, grupo_id: int, usuario_id: int) -> models.MiembroGrupo:
+    miembro = db.query(models.MiembroGrupo).filter(
+        models.MiembroGrupo.grupo_id == grupo_id,
+        models.MiembroGrupo.usuario_id == usuario_id,
+    ).first()
+    if not miembro:
+        raise HTTPException(status_code=403, detail="No eres miembro de este grupo")
+    return miembro
+
+
+@app.get("/api/grupos/{grupo_id}/gastos", response_model=list[schemas.GastoCompartidoOut])
+def listar_gastos_grupo(
+    grupo_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    verificar_miembro(db, grupo_id, usuario.id)
+    return (
+        db.query(models.GastoCompartido)
+        .filter(models.GastoCompartido.grupo_id == grupo_id)
+        .order_by(models.GastoCompartido.fecha.desc())
+        .all()
+    )
+
+
+@app.patch("/api/divisiones/{division_id}/pagar", response_model=schemas.DivisionGastoOut)
+def marcar_division_pagada(
+    division_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    division = db.query(models.DivisionGasto).get(division_id)
+    if not division:
+        raise HTTPException(status_code=404, detail="División no encontrada")
+
+    gasto = db.query(models.GastoCompartido).get(division.gasto_compartido_id)
+    verificar_miembro(db, gasto.grupo_id, usuario.id)
+
+    # Solo quien debe, o quien pagó el gasto originalmente, puede marcarlo como saldado.
+    if usuario.id not in (division.usuario_id, gasto.pagado_por_id):
+        raise HTTPException(status_code=403, detail="No puedes modificar esta división")
+
+    division.pagado = 1
+    db.commit()
+    db.refresh(division)
+    return division
 

@@ -451,9 +451,6 @@ ul.gastos .acciones .monto {
 /* ============================================================
    NUEVO DISEÑO — Carrusel de tarjetas (CardCarousel.jsx)
    ============================================================ */
-.cards-section {
-  margin: 24px 0 22px;
-}
 
 .section-heading {
   display: flex;
@@ -470,246 +467,40 @@ ul.gastos .acciones .monto {
   color: var(--ink);
 }
 
-.section-kicker {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.09em;
-  color: var(--ink-faint);
-  margin: 0 0 4px;
-}
 
-.cards-navigation {
-  display: flex;
-  gap: 6px;
-}
 
-.cards-nav-button {
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  border: 1px solid var(--border);
-  background: var(--surface);
-  color: var(--ink-soft);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
 
-.cards-nav-button:hover {
-  border-color: var(--brand);
-  color: var(--brand);
-}
 
 /* Pista deslizable */
-.cards-carousel-track {
-  display: flex;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  gap: 14px;
-  scrollbar-width: none;
-  -webkit-overflow-scrolling: touch;
-}
 
-.cards-carousel-track::-webkit-scrollbar {
-  display: none;
-}
 
 /* Tarjeta bancaria */
-.finance-card {
-  flex: 0 0 100%;
-  scroll-snap-align: center;
-  border-radius: 18px;
-  min-height: 215px;
-  position: relative;
-  overflow: hidden;
-  color: #f8fafc;
-  box-shadow: 0 12px 28px rgba(38, 32, 25, 0.22);
-  display: flex;
-}
 
-.finance-card-glow {
-  position: absolute;
-  top: -70px;
-  right: -50px;
-  width: 220px;
-  height: 220px;
-  border-radius: 50%;
-  background: rgba(255, 255, 255, 0.14);
-  pointer-events: none;
-}
 
-.finance-card-content {
-  position: relative;
-  flex: 1;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-}
 
-.finance-card-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
 
-.finance-card-brand {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 600;
-}
 
-.finance-card-brand-icon {
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
-  background: rgba(255, 255, 255, 0.18);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
 
-.finance-card-network {
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.14em;
-  opacity: 0.85;
-}
 
-.finance-card-main .finance-card-label {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 500;
-  opacity: 0.92;
-}
 
-.finance-card-main h3 {
-  font-family: var(--font-display);
-  font-size: 34px;
-  font-weight: 600;
-  margin: 2px 0 0;
-  font-variant-numeric: tabular-nums;
-}
 
-.finance-card-description {
-  margin: 2px 0 0;
-  font-size: 12px;
-  opacity: 0.75;
-}
 
-.finance-card-progress-area {
-  margin-top: auto;
-}
 
-.finance-card-progress-info {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  font-size: 12px;
-  margin-bottom: 6px;
-}
 
-.finance-card-progress {
-  height: 6px;
-  border-radius: 99px;
-  background: rgba(255, 255, 255, 0.22);
-  overflow: hidden;
-}
 
-.finance-card-progress-fill {
-  height: 100%;
-  border-radius: 99px;
-  background: #ffffff;
-  transition: width 0.3s ease;
-}
 
-.finance-card-footer {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  padding-top: 4px;
-  border-top: 1px solid rgba(255, 255, 255, 0.18);
-}
 
-.finance-card-info > span {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  font-size: 11px;
-  opacity: 0.8;
-}
 
-.finance-card-info strong {
-  display: block;
-  font-size: 14px;
-  font-weight: 600;
-  margin-top: 3px;
-  font-variant-numeric: tabular-nums;
-}
 
-.finance-card-info.align-right {
-  text-align: right;
-}
 
 /* Paginación */
-.cards-pagination {
-  display: flex;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 12px;
-}
 
-.cards-pagination-dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 99px;
-  border: none;
-  padding: 0;
-  background: var(--border);
-  cursor: pointer;
-  transition: all 0.2s ease;
-}
 
-.cards-pagination-dot.active {
-  width: 18px;
-  background: var(--brand);
-}
 
 /* Estados vacíos del carrusel */
-.cards-empty-state {
-  text-align: center;
-  padding: 34px 20px;
-  border: 1px dashed var(--border);
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-}
 
-.cards-empty-icon {
-  width: 54px;
-  height: 54px;
-  border-radius: 14px;
-  background: var(--brand-soft);
-  color: var(--brand);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 14px;
-}
 
-.cards-empty-state h3 {
-  margin: 0 0 6px;
-  font-size: 15px;
-  font-family: var(--font-display);
-}
 
-.cards-empty-state p {
-  margin: 0;
-  font-size: 13px;
-  color: var(--ink-soft);
-}
 
 /* ============================================================
    NUEVO DISEÑO — Administrar tarjetas (TarjetasPanel.jsx)
@@ -1063,7 +854,156 @@ ul.gastos .acciones .monto {
     grid-template-columns: 1fr;
   }
 
-  .finance-card-main h3 {
-    font-size: 30px;
-  }
+}
+
+/* Grupos compartidos */
+.grupos-lista {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+
+.grupo-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  cursor: pointer;
+  font-size: 14px;
+  font-family: var(--font-body);
+  color: var(--ink);
+  text-align: left;
+}
+
+.grupo-item:hover {
+  border-color: var(--brand);
+}
+
+.grupo-item-meta {
+  font-size: 12px;
+  color: var(--ink-faint);
+}
+
+.grupos-formularios {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.volver-grupos {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--ink-soft);
+  font-size: 12px;
+  cursor: pointer;
+  padding: 0;
+  margin-bottom: 12px;
+}
+
+.volver-grupos:hover {
+  color: var(--brand);
+}
+
+.grupo-encabezado {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 4px;
+}
+
+.grupo-encabezado h3 {
+  font-family: var(--font-display);
+  font-size: 17px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.codigo-invitacion {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  background: var(--surface-alt);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 4px 8px;
+  cursor: pointer;
+  color: var(--ink-soft);
+}
+
+.codigo-invitacion:hover {
+  color: var(--brand);
+  border-color: var(--brand);
+}
+
+.saldos-lista {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  margin-bottom: 4px;
+}
+
+.saldo-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 12px;
+  font-size: 13px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--surface-alt);
+}
+
+.saldo-item:last-child {
+  border-bottom: none;
+}
+
+.saldo-favor {
+  color: var(--accent);
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.saldo-debe {
+  color: var(--danger);
+  font-weight: 600;
+  font-family: var(--font-mono);
+}
+
+.divisiones-lista {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.division-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 11px;
+  font-family: var(--font-mono);
+  background: var(--surface-alt);
+  border-radius: 20px;
+  padding: 3px 8px;
+  color: var(--ink-soft);
+}
+
+.division-chip.pagada {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.division-chip button {
+  display: inline-flex;
+  border: none;
+  background: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
 }

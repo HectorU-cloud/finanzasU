@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from "react";
 import { PiggyBank, Plus, Trash2, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { api, hayTokenGuardado, setAuthToken } from "./api.js";
 import TarjetasPanel from "./TarjetasPanel.jsx";
+import GruposPanel from "./GruposPanel.jsx";
 import CardCarousel from "./CardCarousel.jsx";
 import AuthScreen from "./AuthScreen.jsx";
 
@@ -212,6 +213,8 @@ export default function App() {
       </div>
 
       <TarjetasPanel tarjetas={tarjetas} onChange={cargarDatos} />
+
+      <GruposPanel />
 
       <div className="panel">
         <form onSubmit={handleSubmit}>

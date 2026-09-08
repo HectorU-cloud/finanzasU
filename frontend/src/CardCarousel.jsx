@@ -1,284 +1,111 @@
 import { useRef, useState } from "react";
-import {
-  ChevronLeft,
-  ChevronRight,
-  CreditCard,
-  CalendarDays,
-  AlertTriangle,
-} from "lucide-react";
-
-const CARD_THEMES = [
-  {
-    gradient: "linear-gradient(135deg, #635BFF 0%, #4338CA 100%)",
-    accent: "#A5B4FC",
-  },
-  {
-    gradient: "linear-gradient(135deg, #0F766E 0%, #134E4A 100%)",
-    accent: "#5EEAD4",
-  },
-  {
-    gradient: "linear-gradient(135deg, #BE123C 0%, #881337 100%)",
-    accent: "#FDA4AF",
-  },
-  {
-    gradient: "linear-gradient(135deg, #B45309 0%, #78350F 100%)",
-    accent: "#FCD34D",
-  },
-];
+import { CreditCard, AlertTriangle } from "lucide-react";
 
 const NETWORK_LABELS = {
   Visa: "VISA",
-  Mastercard: "mastercard",
-  "American Express": "AMEX",
-  "Diners Club": "DINERS",
-  Otra: "CARD",
+  Mastercard: "Mastercard",
+  "American Express": "Amex",
+  "Diners Club": "Diners",
+  Otra: "",
 };
 
 export default function CardCarousel({ tarjetas }) {
   const scrollRef = useRef(null);
   const [activo, setActivo] = useState(0);
 
-  if (!tarjetas || tarjetas.length === 0) {
-    return (
-      <section className="cards-section">
-        <div className="section-heading">
-          <div>
-            <p className="section-kicker">TUS TARJETAS</p>
-            <h2>No tienes tarjetas todavía</h2>
-          </div>
-        </div>
-
-        <div className="cards-empty-state">
-          <div className="cards-empty-icon">
-            <CreditCard size={28} />
-          </div>
-
-          <h3>Comienza agregando una tarjeta</h3>
-
-          <p>
-            Registra tus tarjetas para empezar a controlar tus gastos
-            mensuales.
-          </p>
-        </div>
-      </section>
-    );
-  }
-
-  function irA(index) {
-    const container = scrollRef.current;
-
-    if (!container) return;
-
-    const width = container.clientWidth;
-
-    container.scrollTo({
-      left: index * width,
-      behavior: "smooth",
-    });
-
-    setActivo(index);
-  }
-
-  function anterior() {
-    const nuevoIndice =
-      activo === 0 ? tarjetas.length - 1 : activo - 1;
-
-    irA(nuevoIndice);
-  }
-
-  function siguiente() {
-    const nuevoIndice =
-      activo === tarjetas.length - 1 ? 0 : activo + 1;
-
-    irA(nuevoIndice);
+  function irA(i) {
+    const el = scrollRef.current;
+    if (!el) return;
+    el.scrollTo({ left: i * el.clientWidth, behavior: "smooth" });
+    setActivo(i);
   }
 
   function onScroll() {
-    const container = scrollRef.current;
-
-    if (!container || container.clientWidth === 0) return;
-
-    const index = Math.round(
-      container.scrollLeft / container.clientWidth
-    );
-
-    setActivo(index);
+    const el = scrollRef.current;
+    if (!el || el.clientWidth === 0) return;
+    const i = Math.round(el.scrollLeft / el.clientWidth);
+    setActivo(i);
   }
 
-  return (
-    <section className="cards-section">
-      <div className="section-heading">
-        <div>
-          <p className="section-kicker">TUS TARJETAS</p>
-          <h2>Resumen de tarjetas</h2>
-        </div>
-
-        {tarjetas.length > 1 && (
-          <div className="cards-navigation">
-            <button
-              type="button"
-              className="cards-nav-button"
-              onClick={anterior}
-              aria-label="Tarjeta anterior"
-            >
-              <ChevronLeft size={18} />
-            </button>
-
-            <button
-              type="button"
-              className="cards-nav-button"
-              onClick={siguiente}
-              aria-label="Siguiente tarjeta"
-            >
-              <ChevronRight size={18} />
-            </button>
-          </div>
-        )}
+  if (!tarjetas || tarjetas.length === 0) {
+    return (
+      <div className="carousel-vacio">
+        <CreditCard size={20} />
+        <p>Todavía no tienes tarjetas. Agrega una en "Gestionar tarjetas".</p>
       </div>
+    );
+  }
 
-      <div
-        className="cards-carousel-track"
-        ref={scrollRef}
-        onScroll={onScroll}
-      >
-        {tarjetas.map((tarjeta, index) => {
-          const theme =
-            CARD_THEMES[index % CARD_THEMES.length];
+  const limite = 350; // límite mensual compartido, definido en el backend
 
-          const gastado = Number(tarjeta.gastado_mes || 0);
-
-          const limite = Number(
-            tarjeta.limite ||
-            tarjeta.limite_mensual ||
-            350
-          );
-
-          const porcentaje =
-            limite > 0
-              ? Math.min((gastado / limite) * 100, 100)
-              : 0;
-
-          const disponible = Math.max(
-            limite - gastado,
-            0
-          );
-
-          const excedido =
-            tarjeta.en_rojo || gastado > limite;
+  return (
+    <div className="carousel">
+      <div className="carousel-track" ref={scrollRef} onScroll={onScroll}>
+        {tarjetas.map((t) => {
+          const gastado = Number(t.gastado_mes || 0);
+          const porcentaje = Math.min((gastado / limite) * 100, 100);
+          const disponible = Math.max(limite - gastado, 0);
+          const red = NETWORK_LABELS[t.red] ?? t.red ?? "";
 
           return (
-            <article
-              key={tarjeta.id}
-              className={`finance-card ${
-                excedido ? "is-danger" : ""
-              }`}
-              style={{
-                background: excedido
-                  ? "linear-gradient(135deg, #EF4444 0%, #991B1B 100%)"
-                  : theme.gradient,
-              }}
-            >
-              <div className="finance-card-glow" />
-
-              <div className="finance-card-content">
-
-                <div className="finance-card-header">
-                  <div className="finance-card-brand">
-                    <div className="finance-card-brand-icon">
-                      <CreditCard size={18} />
-                    </div>
-
-                    <span>FinanzasU</span>
-                  </div>
-
-                  <span className="finance-card-network">
-                    {NETWORK_LABELS[tarjeta.red] ||
-                      tarjeta.red ||
-                      "CARD"}
+            <div key={t.id} className={"credit-card" + (t.en_rojo ? " rojo" : "")}>
+              <div className="credit-card-top">
+                <div>
+                  <p className="cc-label">Gastado en este ciclo</p>
+                  <p className="cc-monto">${gastado.toFixed(2)}</p>
+                </div>
+                <div className="cc-top-right">
+                  <span className="cc-badge">
+                    {t.en_rojo && <AlertTriangle size={11} />}
+                    {t.en_rojo ? "Excedido" : "Al día"}
                   </span>
+                  <div className="cc-chip" />
                 </div>
-
-                <div className="finance-card-main">
-                  <p className="finance-card-label">
-                    {tarjeta.nombre}
-                  </p>
-
-                  <h3>
-                    ${gastado.toFixed(2)}
-                  </h3>
-
-                  <p className="finance-card-description">
-                    gastado en este ciclo
-                  </p>
-                </div>
-
-                <div className="finance-card-progress-area">
-                  <div className="finance-card-progress-info">
-                    <span>Uso del límite</span>
-
-                    <strong>
-                      {porcentaje.toFixed(0)}%
-                    </strong>
-                  </div>
-
-                  <div className="finance-card-progress">
-                    <div
-                      className="finance-card-progress-fill"
-                      style={{
-                        width: `${porcentaje}%`,
-                      }}
-                    />
-                  </div>
-                </div>
-
-                <div className="finance-card-footer">
-                  <div className="finance-card-info">
-                    <span>
-                      <CalendarDays size={13} />
-                      Corte
-                    </span>
-
-                    <strong>
-                      Día {tarjeta.dia_corte}
-                    </strong>
-                  </div>
-
-                  <div className="finance-card-info align-right">
-                    <span>
-                      {excedido && (
-                        <AlertTriangle size={13} />
-                      )}
-
-                      Disponible
-                    </span>
-
-                    <strong>
-                      ${disponible.toFixed(2)}
-                    </strong>
-                  </div>
-                </div>
-
               </div>
-            </article>
+
+              <div className="cc-progreso">
+                <div className="cc-progreso-info">
+                  <span>Uso del límite</span>
+                  <span>{porcentaje.toFixed(0)}%</span>
+                </div>
+                <div className="cc-progreso-barra">
+                  <div className="cc-progreso-fill" style={{ width: `${porcentaje}%` }} />
+                </div>
+              </div>
+
+              <div className="credit-card-bottom">
+                <div>
+                  <p className="cc-mini-label">Corte · disponible</p>
+                  <p className="cc-mini-valor">
+                    Día {t.dia_corte} · faltan {t.dias_para_corte}d · ${disponible.toFixed(2)}
+                  </p>
+                </div>
+                <div style={{ textAlign: "right" }}>
+                  <p className="cc-mini-label">Tarjeta</p>
+                  <p className="cc-nombre">{t.nombre}</p>
+                  {red && <p className="cc-red">{red}</p>}
+                </div>
+              </div>
+            </div>
           );
         })}
       </div>
 
       {tarjetas.length > 1 && (
-        <div className="cards-pagination">
-          {tarjetas.map((tarjeta, index) => (
-            <button
-              key={tarjeta.id}
-              type="button"
-              className={`cards-pagination-dot ${
-                index === activo ? "active" : ""
-              }`}
-              onClick={() => irA(index)}
-              aria-label={`Ver tarjeta ${index + 1}`}
-            />
-          ))}
-        </div>
+        <>
+          <div className="carousel-dots">
+            {tarjetas.map((_, i) => (
+              <button
+                key={i}
+                className={"dot" + (i === activo ? " activo" : "")}
+                onClick={() => irA(i)}
+                aria-label={`Ir a tarjeta ${i + 1}`}
+              />
+            ))}
+          </div>
+          <p className="carousel-hint">Desliza para ver la siguiente tarjeta</p>
+        </>
       )}
-    </section>
+    </div>
   );
 }

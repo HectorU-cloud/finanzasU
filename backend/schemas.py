@@ -128,6 +128,7 @@ class GastoCompartidoOut(BaseModel):
 
 class DivisionGastoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
+    id: int
     usuario_id: int
     monto: Decimal
     pagado: bool

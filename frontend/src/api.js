@@ -64,6 +64,18 @@ export const api = {
   actualizarTarjeta: (id, cambios) =>
     request(`/tarjetas/${id}`, { method: "PUT", body: JSON.stringify(cambios) }),
   eliminarTarjeta: (id) => request(`/tarjetas/${id}`, { method: "DELETE" }),
+
+  getGrupos: () => request("/grupos"),
+  crearGrupo: (nombre) => request("/grupos", { method: "POST", body: JSON.stringify({ nombre }) }),
+  unirseGrupo: (codigo) =>
+    request(`/grupos/unirse?codigo=${encodeURIComponent(codigo)}`, { method: "POST" }),
+  getGastosGrupo: (grupoId) => request(`/grupos/${grupoId}/gastos`),
+  getSaldosGrupo: (grupoId) => request(`/grupos/${grupoId}/saldos`),
+  crearGastoCompartido: (datos) =>
+    request("/gastos-compartidos", { method: "POST", body: JSON.stringify(datos) }),
+  marcarDivisionPagada: (divisionId) =>
+    request(`/divisiones/${divisionId}/pagar`, { method: "PATCH" }),
+
   exportarGastos: async (desde, hasta) => {
     const headers = {};
     if (authToken) headers.Authorization = `Bearer ${authToken}`;
