@@ -149,171 +149,6 @@ body {
   font-family: var(--font-body);
 }
 
-/* Card carousel (tarjetas estilo bancario) */
-.carousel {
-  margin: 22px 0 20px;
-}
-
-.carousel-track {
-  display: flex;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
-}
-
-.carousel-track::-webkit-scrollbar {
-  display: none;
-}
-
-.credit-card {
-  flex: 0 0 100%;
-  scroll-snap-align: center;
-  border-radius: var(--radius-lg);
-  padding: 22px;
-  min-height: 160px;
-  position: relative;
-  color: #f4efe3;
-  background: var(--ink);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.credit-card.rojo {
-  background: var(--danger);
-}
-
-.credit-card-top {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-}
-
-.cc-label {
-  font-size: 12px;
-  opacity: 0.7;
-  margin: 0 0 6px;
-}
-
-.cc-monto {
-  font-family: var(--font-display);
-  font-size: 28px;
-  font-weight: 600;
-  margin: 0;
-  font-variant-numeric: tabular-nums;
-}
-
-.cc-top-right {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 12px;
-}
-
-.cc-badge {
-  font-size: 10px;
-  font-weight: 600;
-  padding: 3px 9px;
-  border-radius: 20px;
-  background: rgba(244, 239, 227, 0.15);
-  white-space: nowrap;
-  letter-spacing: 0.02em;
-}
-
-.cc-chip {
-  width: 34px;
-  height: 25px;
-  border-radius: 4px;
-  background: linear-gradient(135deg, #d9c48a 0%, #b3944f 100%);
-  position: relative;
-}
-
-.cc-chip::before,
-.cc-chip::after {
-  content: "";
-  position: absolute;
-  left: 5px;
-  right: 5px;
-  height: 1px;
-  background: rgba(0, 0, 0, 0.25);
-}
-
-.cc-chip::before {
-  top: 8px;
-}
-
-.cc-chip::after {
-  top: 16px;
-}
-
-.credit-card-bottom {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-}
-
-.cc-mini-label {
-  font-size: 10px;
-  opacity: 0.65;
-  text-transform: uppercase;
-  letter-spacing: 0.05em;
-  margin: 0 0 3px;
-}
-
-.cc-mini-valor {
-  font-family: var(--font-mono);
-  font-size: 12px;
-  font-weight: 500;
-  margin: 0;
-}
-
-.cc-nombre {
-  font-family: var(--font-display);
-  font-size: 16px;
-  font-weight: 600;
-  margin: 0;
-}
-
-.cc-red {
-  font-size: 11px;
-  font-weight: 500;
-  font-style: italic;
-  letter-spacing: 0.03em;
-  margin: 2px 0 0;
-  opacity: 0.85;
-}
-
-.carousel-dots {
-  display: flex;
-  justify-content: center;
-  gap: 6px;
-  margin-top: 10px;
-}
-
-.dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  border: none;
-  padding: 0;
-  background: var(--border);
-  cursor: pointer;
-}
-
-.dot.activo {
-  background: var(--brand);
-  width: 16px;
-  border-radius: 4px;
-}
-
-.carousel-hint {
-  text-align: center;
-  font-size: 11px;
-  color: var(--ink-faint);
-  margin: 6px 0 0;
-}
-
 /* Paneles genéricos */
 .panel {
   border: 1px solid var(--border);
@@ -351,78 +186,6 @@ body {
 
 .panel-body {
   margin-top: 14px;
-}
-
-/* Gestión de tarjetas */
-.tarjeta-row {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--surface-alt);
-}
-
-.tarjeta-row:last-of-type {
-  border-bottom: none;
-}
-
-.tarjeta-row input[type="text"] {
-  flex: 1;
-  min-width: 0;
-}
-
-.tarjeta-row input[type="number"] {
-  width: 60px;
-}
-
-.tarjeta-row .corte-label {
-  font-size: 12px;
-  color: var(--ink-faint);
-  white-space: nowrap;
-}
-
-.tarjeta-row .acciones-tarjeta {
-  display: flex;
-  gap: 4px;
-}
-
-.mini-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-sm);
-  border: none;
-  background: transparent;
-  color: var(--ink-faint);
-  cursor: pointer;
-}
-
-.mini-btn:hover {
-  background: var(--surface-alt);
-  color: var(--ink);
-}
-
-.mini-btn.peligro:hover {
-  background: var(--danger-soft);
-  color: var(--danger);
-}
-
-.agregar-tarjeta {
-  display: flex;
-  gap: 8px;
-  margin-top: 10px;
-  flex-wrap: wrap;
-}
-
-.agregar-tarjeta input[type="text"] {
-  flex: 1;
-  min-width: 120px;
-}
-
-.agregar-tarjeta input[type="number"] {
-  width: 60px;
 }
 
 /* Formularios */
@@ -569,6 +332,30 @@ ul.gastos .acciones .monto {
   font-weight: 600;
 }
 
+/* Botones mini */
+.mini-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: transparent;
+  color: var(--ink-faint);
+  cursor: pointer;
+}
+
+.mini-btn:hover {
+  background: var(--surface-alt);
+  color: var(--ink);
+}
+
+.mini-btn.peligro:hover {
+  background: var(--danger-soft);
+  color: var(--danger);
+}
+
 /* Exportar */
 .exportar-fila {
   display: flex;
@@ -659,4 +446,624 @@ ul.gastos .acciones .monto {
   cursor: pointer;
   padding: 0;
   font-size: 13px;
+}
+
+/* ============================================================
+   NUEVO DISEÑO — Carrusel de tarjetas (CardCarousel.jsx)
+   ============================================================ */
+.cards-section {
+  margin: 24px 0 22px;
+}
+
+.section-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.section-heading h2 {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--ink);
+}
+
+.section-kicker {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  color: var(--ink-faint);
+  margin: 0 0 4px;
+}
+
+.cards-navigation {
+  display: flex;
+  gap: 6px;
+}
+
+.cards-nav-button {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cards-nav-button:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+/* Pista deslizable */
+.cards-carousel-track {
+  display: flex;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  gap: 14px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.cards-carousel-track::-webkit-scrollbar {
+  display: none;
+}
+
+/* Tarjeta bancaria */
+.finance-card {
+  flex: 0 0 100%;
+  scroll-snap-align: center;
+  border-radius: 18px;
+  min-height: 215px;
+  position: relative;
+  overflow: hidden;
+  color: #f8fafc;
+  box-shadow: 0 12px 28px rgba(38, 32, 25, 0.22);
+  display: flex;
+}
+
+.finance-card-glow {
+  position: absolute;
+  top: -70px;
+  right: -50px;
+  width: 220px;
+  height: 220px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  pointer-events: none;
+}
+
+.finance-card-content {
+  position: relative;
+  flex: 1;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.finance-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.finance-card-brand {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.finance-card-brand-icon {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: rgba(255, 255, 255, 0.18);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.finance-card-network {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.14em;
+  opacity: 0.85;
+}
+
+.finance-card-main .finance-card-label {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 500;
+  opacity: 0.92;
+}
+
+.finance-card-main h3 {
+  font-family: var(--font-display);
+  font-size: 34px;
+  font-weight: 600;
+  margin: 2px 0 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.finance-card-description {
+  margin: 2px 0 0;
+  font-size: 12px;
+  opacity: 0.75;
+}
+
+.finance-card-progress-area {
+  margin-top: auto;
+}
+
+.finance-card-progress-info {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  margin-bottom: 6px;
+}
+
+.finance-card-progress {
+  height: 6px;
+  border-radius: 99px;
+  background: rgba(255, 255, 255, 0.22);
+  overflow: hidden;
+}
+
+.finance-card-progress-fill {
+  height: 100%;
+  border-radius: 99px;
+  background: #ffffff;
+  transition: width 0.3s ease;
+}
+
+.finance-card-footer {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding-top: 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.18);
+}
+
+.finance-card-info > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.finance-card-info strong {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+
+.finance-card-info.align-right {
+  text-align: right;
+}
+
+/* Paginación */
+.cards-pagination {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  margin-top: 12px;
+}
+
+.cards-pagination-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 99px;
+  border: none;
+  padding: 0;
+  background: var(--border);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cards-pagination-dot.active {
+  width: 18px;
+  background: var(--brand);
+}
+
+/* Estados vacíos del carrusel */
+.cards-empty-state {
+  text-align: center;
+  padding: 34px 20px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.cards-empty-icon {
+  width: 54px;
+  height: 54px;
+  border-radius: 14px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 14px;
+}
+
+.cards-empty-state h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-family: var(--font-display);
+}
+
+.cards-empty-state p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+/* ============================================================
+   NUEVO DISEÑO — Administrar tarjetas (TarjetasPanel.jsx)
+   ============================================================ */
+.manage-cards-section {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  margin-bottom: 18px;
+  overflow: hidden;
+}
+
+.manage-cards-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 18px;
+}
+
+.clickable-header {
+  cursor: pointer;
+  user-select: none;
+}
+
+.manage-cards-header h2 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.manage-cards-description {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.manage-cards-header-right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: none;
+}
+
+.cards-count {
+  font-size: 12px;
+  color: var(--ink-soft);
+  background: var(--surface-alt);
+  padding: 4px 11px;
+  border-radius: 99px;
+  white-space: nowrap;
+}
+
+.manage-cards-toggle {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.manage-cards-toggle:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.manage-chevron-open {
+  transform: rotate(180deg);
+}
+
+.manage-cards-content {
+  padding: 0 18px 18px;
+}
+
+/* Lista de tarjetas */
+.managed-cards-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.managed-card-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border: 1px solid var(--surface-alt);
+  border-radius: var(--radius-md);
+  padding: 12px;
+  background: var(--bg);
+}
+
+.managed-card-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 11px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.managed-card-icon.theme-1 { background: #eef2ff; color: #4338ca; }
+.managed-card-icon.theme-2 { background: #ecfdf5; color: #0f766e; }
+.managed-card-icon.theme-3 { background: #fff1f2; color: #be123c; }
+.managed-card-icon.theme-4 { background: #fffbeb; color: #b45309; }
+
+.managed-card-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.managed-card-content h3 {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.managed-card-content p {
+  margin: 3px 0 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.card-meta-separator {
+  margin: 0 6px;
+  color: var(--ink-faint);
+}
+
+.managed-card-actions {
+  display: flex;
+  gap: 6px;
+  flex: none;
+}
+
+.card-action-button {
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--ink-soft);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-action-button.edit:hover {
+  color: var(--brand);
+  border-color: var(--brand);
+}
+
+.card-action-button.delete:hover {
+  color: var(--danger);
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+/* Modo edición */
+.managed-card-edit {
+  width: 100%;
+}
+
+.managed-card-edit-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.managed-card-edit-header h3 {
+  margin: 2px 0 0;
+  font-size: 15px;
+}
+
+.edit-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--ink-faint);
+}
+
+.managed-card-edit-fields {
+  display: grid;
+  grid-template-columns: 1fr 90px 1fr;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.managed-card-edit-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* Campos modernos (etiqueta con icono) */
+.modern-field label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-bottom: 5px;
+}
+
+/* Botones de acción */
+.secondary-action-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--ink-soft);
+  font-size: 13px;
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+.secondary-action-button:hover {
+  border-color: var(--ink-soft);
+  color: var(--ink);
+}
+
+.primary-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--brand);
+  color: var(--surface);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+.primary-action-button:hover {
+  background: #8a3717;
+}
+
+/* Estado vacío */
+.managed-cards-empty {
+  text-align: center;
+  padding: 28px 20px;
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  margin-bottom: 16px;
+}
+
+.managed-cards-empty-icon {
+  width: 50px;
+  height: 50px;
+  border-radius: 13px;
+  background: var(--brand-soft);
+  color: var(--brand);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.managed-cards-empty h3 {
+  margin: 0 0 6px;
+  font-size: 15px;
+  font-family: var(--font-display);
+}
+
+.managed-cards-empty p {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+/* Caja de nueva tarjeta */
+.new-card-box {
+  border: 1px dashed var(--border);
+  border-radius: var(--radius-md);
+  padding: 16px;
+}
+
+.new-card-heading {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.new-card-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+}
+
+.new-card-heading h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.new-card-heading p {
+  margin: 2px 0 0;
+  font-size: 12px;
+  color: var(--ink-soft);
+}
+
+.new-card-form {
+  display: grid;
+  grid-template-columns: 1fr 110px 1fr auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.new-card-submit {
+  height: 35px;
+  white-space: nowrap;
+}
+
+.card-form-error {
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--danger);
+  background: var(--danger-soft);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+}
+
+/* Responsive */
+@media (max-width: 560px) {
+  .new-card-form {
+    grid-template-columns: 1fr;
+  }
+
+  .managed-card-edit-fields {
+    grid-template-columns: 1fr;
+  }
+
+  .finance-card-main h3 {
+    font-size: 30px;
+  }
 }
