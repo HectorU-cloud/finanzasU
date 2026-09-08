@@ -40,3 +40,60 @@ class Gasto(Base):
     descripcion = Column(String(150), nullable=True)
 
     tarjeta = relationship("Tarjeta", back_populates="gastos")
+
+# models.py (nuevas clases)
+
+class Grupo(Base):
+    __tablename__ = "grupos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(80), nullable=False)
+    creado_por_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    codigo_invitacion = Column(String(20), unique=True, index=True)  # para unirse fácilmente
+
+    creador = relationship("Usuario", foreign_keys=[creado_por_id])
+    miembros = relationship("MiembroGrupo", back_populates="grupo", cascade="all, delete-orphan")
+    gastos_compartidos = relationship("GastoCompartido", back_populates="grupo", cascade="all, delete-orphan")
+
+
+class MiembroGrupo(Base):
+    __tablename__ = "miembros_grupo"
+
+    id = Column(Integer, primary_key=True, index=True)
+    grupo_id = Column(Integer, ForeignKey("grupos.id"), nullable=False)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    rol = Column(String(20), default="miembro")  # "admin" o "miembro"
+    se_unio_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    grupo = relationship("Grupo", back_populates="miembros")
+    usuario = relationship("Usuario")
+
+
+class GastoCompartido(Base):
+    __tablename__ = "gastos_compartidos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    grupo_id = Column(Integer, ForeignKey("grupos.id"), nullable=False)
+    pagado_por_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    fecha = Column(Date, nullable=False)
+    monto = Column(Numeric(10, 2), nullable=False)
+    descripcion = Column(String(150), nullable=True)
+    categoria = Column(String(50), nullable=True)  # opcional
+
+    grupo = relationship("Grupo", back_populates="gastos_compartidos")
+    pagado_por = relationship("Usuario", foreign_keys=[pagado_por_id])
+    divisiones = relationship("DivisionGasto", back_populates="gasto", cascade="all, delete-orphan")
+
+
+class DivisionGasto(Base):
+    __tablename__ = "divisiones_gasto"
+
+    id = Column(Integer, primary_key=True, index=True)
+    gasto_compartido_id = Column(Integer, ForeignKey("gastos_compartidos.id"), nullable=False)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    monto = Column(Numeric(10, 2), nullable=False)  # lo que debe este usuario
+    pagado = Column(Integer, default=0)  # booleano: 0=pendiente, 1=liquidado
+
+    gasto = relationship("GastoCompartido", back_populates="divisiones")
+    usuario = relationship("Usuario")
