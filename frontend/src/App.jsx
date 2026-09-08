@@ -1,9 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import {PiggyBank, Plus, Trash2, ChevronLeft, ChevronRight, Download, TrendingDown, CreditCard, ReceiptText,} from "lucide-react";
+import { PiggyBank, Plus, Trash2, ChevronLeft, ChevronRight, Download } from "lucide-react";
 import { api, hayTokenGuardado, setAuthToken } from "./api.js";
 import TarjetasPanel from "./TarjetasPanel.jsx";
 import CardCarousel from "./CardCarousel.jsx";
-import AppLayout from "./components/layout/AppLayout.jsx";
 import AuthScreen from "./AuthScreen.jsx";
 
 function todayISO() {
@@ -36,7 +35,6 @@ export default function App() {
     setUsuario(null);
   }
 
-  const [currentView, setCurrentView] = useState("inicio");
   const hoy = new Date();
   const [periodo, setPeriodo] = useState({ anio: hoy.getFullYear(), mes: hoy.getMonth() + 1 });
   const esMesActual = periodo.anio === hoy.getFullYear() && periodo.mes === hoy.getMonth() + 1;
@@ -177,320 +175,145 @@ export default function App() {
     return <AuthScreen onAutenticado={setUsuario} />;
   }
 
-  function renderPlaceholder(title, description) {
   return (
-    <div className="dashboard">
-      <section className="page-placeholder">
-        <span className="section-kicker">FINANZASU</span>
-        <h1>{title}</h1>
-        <p>{description}</p>
-      </section>
-    </div>
-  );
-}
-
-  return (
-    <>
-    <div className="app-topbar">
-      <span className="quien">Hola, {usuario.nombre}</span>
-      <button onClick={handleLogout}>Cerrar sesión</button>
-    </div>
-    <AppLayout
-    currentView={currentView}
-    onNavigate={setCurrentView}
-    >
-      {currentView === "inicio" && (
-      <div className="dashboard">
-        <header className="dashboard-header">
-  <div>
-    <p className="eyebrow">
-      {NOMBRES_MES[periodo.mes - 1]} de {periodo.anio}
-      {esMesActual && " · Mes actual"}
-    </p>
-
-    <h1>
-      Hola, Héctor <span>👋</span>
-    </h1>
-
-    <p className="dashboard-subtitle">
-      Aquí tienes un resumen de tus finanzas.
-    </p>
-  </div>
-
-  <div className="month-navigation">
-    <button
-      className="icon-btn"
-      onClick={() => cambiarMes(-1)}
-      title="Mes anterior"
-    >
-      <ChevronLeft size={18} />
-    </button>
-
-    <button
-      className="icon-btn"
-      onClick={() => cambiarMes(1)}
-      title="Mes siguiente"
-    >
-      <ChevronRight size={18} />
-    </button>
-  </div>
-</header>
-
-        <CardCarousel tarjetas={resumen?.tarjetas} />
-
-        <section className={`financial-overview ${enRojo ? "danger" : ""}`}>
-  <div className="overview-content">
-
-    <div className="overview-header">
-      <div className="overview-icon">
-        <TrendingDown size={22} />
-      </div>
-
-      <span>
-        {enRojo
-          ? "Has superado tu límite mensual"
-          : "Tus gastos del mes"}
-      </span>
-    </div>
-
-    <div className="overview-amount">
-      ${Number(resumen?.total_mes ?? 0).toFixed(2)}
-    </div>
-
-    <div className="overview-footer">
-      <div className="budget-progress">
-        <div
-          className="budget-progress-fill"
-          style={{
-            width: `${Math.min(
-              (Number(resumen?.total_mes ?? 0) /
-                Number(resumen?.limite ?? 350)) *
-                100,
-              100
-            )}%`,
-          }}
-        />
-      </div>
-
-      <p>
-        Límite mensual:
-        <strong>
-          ${Number(resumen?.limite ?? 350).toFixed(2)}
-        </strong>
-      </p>
-    </div>
-
-  </div>
-
-  <div className="overview-decoration" />
-</section>
-
-<section className="quick-stats">
-
-  <div className="quick-stat-card">
-    <div className="quick-stat-icon purple">
-      <CreditCard size={20} />
-    </div>
-
-    <div>
-      <span>Tarjetas activas</span>
-      <strong>{tarjetas.length}</strong>
-    </div>
-  </div>
-
-  <div className="quick-stat-card">
-    <div className="quick-stat-icon blue">
-      <ReceiptText size={20} />
-    </div>
-
-    <div>
-      <span>Movimientos</span>
-      <strong>{gastos.length}</strong>
-    </div>
-  </div>
-
-</section>
-
-        <TarjetasPanel tarjetas={tarjetas} onChange={cargarDatos} />
-
-        <section className="expense-form-card">
-  <div className="expense-form-header">
-    <div>
-      <span className="section-kicker">NUEVO MOVIMIENTO</span>
-      <h2>Registrar gasto</h2>
-      <p>Agrega una compra a tus gastos del mes.</p>
-    </div>
-
-    <div className="expense-form-icon">
-      <PiggyBank size={21} />
-    </div>
-  </div>
-
-  <form className="expense-form" onSubmit={handleSubmit}>
-    <div className="amount-field">
-      <label htmlFor="monto">Monto</label>
-
-      <div className="amount-input-wrapper">
-        <span>$</span>
-
-        <input
-          id="monto"
-          type="number"
-          min="0"
-          step="0.01"
-          inputMode="decimal"
-          placeholder="0.00"
-          value={form.monto}
-          onChange={(e) =>
-            setForm({ ...form, monto: e.target.value })
-          }
-        />
-      </div>
-    </div>
-
-    <div className="expense-form-grid">
-      <div className="modern-field">
-        <label htmlFor="fecha">Fecha</label>
-
-        <input
-          id="fecha"
-          type="date"
-          value={form.fecha}
-          onChange={(e) =>
-            setForm({ ...form, fecha: e.target.value })
-          }
-        />
-      </div>
-
-      <div className="modern-field">
-        <label htmlFor="tarjeta">Tarjeta</label>
-
-        <select
-          id="tarjeta"
-          value={form.tarjeta_id}
-          onChange={(e) =>
-            setForm({ ...form, tarjeta_id: e.target.value })
-          }
-        >
-          {tarjetas.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.nombre}
-            </option>
-          ))}
-        </select>
-      </div>
-    </div>
-
-    <div className="modern-field">
-      <label htmlFor="descripcion">
-        Descripción
-        <span>Opcional</span>
-      </label>
-
-      <input
-        id="descripcion"
-        type="text"
-        placeholder="Ej. almuerzo, gasolina, supermercado..."
-        value={form.descripcion}
-        onChange={(e) =>
-          setForm({ ...form, descripcion: e.target.value })
-        }
-      />
-    </div>
-
-    {error && (
-      <div className="expense-form-error">
-        {error}
-      </div>
-    )}
-
-    <button className="expense-submit" type="submit">
-      <Plus size={18} />
-      Registrar gasto
-    </button>
-  </form>
-</section>
-
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: 10,
-          }}
-        >
-          <p className="lista-titulo" style={{ marginBottom: 0 }}>
-            Gastos del mes
+    <div className="app">
+      <header className="app-header">
+        <div>
+          <h1 className="wordmark">Control de gastos</h1>
+          <p className="periodo">
+            {NOMBRES_MES[periodo.mes - 1]} de {periodo.anio}
+            {esMesActual && " · mes actual"}
           </p>
-          <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-            <select
-              value={rangoExport}
-              onChange={(e) => setRangoExport(e.target.value)}
-              style={{ width: "auto", fontSize: 12, padding: "6px 8px" }}
-            >
-              <option value="dia">Hoy</option>
-              <option value="semana">Últimos 7 días</option>
-              <option value="mes">
-                {NOMBRES_MES[periodo.mes - 1]} {periodo.anio}
-              </option>
-            </select>
-            <button
-              className="icon-btn"
-              onClick={handleExport}
-              disabled={exportando}
-              title="Descargar CSV"
-            >
-              <Download size={16} />
+        </div>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
+          <div className="quien-sesion">
+            <span className="quien-nombre">Hola, {usuario.nombre}</span>
+            <button className="cerrar-sesion" onClick={handleLogout}>Cerrar sesión</button>
+          </div>
+          <div className="mes-nav">
+            <button className="icon-btn" onClick={() => cambiarMes(-1)} title="Mes anterior">
+              <ChevronLeft size={16} />
+            </button>
+            <button className="icon-btn" onClick={() => cambiarMes(1)} title="Mes siguiente">
+              <ChevronRight size={16} />
             </button>
           </div>
         </div>
-        {gastos.length === 0 ? (
-          <p className="vacio">Todavía no registras gastos este mes.</p>
-        ) : (
-          <ul className="gastos">
-            {gastos.map((g) => {
-              const tarjeta = tarjetas.find((t) => t.id === g.tarjeta_id);
-              return (
-                <li key={g.id}>
-                  <div className="detalle">
-                    <span className="linea1">
-                      {g.fecha}
-                      <span className="sep">·</span>
-                      {tarjeta?.nombre}
-                    </span>
-                    {g.descripcion && <span className="desc">{g.descripcion}</span>}
-                  </div>
-                  <div className="acciones">
-                    <span className="monto">${Number(g.monto).toFixed(2)}</span>
-                    <button className="mini-btn peligro" onClick={() => handleDelete(g.id)} title="Quitar">
-                      <Trash2 size={15} />
-                    </button>
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
+      </header>
+
+      <CardCarousel tarjetas={resumen?.tarjetas} />
+
+      <div className={"total-bar" + (enRojo ? " rojo" : "")}>
+        <span className="titulo">Total del mes (todas las tarjetas)</span>
+        <span className="monto">
+          ${Number(resumen?.total_mes ?? 0).toFixed(2)}{" "}
+          <span className="limite">/ ${Number(resumen?.limite ?? 350)}</span>
+        </span>
       </div>
+
+      <TarjetasPanel tarjetas={tarjetas} onChange={cargarDatos} />
+
+      <div className="panel">
+        <form onSubmit={handleSubmit}>
+          <p className="titulo">
+            <PiggyBank size={16} />
+            Registrar gasto
+          </p>
+          <div className="form-row">
+            <div>
+              <label>Fecha</label>
+              <input
+                type="date"
+                value={form.fecha}
+                onChange={(e) => setForm({ ...form, fecha: e.target.value })}
+              />
+            </div>
+            <div>
+              <label>Tarjeta</label>
+              <select
+                value={form.tarjeta_id}
+                onChange={(e) => setForm({ ...form, tarjeta_id: e.target.value })}
+              >
+                {tarjetas.map((t) => (
+                  <option key={t.id} value={t.id}>
+                    {t.nombre}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="form-row">
+            <div>
+              <label>Monto</label>
+              <input
+                type="number"
+                step="0.01"
+                placeholder="0.00"
+                value={form.monto}
+                onChange={(e) => setForm({ ...form, monto: e.target.value })}
+              />
+            </div>
+            <div>
+              <label>Descripción (opcional)</label>
+              <input
+                type="text"
+                placeholder="ej. almuerzo"
+                value={form.descripcion}
+                onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
+              />
+            </div>
+          </div>
+          {error && <p className="error">{error}</p>}
+          <button className="submit" type="submit">
+            <Plus size={16} />
+            Agregar gasto
+          </button>
+        </form>
+      </div>
+
+      <div className="exportar-fila">
+        <p className="lista-titulo" style={{ marginBottom: 0 }}>Gastos del mes</p>
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          <select value={rangoExport} onChange={(e) => setRangoExport(e.target.value)}>
+            <option value="dia">Hoy</option>
+            <option value="semana">Últimos 7 días</option>
+            <option value="mes">
+              {NOMBRES_MES[periodo.mes - 1]} {periodo.anio}
+            </option>
+          </select>
+          <button className="icon-btn" onClick={handleExport} disabled={exportando} title="Descargar CSV">
+            <Download size={15} />
+          </button>
+        </div>
+      </div>
+
+      {gastos.length === 0 ? (
+        <p className="vacio">Todavía no registras gastos este mes.</p>
+      ) : (
+        <ul className="gastos">
+          {gastos.map((g) => {
+            const tarjeta = tarjetas.find((t) => t.id === g.tarjeta_id);
+            return (
+              <li key={g.id}>
+                <div className="detalle">
+                  <span className="linea1">
+                    {g.fecha}
+                    <span className="sep">·</span>
+                    {tarjeta?.nombre}
+                  </span>
+                  {g.descripcion && <span className="desc">{g.descripcion}</span>}
+                </div>
+                <div className="acciones">
+                  <span className="monto">${Number(g.monto).toFixed(2)}</span>
+                  <button className="mini-btn peligro" onClick={() => handleDelete(g.id)} title="Quitar">
+                    <Trash2 size={15} />
+                  </button>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
       )}
-      {currentView === "tarjetas" &&
-    renderPlaceholder(
-      "Mis tarjetas",
-      "Administra tus tarjetas, días de corte y configuración."
-    )}
-
-  {currentView === "movimientos" &&
-    renderPlaceholder(
-      "Movimientos",
-      "Consulta, registra y administra todos tus gastos."
-    )}
-
-  {currentView === "analisis" &&
-    renderPlaceholder(
-      "Análisis",
-      "Aquí veremos cómo se distribuyen y evolucionan tus gastos."
-    )}
-    </AppLayout>
-    </>
+    </div>
   );
 }

@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { Wallet } from "lucide-react";
 import { api, setAuthToken } from "./api.js";
 
 export default function AuthScreen({ onAutenticado }) {
@@ -54,10 +53,8 @@ export default function AuthScreen({ onAutenticado }) {
     <div className="auth-wrap">
       <div className="auth-card">
         <div className="auth-brand">
-          <span className="brand-icon">
-            <Wallet size={20} />
-          </span>
           <h1>Control de gastos</h1>
+          <p>Tus finanzas, sin depender de nadie más.</p>
         </div>
 
         <div className="auth-tabs">
