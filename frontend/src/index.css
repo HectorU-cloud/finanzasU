@@ -3732,3 +3732,117 @@ ul.gastos .acciones .monto {
     font-size: 25px;
   }
 }
+/* Auth (login / registro) — estilo provisional, se pule en el rediseño */
+.auth-wrap {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: var(--bg);
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 380px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 28px 26px;
+}
+
+.auth-brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+}
+
+.auth-brand h1 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  font-weight: 600;
+  margin: 0;
+}
+
+.auth-tabs {
+  display: flex;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: 20px;
+}
+
+.auth-tab {
+  flex: 1;
+  padding: 9px 0;
+  font-size: 13px;
+  font-weight: 500;
+  border: none;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+}
+
+.auth-tab.activo {
+  background: var(--brand);
+  color: white;
+}
+
+.auth-form > div {
+  margin-bottom: 14px;
+}
+
+.auth-form label {
+  display: block;
+  font-size: 12px;
+  color: var(--ink-soft);
+  margin-bottom: 4px;
+}
+
+.auth-switch {
+  text-align: center;
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin: 18px 0 0;
+}
+
+.auth-switch button {
+  background: none;
+  border: none;
+  color: var(--brand);
+  font-weight: 600;
+  cursor: pointer;
+  padding: 0;
+  font-size: 13px;
+}
+
+.app-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 10px 18px 0;
+  max-width: 680px;
+  margin: 0 auto;
+}
+
+.app-topbar .quien {
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+
+.app-topbar button {
+  font-size: 12px;
+  color: var(--ink-soft);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.app-topbar button:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}

@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from "react";
 import {PiggyBank, Plus, Trash2, ChevronLeft, ChevronRight, Download, TrendingDown, CreditCard, ReceiptText,} from "lucide-react";
-import { api } from "./api.js";
+import { api, hayTokenGuardado, setAuthToken } from "./api.js";
 import TarjetasPanel from "./TarjetasPanel.jsx";
 import CardCarousel from "./CardCarousel.jsx";
 import AppLayout from "./components/layout/AppLayout.jsx";
+import AuthScreen from "./AuthScreen.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -15,6 +16,26 @@ const NOMBRES_MES = [
 ];
 
 export default function App() {
+  const [usuario, setUsuario] = useState(null);
+  const [verificandoSesion, setVerificandoSesion] = useState(true);
+
+  useEffect(() => {
+    if (!hayTokenGuardado()) {
+      setVerificandoSesion(false);
+      return;
+    }
+    api
+      .yo()
+      .then(setUsuario)
+      .catch(() => setAuthToken(null))
+      .finally(() => setVerificandoSesion(false));
+  }, []);
+
+  function handleLogout() {
+    setAuthToken(null);
+    setUsuario(null);
+  }
+
   const [currentView, setCurrentView] = useState("inicio");
   const hoy = new Date();
   const [periodo, setPeriodo] = useState({ anio: hoy.getFullYear(), mes: hoy.getMonth() + 1 });
@@ -48,9 +69,15 @@ export default function App() {
     }));
   }, [periodo]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  function manejarError(err) {
+    setError(err.message);
+    if (err.unauthorized) handleLogout();
+  }
+
   useEffect(() => {
-    cargarDatos().catch((e) => setError(e.message));
-  }, [cargarDatos]);
+    if (!usuario) return;
+    cargarDatos().catch(manejarError);
+  }, [cargarDatos, usuario]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function cambiarMes(delta) {
     setPeriodo((p) => {
@@ -99,7 +126,7 @@ export default function App() {
       a.remove();
       URL.revokeObjectURL(url);
     } catch (err) {
-      setError(err.message);
+      manejarError(err);
     } finally {
       setExportando(false);
     }
@@ -123,7 +150,7 @@ export default function App() {
       setForm((f) => ({ ...f, monto: "", descripcion: "" }));
       await cargarDatos();
     } catch (err) {
-      setError(err.message);
+      manejarError(err);
     }
   }
 
@@ -132,11 +159,23 @@ export default function App() {
       await api.eliminarGasto(id);
       await cargarDatos();
     } catch (err) {
-      setError(err.message);
+      manejarError(err);
     }
   }
 
   const enRojo = resumen?.en_rojo ?? false;
+
+  if (verificandoSesion) {
+    return (
+      <div className="auth-wrap">
+        <p style={{ color: "var(--ink-soft)", fontSize: 14 }}>Cargando...</p>
+      </div>
+    );
+  }
+
+  if (!usuario) {
+    return <AuthScreen onAutenticado={setUsuario} />;
+  }
 
   function renderPlaceholder(title, description) {
   return (
@@ -151,6 +190,11 @@ export default function App() {
 }
 
   return (
+    <>
+    <div className="app-topbar">
+      <span className="quien">Hola, {usuario.nombre}</span>
+      <button onClick={handleLogout}>Cerrar sesión</button>
+    </div>
     <AppLayout
     currentView={currentView}
     onNavigate={setCurrentView}
@@ -447,5 +491,6 @@ export default function App() {
       "Aquí veremos cómo se distribuyen y evolucionan tus gastos."
     )}
     </AppLayout>
+    </>
   );
 }
