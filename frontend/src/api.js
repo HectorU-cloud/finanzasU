@@ -68,6 +68,8 @@ export const api = {
   getCategorias: () => request("/categorias"),
   crearGasto: (gasto) =>
     request("/gastos", { method: "POST", body: JSON.stringify(gasto) }),
+  actualizarGasto: (id, cambios) =>
+    request(`/gastos/${id}`, { method: "PUT", body: JSON.stringify(cambios) }),
   eliminarGasto: (id) => request(`/gastos/${id}`, { method: "DELETE" }),
   crearTarjeta: (tarjeta) =>
     request("/tarjetas", { method: "POST", body: JSON.stringify(tarjeta) }),
@@ -88,10 +90,12 @@ export const api = {
   salirDeGrupo: (grupoId) => request(`/grupos/${grupoId}/salir`, { method: "POST" }),
   eliminarGrupo: (grupoId) => request(`/grupos/${grupoId}`, { method: "DELETE" }),
 
-  exportarGastos: async (desde, hasta) => {
+  exportarGastos: async (desde, hasta, categoria = null) => {
     const headers = {};
     if (authToken) headers.Authorization = `Bearer ${authToken}`;
-    const res = await fetch(`${BASE}/gastos/export?desde=${desde}&hasta=${hasta}`, { headers });
+    let url = `${BASE}/gastos/export?desde=${desde}&hasta=${hasta}`;
+    if (categoria) url += `&categoria=${encodeURIComponent(categoria)}`;
+    const res = await fetch(url, { headers });
     if (res.status === 401) {
       setAuthToken(null);
       const err = new Error("Tu sesión expiró. Inicia sesión de nuevo.");

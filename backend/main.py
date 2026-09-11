@@ -215,6 +215,28 @@ def eliminar_tarjeta(
 
 # ---------- Gastos ----------
 
+@app.get("/api/gastos", response_model=list[schemas.Gasto])
+def listar_gastos(
+    anio: int | None = None,
+    mes: int | None = None,
+    categoria: str | None = None,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    query = (
+        db.query(models.Gasto)
+        .join(models.Tarjeta)
+        .filter(models.Tarjeta.usuario_id == usuario.id)
+    )
+    if anio is not None:
+        query = query.filter(extract("year", models.Gasto.fecha) == anio)
+    if mes is not None:
+        query = query.filter(extract("month", models.Gasto.fecha) == mes)
+    if categoria is not None:
+        query = query.filter(models.Gasto.categoria == categoria)
+    return query.order_by(models.Gasto.fecha.desc()).all()
+
+
 @app.post("/api/gastos", response_model=schemas.Gasto)
 def crear_gasto(
     gasto: schemas.GastoCreate,
@@ -227,7 +249,39 @@ def crear_gasto(
     db.commit()
     db.refresh(nuevo)
     return nuevo
+@app.put("/api/gastos/{gasto_id}", response_model=schemas.Gasto)
+def actualizar_gasto(
+    gasto_id: int,
+    payload: schemas.GastoUpdate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    gasto = (
+        db.query(models.Gasto)
+        .join(models.Tarjeta)
+        .filter(models.Gasto.id == gasto_id, models.Tarjeta.usuario_id == usuario.id)
+        .first()
+    )
+    if not gasto:
+        raise HTTPException(status_code=404, detail="Gasto no encontrado")
 
+    # Si cambia la tarjeta, verificar que sea suya
+    if payload.tarjeta_id is not None and payload.tarjeta_id != gasto.tarjeta_id:
+        tarjeta_del_usuario(db, payload.tarjeta_id, usuario)
+        gasto.tarjeta_id = payload.tarjeta_id
+
+    if payload.fecha is not None:
+        gasto.fecha = payload.fecha
+    if payload.monto is not None:
+        gasto.monto = payload.monto
+    if payload.descripcion is not None:
+        gasto.descripcion = payload.descripcion
+    if payload.categoria is not None:
+        gasto.categoria = payload.categoria
+
+    db.commit()
+    db.refresh(gasto)
+    return gasto
 
 @app.delete("/api/gastos/{gasto_id}", status_code=204)
 def eliminar_gasto(
@@ -251,13 +305,14 @@ def eliminar_gasto(
 def exportar_gastos(
     desde: date,
     hasta: date,
+    categoria: str | None = None,
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
     if hasta < desde:
         raise HTTPException(status_code=400, detail="El rango de fechas es inválido")
 
-    gastos = (
+    query = (
         db.query(models.Gasto)
         .join(models.Tarjeta)
         .filter(
@@ -265,33 +320,35 @@ def exportar_gastos(
             models.Gasto.fecha >= desde,
             models.Gasto.fecha <= hasta,
         )
-        .order_by(models.Gasto.fecha)
-        .all()
     )
+    if categoria is not None:
+        query = query.filter(models.Gasto.categoria == categoria)
+
+    gastos = query.order_by(models.Gasto.fecha).all()
 
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    writer.writerow(["Fecha", "Tarjeta", "Monto", "Categoría", "Descripción"])   # ← CAMBIO
+    writer.writerow(["Fecha", "Tarjeta", "Monto", "Categoria", "Descripcion"])
     for g in gastos:
         writer.writerow([
             g.fecha.isoformat(),
             g.tarjeta.nombre if g.tarjeta else "",
             f"{g.monto:.2f}",
-            g.categoria or "",      # ← NUEVO
+            g.categoria or "",
             g.descripcion or "",
         ])
     total = sum((g.monto for g in gastos), Decimal("0"))
     writer.writerow([])
-    writer.writerow(["", "", "Total", f"{total:.2f}"])
+    writer.writerow(["Total", "", f"{total:.2f}", "", ""])
     buffer.seek(0)
 
-    nombre_archivo = f"gastos_{desde.isoformat()}_a_{hasta.isoformat()}.csv"
+    sufijo = f"_{categoria}" if categoria else ""
+    nombre_archivo = f"gastos{sufijo}_{desde.isoformat()}_a_{hasta.isoformat()}.csv"
     return StreamingResponse(
         iter([buffer.getvalue()]),
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{nombre_archivo}"'},
     )
-
 
 # ---------- Resumen mensual ----------
 

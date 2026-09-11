@@ -1410,3 +1410,70 @@ ul.gastos .acciones .monto {
   align-items: center;
   gap: 8px;
 }
+
+/* Responsive: en móvil, apilar los campos de formularios */
+@media (max-width: 560px) {
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  .form-row > div {
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  input,
+  select {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Los inputs de fecha se desbordan por el estilo interno de Chrome */
+  input[type="date"] {
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    padding-right: 4px;
+  }
+
+  /* La tarjeta del carrusel no debe cortarse */
+  .credit-card {
+    padding: 18px;
+  }
+}
+
+/* Modal de confirmación (acciones destructivas) */
+.confirm-mensaje {
+  font-size: 14px;
+  color: var(--ink-soft);
+  margin: 4px 0 20px;
+  line-height: 1.5;
+}
+
+.confirm-acciones {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.danger-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--danger);
+  color: var(--surface);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+.danger-action-button:hover {
+  background: #6e1f17;
+}
