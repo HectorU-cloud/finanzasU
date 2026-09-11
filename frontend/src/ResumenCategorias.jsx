@@ -3,16 +3,16 @@ import { PieChart } from "lucide-react";
 import { api } from "./api.js";
 
 const COLORES = {
-  Comida: "#a8461f",
-  Transporte: "#52643c",
-  Hogar: "#8c5a2a",
-  Servicios: "#3f5b7a",
-  Salud: "#8c2a20",
-  Ocio: "#7a4d8c",
-  Compras: "#b38c3c",
-  Educación: "#2f6b5c",
+  Comida: "#d97706",        
+  Transporte: "#2563eb",    
+  Hogar: "#7c3aed",         
+  Servicios: "#0891b2",     
+  Salud: "#dc2626",         
+  Ocio: "#db2777",          
+  Compras: "#65a30d",       
+  Educación: "#0d9488",     
+  Otros: "#6b7280",         
   "Sin categoría": "#a89c86",
-  Otros: "#6e6353",
 };
 
 export default function ResumenCategorias({ anio, mes }) {
