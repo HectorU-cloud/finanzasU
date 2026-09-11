@@ -208,6 +208,7 @@ class GrupoOut(BaseModel):
     nombre: str
     codigo_invitacion: str
     creado_por_id: int
+    limite_mensual : decimal
     miembros: list["MiembroGrupoOut"] = []
 
 
@@ -275,3 +276,16 @@ class SaldoUsuario(BaseModel):
     usuario_id: int
     nombre: str
     debe: Decimal
+
+class GrupoResumenMensual(BaseModel):
+    grupo_id: int
+    anio: int
+    mes: int
+    total_mes: Decimal
+    limite: Decimal
+    porcentaje: float
+    en_rojo: bool
+
+
+class GrupoUpdateLimite(BaseModel):
+    limite_mensual: Decimal = Field(gt=0, le=1000000)
