@@ -1443,3 +1443,37 @@ ul.gastos .acciones .monto {
     padding: 18px;
   }
 }
+
+/* Modal de confirmación (acciones destructivas) */
+.confirm-mensaje {
+  font-size: 14px;
+  color: var(--ink-soft);
+  margin: 4px 0 20px;
+  line-height: 1.5;
+}
+
+.confirm-acciones {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.danger-action-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--danger);
+  color: var(--surface);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: var(--font-body);
+  cursor: pointer;
+}
+
+.danger-action-button:hover {
+  background: #6e1f17;
+}
