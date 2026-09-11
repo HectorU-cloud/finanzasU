@@ -9,6 +9,9 @@ export default function CambiarPasswordModal({ onCerrar }) {
   const [exito, setExito] = useState(false);
 
   async function handleSubmit(e) {
+    <form onSubmit={handleSubmit} className="auth-form" onKeyDown={(e) => {
+  if (e.key === "Escape") onCerrar();
+}}>
     e.preventDefault();
     setError("");
     if (!form.actual || !form.nueva) {
