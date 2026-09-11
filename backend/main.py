@@ -249,7 +249,39 @@ def crear_gasto(
     db.commit()
     db.refresh(nuevo)
     return nuevo
+@app.put("/api/gastos/{gasto_id}", response_model=schemas.Gasto)
+def actualizar_gasto(
+    gasto_id: int,
+    payload: schemas.GastoUpdate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    gasto = (
+        db.query(models.Gasto)
+        .join(models.Tarjeta)
+        .filter(models.Gasto.id == gasto_id, models.Tarjeta.usuario_id == usuario.id)
+        .first()
+    )
+    if not gasto:
+        raise HTTPException(status_code=404, detail="Gasto no encontrado")
 
+    # Si cambia la tarjeta, verificar que sea suya
+    if payload.tarjeta_id is not None and payload.tarjeta_id != gasto.tarjeta_id:
+        tarjeta_del_usuario(db, payload.tarjeta_id, usuario)
+        gasto.tarjeta_id = payload.tarjeta_id
+
+    if payload.fecha is not None:
+        gasto.fecha = payload.fecha
+    if payload.monto is not None:
+        gasto.monto = payload.monto
+    if payload.descripcion is not None:
+        gasto.descripcion = payload.descripcion
+    if payload.categoria is not None:
+        gasto.categoria = payload.categoria
+
+    db.commit()
+    db.refresh(gasto)
+    return gasto
 
 @app.delete("/api/gastos/{gasto_id}", status_code=204)
 def eliminar_gasto(
