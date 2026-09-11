@@ -655,6 +655,45 @@ def actualizar_limite_grupo(
     db.refresh(grupo)
     return grupo
 
+@app.get("/api/grupos/{grupo_id}/resumen-categorias", response_model=list[schemas.ResumenCategoria])
+def resumen_categorias_grupo(
+    grupo_id: int,
+    anio: int | None = None,
+    mes: int | None = None,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    verificar_miembro(db, grupo_id, usuario.id)
+
+    hoy = date.today()
+    anio = anio or hoy.year
+    mes = mes or hoy.month
+
+    filas = (
+        db.query(
+            models.GastoCompartido.categoria,
+            func.coalesce(func.sum(models.GastoCompartido.monto), 0).label("total"),
+        )
+        .filter(models.GastoCompartido.grupo_id == grupo_id)
+        .filter(extract("year", models.GastoCompartido.fecha) == anio)
+        .filter(extract("month", models.GastoCompartido.fecha) == mes)
+        .group_by(models.GastoCompartido.categoria)
+        .all()
+    )
+
+    total_general = sum((Decimal(t) for _, t in filas), Decimal("0")) or Decimal("1")
+
+    resumen = [
+        schemas.ResumenCategoria(
+            categoria=cat or "Sin categoría",
+            total=Decimal(t),
+            porcentaje=round(float(Decimal(t) / total_general * 100), 1),
+        )
+        for cat, t in filas
+    ]
+    resumen.sort(key=lambda r: r.total, reverse=True)
+    return resumen
+
 def verificar_miembro(db: Session, grupo_id: int, usuario_id: int) -> models.MiembroGrupo:
     miembro = db.query(models.MiembroGrupo).filter(
         models.MiembroGrupo.grupo_id == grupo_id,
