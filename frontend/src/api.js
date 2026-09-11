@@ -86,6 +86,11 @@ export const api = {
   getGastosGrupo: (grupoId) => request(`/grupos/${grupoId}/gastos`),
   eliminarGastoCompartido: (grupoId, gastoId) =>
     request(`/grupos/${grupoId}/gastos/${gastoId}`, { method: "DELETE" }),
+  actualizarGastoCompartido: (grupoId, gastoId, cambios) =>
+    request(`/grupos/${grupoId}/gastos/${gastoId}`, {
+      method: "PUT",
+      body: JSON.stringify(cambios),
+    }),
   getSaldosGrupo: (grupoId) => request(`/grupos/${grupoId}/saldos`),
   getResumenGrupo: (grupoId, anio, mes) =>
     request(`/grupos/${grupoId}/resumen?anio=${anio}&mes=${mes}`),
