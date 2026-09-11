@@ -29,8 +29,7 @@ export default function ResumenCategorias({ anio, mes, grupoId = null }) {
       .then((d) => {
         if (!cancelado) setDatos(d);
       })
-      .catch((e) => {
-        console.error("Error resumen categorias:", e);
+      .catch(() => {
         if (!cancelado) setDatos([]);
       })
       .finally(() => {
