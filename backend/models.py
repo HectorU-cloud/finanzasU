@@ -23,8 +23,8 @@ class Tarjeta(Base):
     id = Column(Integer, primary_key=True, index=True)
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
     nombre = Column(String(50), nullable=False)
-    dia_corte = Column(Integer, nullable=False)  # día del mes, 1-31
-    red = Column(String(20), nullable=True)  # Visa, Mastercard, American Express, Diners Club, etc.
+    dia_corte = Column(Integer, nullable=False)
+    red = Column(String(20), nullable=True)
 
     usuario = relationship("Usuario", back_populates="tarjetas")
     gastos = relationship("Gasto", back_populates="tarjeta", cascade="all, delete-orphan")
@@ -38,10 +38,10 @@ class Gasto(Base):
     fecha = Column(Date, nullable=False)
     monto = Column(Numeric(10, 2), nullable=False)
     descripcion = Column(String(150), nullable=True)
+    categoria = Column(String(50), nullable=True)
 
     tarjeta = relationship("Tarjeta", back_populates="gastos")
 
-# models.py (nuevas clases)
 
 class Grupo(Base):
     __tablename__ = "grupos"
@@ -50,7 +50,7 @@ class Grupo(Base):
     nombre = Column(String(80), nullable=False)
     creado_por_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
     creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
-    codigo_invitacion = Column(String(20), unique=True, index=True)  # para unirse fácilmente
+    codigo_invitacion = Column(String(20), unique=True, index=True)
 
     creador = relationship("Usuario", foreign_keys=[creado_por_id])
     miembros = relationship("MiembroGrupo", back_populates="grupo", cascade="all, delete-orphan")
@@ -63,7 +63,7 @@ class MiembroGrupo(Base):
     id = Column(Integer, primary_key=True, index=True)
     grupo_id = Column(Integer, ForeignKey("grupos.id"), nullable=False)
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
-    rol = Column(String(20), default="miembro")  # "admin" o "miembro"
+    rol = Column(String(20), default="miembro")
     se_unio_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     grupo = relationship("Grupo", back_populates="miembros")
@@ -79,7 +79,7 @@ class GastoCompartido(Base):
     fecha = Column(Date, nullable=False)
     monto = Column(Numeric(10, 2), nullable=False)
     descripcion = Column(String(150), nullable=True)
-    categoria = Column(String(50), nullable=True)  # opcional
+    categoria = Column(String(50), nullable=True)
 
     grupo = relationship("Grupo", back_populates="gastos_compartidos")
     pagado_por = relationship("Usuario", foreign_keys=[pagado_por_id])
@@ -92,8 +92,8 @@ class DivisionGasto(Base):
     id = Column(Integer, primary_key=True, index=True)
     gasto_compartido_id = Column(Integer, ForeignKey("gastos_compartidos.id"), nullable=False)
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
-    monto = Column(Numeric(10, 2), nullable=False)  # lo que debe este usuario
-    pagado = Column(Integer, default=0)  # booleano: 0=pendiente, 1=liquidado
+    monto = Column(Numeric(10, 2), nullable=False)
+    pagado = Column(Integer, default=0)
 
     gasto = relationship("GastoCompartido", back_populates="divisiones")
     usuario = relationship("Usuario")

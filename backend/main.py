@@ -278,12 +278,13 @@ def exportar_gastos(
 
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    writer.writerow(["Fecha", "Tarjeta", "Monto", "Descripción"])
+    writer.writerow(["Fecha", "Tarjeta", "Monto", "Categoría", "Descripción"])   # ← CAMBIO
     for g in gastos:
         writer.writerow([
             g.fecha.isoformat(),
             g.tarjeta.nombre if g.tarjeta else "",
             f"{g.monto:.2f}",
+            g.categoria or "",      # ← NUEVO
             g.descripcion or "",
         ])
     total = sum((g.monto for g in gastos), Decimal("0"))
@@ -553,19 +554,26 @@ def verificar_miembro(db: Session, grupo_id: int, usuario_id: int) -> models.Mie
     return miembro
 
 
-@app.get("/api/grupos/{grupo_id}/gastos", response_model=list[schemas.GastoCompartidoOut])
-def listar_gastos_grupo(
-    grupo_id: int,
+@app.get("/api/gastos", response_model=list[schemas.Gasto])
+def listar_gastos(
+    anio: int | None = None,
+    mes: int | None = None,
+    categoria: str | None = None,   # ← NUEVO
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
-    verificar_miembro(db, grupo_id, usuario.id)
-    return (
-        db.query(models.GastoCompartido)
-        .filter(models.GastoCompartido.grupo_id == grupo_id)
-        .order_by(models.GastoCompartido.fecha.desc())
-        .all()
+    query = (
+        db.query(models.Gasto)
+        .join(models.Tarjeta)
+        .filter(models.Tarjeta.usuario_id == usuario.id)
     )
+    if anio is not None:
+        query = query.filter(extract("year", models.Gasto.fecha) == anio)
+    if mes is not None:
+        query = query.filter(extract("month", models.Gasto.fecha) == mes)
+    if categoria is not None:   # ← NUEVO
+        query = query.filter(models.Gasto.categoria == categoria)
+    return query.order_by(models.Gasto.fecha.desc()).all()
 
 
 @app.patch("/api/divisiones/{division_id}/pagar", response_model=schemas.DivisionGastoOut)
@@ -645,3 +653,48 @@ def eliminar_grupo(
     db.delete(grupo)  # cascada: borra miembros, gastos compartidos y sus divisiones
     db.commit()
 
+# ---------- Resumen por categoría ----------
+
+@app.get("/api/categorias", response_model=schemas.CategoriasDisponibles)
+def listar_categorias():
+    """Devuelve las categorías válidas para que el frontend las use."""
+    return schemas.CategoriasDisponibles(categorias=schemas.CATEGORIAS_VALIDAS)
+
+
+@app.get("/api/resumen/categorias", response_model=list[schemas.ResumenCategoria])
+def resumen_por_categoria(
+    anio: int | None = None,
+    mes: int | None = None,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    hoy = date.today()
+    anio = anio or hoy.year
+    mes = mes or hoy.month
+
+    filas = (
+        db.query(
+            models.Gasto.categoria,
+            func.coalesce(func.sum(models.Gasto.monto), 0).label("total"),
+        )
+        .join(models.Tarjeta)
+        .filter(models.Tarjeta.usuario_id == usuario.id)
+        .filter(extract("year", models.Gasto.fecha) == anio)
+        .filter(extract("month", models.Gasto.fecha) == mes)
+        .group_by(models.Gasto.categoria)
+        .all()
+    )
+
+    total_general = sum((Decimal(t) for _, t in filas), Decimal("0")) or Decimal("1")
+
+    resumen = [
+        schemas.ResumenCategoria(
+            categoria=cat or "Sin categoría",
+            total=Decimal(t),
+            porcentaje=round(float(Decimal(t) / total_general * 100), 1),
+        )
+        for cat, t in filas
+    ]
+    # Ordenar de mayor a menor
+    resumen.sort(key=lambda r: r.total, reverse=True)
+    return resumen

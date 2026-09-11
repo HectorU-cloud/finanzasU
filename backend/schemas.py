@@ -5,6 +5,19 @@ from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
 FECHA_MINIMA = date(2000, 1, 1)
 MONTO_MAXIMO = Decimal("100000")
 
+# Categorías disponibles para clasificar los gastos personales y compartidos.
+CATEGORIAS_VALIDAS = [
+    "Comida",
+    "Transporte",
+    "Hogar",
+    "Servicios",
+    "Salud",
+    "Ocio",
+    "Compras",
+    "Educación",
+    "Otros",
+]
+
 
 def _validar_fecha(v: date) -> date:
     if v > date.today():
@@ -105,11 +118,19 @@ class GastoBase(BaseModel):
     fecha: date
     monto: Decimal = Field(gt=0, le=MONTO_MAXIMO)
     descripcion: str | None = Field(default=None, max_length=150)
+    categoria: str | None = Field(default=None, max_length=50)
 
     @field_validator("fecha")
     @classmethod
     def _fecha_valida(cls, v):
         return _validar_fecha(v)
+
+    @field_validator("categoria")
+    @classmethod
+    def _categoria_valida(cls, v):
+        if v is not None and v not in CATEGORIAS_VALIDAS:
+            raise ValueError("la categoría no es válida")
+        return v
 
 
 class GastoCreate(GastoBase):
@@ -138,6 +159,16 @@ class Resumen(BaseModel):
     limite: Decimal
     en_rojo: bool
     tarjetas: list[ResumenTarjeta]
+
+
+class ResumenCategoria(BaseModel):
+    categoria: str
+    total: Decimal
+    porcentaje: float
+
+
+class CategoriasDisponibles(BaseModel):
+    categorias: list[str]
 
 
 class GrupoCreate(BaseModel):
@@ -171,13 +202,19 @@ class GastoCompartidoCreate(BaseModel):
     monto: Decimal = Field(gt=0, le=MONTO_MAXIMO)
     descripcion: str | None = Field(default=None, max_length=150)
     categoria: str | None = Field(default=None, max_length=50)
-    # Lista de usuarios y montos (opcional; si no se provee se divide en partes iguales)
-    divisiones: list[tuple[int, Decimal]] | None = None  # (usuario_id, monto)
+    divisiones: list[tuple[int, Decimal]] | None = None
 
     @field_validator("fecha")
     @classmethod
     def _fecha_valida(cls, v):
         return _validar_fecha(v)
+
+    @field_validator("categoria")
+    @classmethod
+    def _categoria_valida(cls, v):
+        if v is not None and v not in CATEGORIAS_VALIDAS:
+            raise ValueError("la categoría no es válida")
+        return v
 
     @field_validator("divisiones")
     @classmethod
@@ -215,4 +252,4 @@ class DivisionGastoOut(BaseModel):
 class SaldoUsuario(BaseModel):
     usuario_id: int
     nombre: str
-    debe: Decimal  # positivo = le deben, negativo = debe
+    debe: Decimal
