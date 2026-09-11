@@ -50,13 +50,34 @@ export default function App() {
   const [resumen, setResumen] = useState(null);
   const [categorias, setCategorias] = useState([]);
   const [filtroCategoria, setFiltroCategoria] = useState(null);
-  const [form, setForm] = useState({
-    fecha: todayISO(),
-    tarjeta_id: "",
-    monto: "",
-    descripcion: "",
-    categoria: "",
-  });
+  const ULTIMA_TARJETA_KEY = "finanzas_ultima_tarjeta";
+const ULTIMA_CATEGORIA_KEY = "finanzas_ultima_categoria";
+
+function leerUltima(key, fallback = "") {
+  try {
+    return localStorage.getItem(key) || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function guardarUltima(key, valor) {
+  try {
+    if (valor) localStorage.setItem(key, valor);
+  } catch {
+    // localStorage puede fallar en navegación privada; no es crítico
+  }
+}
+
+// ...dentro del componente App()...
+
+const [form, setForm] = useState({
+  fecha: todayISO(),
+  tarjeta_id: leerUltima(ULTIMA_TARJETA_KEY),
+  monto: "",
+  descripcion: "",
+  categoria: leerUltima(ULTIMA_CATEGORIA_KEY),
+});
   const [error, setError] = useState("");
 
   const cargarDatos = useCallback(async () => {
@@ -168,7 +189,10 @@ export default function App() {
         descripcion: form.descripcion || null,
         categoria: form.categoria || null,
       });
-      setForm((f) => ({ ...f, monto: "", descripcion: "", categoria: "" }));
+      guardarUltima(ULTIMA_TARJETA_KEY, form.tarjeta_id);
+guardarUltima(ULTIMA_CATEGORIA_KEY, form.categoria);
+setForm((f) => ({ ...f, monto: "", descripcion: "" }));
+// Ya NO limpiamos categoria ni tarjeta_id
       await cargarDatos();
     } catch (err) {
       manejarError(err);
