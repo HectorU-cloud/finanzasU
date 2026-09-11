@@ -138,26 +138,7 @@ class GastoBase(BaseModel):
 
 class GastoCreate(GastoBase):
     pass
-class GastoUpdate(BaseModel):
-    fecha: date | None = None
-    monto: Decimal | None = Field(default=None, gt=0, le=MONTO_MAXIMO)
-    descripcion: str | None = Field(default=None, max_length=150)
-    categoria: str | None = Field(default=None, max_length=50)
-    tarjeta_id: int | None = None
 
-    @field_validator("fecha")
-    @classmethod
-    def _fecha_valida(cls, v):
-        if v is None:
-            return v
-        return _validar_fecha(v)
-
-    @field_validator("categoria")
-    @classmethod
-    def _categoria_valida(cls, v):
-        if v is not None and v not in CATEGORIAS_VALIDAS:
-            raise ValueError("la categoría no es válida")
-        return v
 
 class Gasto(GastoBase):
     model_config = ConfigDict(from_attributes=True)
