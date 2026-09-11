@@ -9,9 +9,6 @@ export default function CambiarPasswordModal({ onCerrar }) {
   const [exito, setExito] = useState(false);
 
   async function handleSubmit(e) {
-    <form onSubmit={handleSubmit} className="auth-form" onKeyDown={(e) => {
-  if (e.key === "Escape") onCerrar();
-}}>
     e.preventDefault();
     setError("");
     if (!form.actual || !form.nueva) {
@@ -57,7 +54,13 @@ export default function CambiarPasswordModal({ onCerrar }) {
             ✅ Contraseña actualizada correctamente.
           </p>
         ) : (
-          <form onSubmit={handleSubmit} className="auth-form">
+          <form
+            onSubmit={handleSubmit}
+            className="auth-form"
+            onKeyDown={(e) => {
+              if (e.key === "Escape") onCerrar();
+            }}
+          >
             <div>
               <label>Contraseña actual</label>
               <input
@@ -83,7 +86,12 @@ export default function CambiarPasswordModal({ onCerrar }) {
               />
             </div>
             {error && <p className="error">{error}</p>}
-            <button className="submit" type="submit" disabled={cargando} style={{ width: "100%", justifyContent: "center" }}>
+            <button
+              className="submit"
+              type="submit"
+              disabled={cargando}
+              style={{ width: "100%", justifyContent: "center" }}
+            >
               {cargando ? "Guardando..." : "Cambiar contraseña"}
             </button>
           </form>
