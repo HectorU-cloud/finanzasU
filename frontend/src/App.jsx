@@ -270,7 +270,11 @@ setForm((f) => ({ ...f, monto: "", descripcion: "" }));
       <GruposPanel usuarioId={usuario.id} />
 
       <div className="panel">
-        <form onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit} onKeyDown={(e) => {
+  if (e.key === "Escape") {
+    e.target.blur();
+  }
+}}>
           <p className="titulo">
             <PiggyBank size={16} />
             Registrar gasto
