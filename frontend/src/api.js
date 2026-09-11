@@ -84,6 +84,8 @@ export const api = {
   unirseGrupo: (codigo) =>
     request(`/grupos/unirse?codigo=${encodeURIComponent(codigo)}`, { method: "POST" }),
   getGastosGrupo: (grupoId) => request(`/grupos/${grupoId}/gastos`),
+  eliminarGastoCompartido: (grupoId, gastoId) =>
+    request(`/grupos/${grupoId}/gastos/${gastoId}`, { method: "DELETE" }),
   getSaldosGrupo: (grupoId) => request(`/grupos/${grupoId}/saldos`),
   getResumenGrupo: (grupoId, anio, mes) =>
     request(`/grupos/${grupoId}/resumen?anio=${anio}&mes=${mes}`),
