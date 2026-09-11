@@ -740,6 +740,56 @@ def eliminar_gasto_compartido(
     db.delete(gasto)  # cascade borra las divisiones
     db.commit()
 
+@app.put("/api/grupos/{grupo_id}/gastos/{gasto_id}", response_model=schemas.GastoCompartidoOut)
+def actualizar_gasto_compartido(
+    grupo_id: int,
+    gasto_id: int,
+    payload: schemas.GastoCompartidoUpdate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    verificar_miembro(db, grupo_id, usuario.id)
+
+    gasto = (
+        db.query(models.GastoCompartido)
+        .filter(
+            models.GastoCompartido.id == gasto_id,
+            models.GastoCompartido.grupo_id == grupo_id,
+        )
+        .first()
+    )
+    if not gasto:
+        raise HTTPException(status_code=404, detail="Gasto no encontrado")
+
+    # Si cambia el monto, recalculamos las divisiones equitativamente
+    if payload.monto is not None and payload.monto != gasto.monto:
+        nuevo_monto = payload.monto
+        divisiones = gasto.divisiones
+        n = len(divisiones)
+        if n == 0:
+            raise HTTPException(status_code=400, detail="El gasto no tiene divisiones")
+
+        total_centavos = int((nuevo_monto * 100).to_integral_value())
+        base_centavos = total_centavos // n
+        resto_centavos = total_centavos - base_centavos * n
+
+        for i, div in enumerate(divisiones):
+            centavos = base_centavos + (1 if i < resto_centavos else 0)
+            div.monto = Decimal(centavos) / 100
+
+        gasto.monto = nuevo_monto
+
+    if payload.fecha is not None:
+        gasto.fecha = payload.fecha
+    if payload.descripcion is not None:
+        gasto.descripcion = payload.descripcion
+    if payload.categoria is not None:
+        gasto.categoria = payload.categoria
+
+    db.commit()
+    db.refresh(gasto)
+    return gasto
+
 @app.patch("/api/divisiones/{division_id}/pagar", response_model=schemas.DivisionGastoOut)
 def marcar_division_pagada(
     division_id: int,
