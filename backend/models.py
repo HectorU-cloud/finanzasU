@@ -51,6 +51,7 @@ class Grupo(Base):
     creado_por_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
     creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     codigo_invitacion = Column(String(20), unique=True, index=True)
+    limite_mensual = Column(Numeric(10, 2), nullable=False, default=350)
 
     creador = relationship("Usuario", foreign_keys=[creado_por_id])
     miembros = relationship("MiembroGrupo", back_populates="grupo", cascade="all, delete-orphan")
