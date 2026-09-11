@@ -1,5 +1,7 @@
 import { useState, useEffect, useCallback } from "react";
-import { PiggyBank, Plus, Trash2, ChevronLeft, ChevronRight, Download, Tag } from "lucide-react";
+import {
+  PiggyBank, Plus, Trash2, ChevronLeft, ChevronRight, Download, Pencil,
+} from "lucide-react";
 import { api, hayTokenGuardado, setAuthToken } from "./api.js";
 import TarjetasPanel from "./TarjetasPanel.jsx";
 import GruposPanel from "./GruposPanel.jsx";
@@ -8,16 +10,34 @@ import AuthScreen from "./AuthScreen.jsx";
 import CambiarPasswordModal from "./CambiarPasswordModal.jsx";
 import ResumenCategorias from "./ResumenCategorias.jsx";
 import EditarGastoModal from "./EditarGastoModal.jsx";
-import { PiggyBank, Plus, Trash2, ChevronLeft, ChevronRight, Download, Tag, Pencil } from "lucide-react";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
-const [gastoEditando, setGastoEditando] = useState(null);
+
 const NOMBRES_MES = [
   "enero", "febrero", "marzo", "abril", "mayo", "junio",
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ];
+
+const ULTIMA_TARJETA_KEY = "finanzas_ultima_tarjeta";
+const ULTIMA_CATEGORIA_KEY = "finanzas_ultima_categoria";
+
+function leerUltima(key, fallback = "") {
+  try {
+    return localStorage.getItem(key) || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function guardarUltima(key, valor) {
+  try {
+    if (valor) localStorage.setItem(key, valor);
+  } catch {
+    // localStorage puede fallar en navegación privada; no es crítico
+  }
+}
 
 export default function App() {
   const [usuario, setUsuario] = useState(null);
@@ -45,40 +65,21 @@ export default function App() {
   const esMesActual = periodo.anio === hoy.getFullYear() && periodo.mes === hoy.getMonth() + 1;
 
   const [modalPassword, setModalPassword] = useState(false);
+  const [gastoEditando, setGastoEditando] = useState(null);
 
   const [tarjetas, setTarjetas] = useState([]);
   const [gastos, setGastos] = useState([]);
   const [resumen, setResumen] = useState(null);
   const [categorias, setCategorias] = useState([]);
   const [filtroCategoria, setFiltroCategoria] = useState(null);
-  const ULTIMA_TARJETA_KEY = "finanzas_ultima_tarjeta";
-const ULTIMA_CATEGORIA_KEY = "finanzas_ultima_categoria";
 
-function leerUltima(key, fallback = "") {
-  try {
-    return localStorage.getItem(key) || fallback;
-  } catch {
-    return fallback;
-  }
-}
-
-function guardarUltima(key, valor) {
-  try {
-    if (valor) localStorage.setItem(key, valor);
-  } catch {
-    // localStorage puede fallar en navegación privada; no es crítico
-  }
-}
-
-// ...dentro del componente App()...
-
-const [form, setForm] = useState({
-  fecha: todayISO(),
-  tarjeta_id: leerUltima(ULTIMA_TARJETA_KEY),
-  monto: "",
-  descripcion: "",
-  categoria: leerUltima(ULTIMA_CATEGORIA_KEY),
-});
+  const [form, setForm] = useState({
+    fecha: todayISO(),
+    tarjeta_id: leerUltima(ULTIMA_TARJETA_KEY),
+    monto: "",
+    descripcion: "",
+    categoria: leerUltima(ULTIMA_CATEGORIA_KEY),
+  });
   const [error, setError] = useState("");
 
   const cargarDatos = useCallback(async () => {
@@ -191,9 +192,8 @@ const [form, setForm] = useState({
         categoria: form.categoria || null,
       });
       guardarUltima(ULTIMA_TARJETA_KEY, form.tarjeta_id);
-guardarUltima(ULTIMA_CATEGORIA_KEY, form.categoria);
-setForm((f) => ({ ...f, monto: "", descripcion: "" }));
-// Ya NO limpiamos categoria ni tarjeta_id
+      guardarUltima(ULTIMA_CATEGORIA_KEY, form.categoria);
+      setForm((f) => ({ ...f, monto: "", descripcion: "" }));
       await cargarDatos();
     } catch (err) {
       manejarError(err);
@@ -271,11 +271,14 @@ setForm((f) => ({ ...f, monto: "", descripcion: "" }));
       <GruposPanel usuarioId={usuario.id} />
 
       <div className="panel">
-        <form onSubmit={handleSubmit} onKeyDown={(e) => {
-  if (e.key === "Escape") {
-    e.target.blur();
-  }
-}}>
+        <form
+          onSubmit={handleSubmit}
+          onKeyDown={(e) => {
+            if (e.key === "Escape") {
+              e.target.blur();
+            }
+          }}
+        >
           <p className="titulo">
             <PiggyBank size={16} />
             Registrar gasto
@@ -413,14 +416,14 @@ setForm((f) => ({ ...f, monto: "", descripcion: "" }));
                   {g.descripcion && <span className="desc">{g.descripcion}</span>}
                 </div>
                 <div className="acciones">
-  <span className="monto">${Number(g.monto).toFixed(2)}</span>
-  <button className="mini-btn" onClick={() => setGastoEditando(g)} title="Editar">
-    <Pencil size={15} />
-  </button>
-  <button className="mini-btn peligro" onClick={() => handleDelete(g.id)} title="Quitar">
-    <Trash2 size={15} />
-  </button>
-</div>
+                  <span className="monto">${Number(g.monto).toFixed(2)}</span>
+                  <button className="mini-btn" onClick={() => setGastoEditando(g)} title="Editar">
+                    <Pencil size={15} />
+                  </button>
+                  <button className="mini-btn peligro" onClick={() => handleDelete(g.id)} title="Quitar">
+                    <Trash2 size={15} />
+                  </button>
+                </div>
               </li>
             );
           })}
