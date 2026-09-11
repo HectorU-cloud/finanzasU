@@ -304,7 +304,7 @@ def exportar_gastos(
         ])
     total = sum((g.monto for g in gastos), Decimal("0"))
     writer.writerow([])
-    writer.writerow(["", "", "", "Total", f"{total:.2f}"])
+    writer.writerow(["Total", "", f"{total:.2f}", "", ""])
     buffer.seek(0)
 
     sufijo = f"_{categoria}" if categoria else ""
