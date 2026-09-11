@@ -1418,14 +1418,28 @@ ul.gastos .acciones .monto {
     gap: 10px;
   }
 
-  /* Evita que la fecha y la tarjeta se solapen */
   .form-row > div {
     min-width: 0;
+    overflow: hidden;
   }
 
-  input[type="date"],
-  input[type="number"] {
+  input,
+  select {
     width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  /* Los inputs de fecha se desbordan por el estilo interno de Chrome */
+  input[type="date"] {
+    width: 100%;
+    max-width: 100%;
     min-width: 0;
+    padding-right: 4px;
+  }
+
+  /* La tarjeta del carrusel no debe cortarse */
+  .credit-card {
+    padding: 18px;
   }
 }
