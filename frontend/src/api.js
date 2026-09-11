@@ -66,6 +66,8 @@ export const api = {
   getResumenCategorias: (anio, mes) =>
     request(`/resumen/categorias?anio=${anio}&mes=${mes}`),
   getCategorias: () => request("/categorias"),
+  getResumenCategoriasGrupo: (grupoId, anio, mes) =>
+    request(`/grupos/${grupoId}/resumen-categorias?anio=${anio}&mes=${mes}`),
   crearGasto: (gasto) =>
     request("/gastos", { method: "POST", body: JSON.stringify(gasto) }),
   actualizarGasto: (id, cambios) =>
