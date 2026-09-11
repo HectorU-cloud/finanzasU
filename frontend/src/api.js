@@ -53,6 +53,9 @@ export const api = {
   login: (datos) => request("/auth/login", { method: "POST", body: JSON.stringify(datos) }),
   yo: () => request("/auth/yo"),
 
+  cambiarPassword: (datos) =>
+  request("/auth/cambiar-password", { method: "POST", body: JSON.stringify(datos) }),
+
   getTarjetas: () => request("/tarjetas"),
   getGastos: (anio, mes, categoria = null) => {
     let url = `/gastos?anio=${anio}&mes=${mes}`;

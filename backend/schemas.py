@@ -49,6 +49,9 @@ class UsuarioLogin(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1)
 
+class CambiarPassword(BaseModel):
+    password_actual: str = Field(min_length=1)
+    password_nueva: str = Field(min_length=6, max_length=72)
 
 class UsuarioOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)

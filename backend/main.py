@@ -120,6 +120,18 @@ def login(datos: schemas.UsuarioLogin, db: Session = Depends(get_db)):
     token = auth.crear_token(usuario.id)
     return schemas.Token(access_token=token, usuario=usuario)
 
+@app.post("/api/auth/cambiar-password", status_code=204)
+def cambiar_password(
+    datos: schemas.CambiarPassword,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    if not auth.verificar_password(datos.password_actual, usuario.password_hash):
+        raise HTTPException(status_code=400, detail="La contraseña actual no es correcta")
+    if datos.password_actual == datos.password_nueva:
+        raise HTTPException(status_code=400, detail="La nueva contraseña debe ser diferente")
+    usuario.password_hash = auth.hash_password(datos.password_nueva)
+    db.commit()
 
 @app.get("/api/auth/yo", response_model=schemas.UsuarioOut)
 def yo(usuario: models.Usuario = Depends(auth.obtener_usuario_actual)):

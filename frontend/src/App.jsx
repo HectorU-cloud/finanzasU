@@ -5,7 +5,9 @@ import TarjetasPanel from "./TarjetasPanel.jsx";
 import GruposPanel from "./GruposPanel.jsx";
 import CardCarousel from "./CardCarousel.jsx";
 import AuthScreen from "./AuthScreen.jsx";
+import CambiarPasswordModal from "./CambiarPasswordModal.jsx";
 import ResumenCategorias from "./ResumenCategorias.jsx";
+
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -40,6 +42,8 @@ export default function App() {
   const hoy = new Date();
   const [periodo, setPeriodo] = useState({ anio: hoy.getFullYear(), mes: hoy.getMonth() + 1 });
   const esMesActual = periodo.anio === hoy.getFullYear() && periodo.mes === hoy.getMonth() + 1;
+
+  const [modalPassword, setModalPassword] = useState(false);
 
   const [tarjetas, setTarjetas] = useState([]);
   const [gastos, setGastos] = useState([]);
@@ -207,7 +211,12 @@ export default function App() {
         <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 8 }}>
           <div className="quien-sesion">
             <span className="quien-nombre">Hola, {usuario.nombre}</span>
-            <button className="cerrar-sesion" onClick={handleLogout}>Cerrar sesión</button>
+            <button className="cerrar-sesion" onClick={() => setModalPassword(true)}>
+              Cambiar contraseña
+            </button>
+            <button className="cerrar-sesion" onClick={handleLogout}>
+              Cerrar sesión
+            </button>
           </div>
           <div className="mes-nav">
             <button className="icon-btn" onClick={() => cambiarMes(-1)} title="Mes anterior">
@@ -384,6 +393,10 @@ export default function App() {
             );
           })}
         </ul>
+      )}
+
+      {modalPassword && (
+        <CambiarPasswordModal onCerrar={() => setModalPassword(false)} />
       )}
     </div>
   );
