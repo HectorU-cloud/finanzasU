@@ -219,6 +219,7 @@ def eliminar_tarjeta(
 def listar_gastos(
     anio: int | None = None,
     mes: int | None = None,
+    categoria: str | None = None,
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
@@ -231,6 +232,8 @@ def listar_gastos(
         query = query.filter(extract("year", models.Gasto.fecha) == anio)
     if mes is not None:
         query = query.filter(extract("month", models.Gasto.fecha) == mes)
+    if categoria is not None:
+        query = query.filter(extract("month", models.Gasto.fecha) == categoria)
     return query.order_by(models.Gasto.fecha.desc()).all()
 
 
