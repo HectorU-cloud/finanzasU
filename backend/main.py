@@ -603,27 +603,19 @@ def verificar_miembro(db: Session, grupo_id: int, usuario_id: int) -> models.Mie
         raise HTTPException(status_code=403, detail="No eres miembro de este grupo")
     return miembro
 
-
-@app.get("/api/gastos", response_model=list[schemas.Gasto])
-def listar_gastos(
-    anio: int | None = None,
-    mes: int | None = None,
-    categoria: str | None = None,   # ← NUEVO
+@app.get("/api/grupos/{grupo_id}/gastos", response_model=list[schemas.GastoCompartidoOut])
+def listar_gastos_grupo(
+    grupo_id: int,
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
-    query = (
-        db.query(models.Gasto)
-        .join(models.Tarjeta)
-        .filter(models.Tarjeta.usuario_id == usuario.id)
+    verificar_miembro(db, grupo_id, usuario.id)
+    return (
+        db.query(models.GastoCompartido)
+        .filter(models.GastoCompartido.grupo_id == grupo_id)
+        .order_by(models.GastoCompartido.fecha.desc())
+        .all()
     )
-    if anio is not None:
-        query = query.filter(extract("year", models.Gasto.fecha) == anio)
-    if mes is not None:
-        query = query.filter(extract("month", models.Gasto.fecha) == mes)
-    if categoria is not None:   # ← NUEVO
-        query = query.filter(models.Gasto.categoria == categoria)
-    return query.order_by(models.Gasto.fecha.desc()).all()
 
 
 @app.patch("/api/divisiones/{division_id}/pagar", response_model=schemas.DivisionGastoOut)
