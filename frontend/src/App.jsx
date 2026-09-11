@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import {
-  PiggyBank, Plus, Trash2, ChevronLeft, ChevronRight, Download, Pencil,
+  PiggyBank, Plus, Trash2, ChevronLeft, ChevronRight, Download, Pencil, MoreVertical,
 } from "lucide-react";
 import { api, hayTokenGuardado, setAuthToken } from "./api.js";
 import TarjetasPanel from "./TarjetasPanel.jsx";
@@ -74,6 +74,7 @@ export default function App() {
   const [resumen, setResumen] = useState(null);
   const [categorias, setCategorias] = useState([]);
   const [filtroCategoria, setFiltroCategoria] = useState(null);
+  const [menuAbiertoId, setMenuAbiertoId] = useState(null);
 
   const [form, setForm] = useState({
     fecha: todayISO(),
@@ -114,6 +115,16 @@ export default function App() {
     if (!usuario) return;
     cargarDatos().catch(manejarError);
   }, [cargarDatos, usuario]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+  function cerrarSiEsFuera(e) {
+    if (!e.target.closest(".acciones-menu")) {
+      setMenuAbiertoId(null);
+    }
+  }
+  document.addEventListener("click", cerrarSiEsFuera);
+  return () => document.removeEventListener("click", cerrarSiEsFuera);
+}, []);
 
   function cambiarMes(delta) {
     setPeriodo((p) => {
@@ -418,14 +429,41 @@ export default function App() {
                   {g.descripcion && <span className="desc">{g.descripcion}</span>}
                 </div>
                 <div className="acciones">
-                  <span className="monto">${Number(g.monto).toFixed(2)}</span>
-                  <button className="mini-btn" onClick={() => setGastoEditando(g)} title="Editar">
-                    <Pencil size={15} />
-                  </button>
-                  <button className="mini-btn peligro" onClick={() => setGastoAEliminar(g)} title="Quitar">
-                    <Trash2 size={15} />
-                  </button>
-                </div>
+  <span className="monto">${Number(g.monto).toFixed(2)}</span>
+  <div className="acciones-menu">
+    <button
+      className="mini-btn"
+      onClick={(e) => {
+        e.stopPropagation();
+        setMenuAbiertoId(menuAbiertoId === g.id ? null : g.id);
+      }}
+      title="Más opciones"
+    >
+      <MoreVertical size={16} />
+    </button>
+    {menuAbiertoId === g.id && (
+      <div className="dropdown-menu">
+        <button
+          onClick={() => {
+            setGastoEditando(g);
+            setMenuAbiertoId(null);
+          }}
+        >
+          <Pencil size={14} /> Editar
+        </button>
+        <button
+          className="peligro"
+          onClick={() => {
+            setGastoAEliminar(g);
+            setMenuAbiertoId(null);
+          }}
+        >
+          <Trash2 size={14} /> Eliminar
+        </button>
+      </div>
+    )}
+  </div>
+</div>
               </li>
             );
           })}
