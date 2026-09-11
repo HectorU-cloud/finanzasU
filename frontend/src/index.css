@@ -1477,3 +1477,49 @@ ul.gastos .acciones .monto {
 .danger-action-button:hover {
   background: #6e1f17;
 }
+/* Menú de acciones (⋮) en cada gasto */
+.acciones-menu {
+  position: relative;
+  display: inline-block;
+}
+
+.dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  min-width: 140px;
+  z-index: 10;
+  overflow: hidden;
+}
+
+.dropdown-menu button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 12px;
+  background: none;
+  border: none;
+  text-align: left;
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--ink);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+
+.dropdown-menu button:hover {
+  background: var(--surface-alt);
+}
+
+.dropdown-menu button.peligro {
+  color: var(--danger);
+}
+
+.dropdown-menu button.peligro:hover {
+  background: var(--danger-soft);
+}
