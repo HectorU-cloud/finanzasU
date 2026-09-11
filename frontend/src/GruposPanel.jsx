@@ -423,6 +423,25 @@ async function confirmarEliminar() {
           ))}
         </ul>
       )}
+      {confirmarAccion === "salir" && (
+  <ConfirmModal
+    titulo="Salir del grupo"
+    mensaje={`¿Seguro que quieres salir de "${grupo.nombre}"? Dejarás de ver los gastos del grupo.`}
+    textoConfirmar="Sí, salir"
+    onConfirmar={confirmarSalir}
+    onCancelar={() => setConfirmarAccion(null)}
+  />
+)}
+
+{confirmarAccion === "eliminar" && (
+  <ConfirmModal
+    titulo="Eliminar grupo"
+    mensaje={`¿Eliminar "${grupo.nombre}"? Esto borra todos sus gastos compartidos y saldos. No se puede deshacer.`}
+    textoConfirmar="Sí, eliminar"
+    onConfirmar={confirmarEliminar}
+    onCancelar={() => setConfirmarAccion(null)}
+  />
+)}
     </div>
   );
 }
