@@ -15,15 +15,17 @@ const COLORES = {
   "Sin categoría": "#a89c86",
 };
 
-export default function ResumenCategorias({ anio, mes }) {
+export default function ResumenCategorias({ anio, mes, grupoId = null }) {
   const [datos, setDatos] = useState([]);
   const [cargando, setCargando] = useState(true);
 
   useEffect(() => {
     let cancelado = false;
     setCargando(true);
-    api
-      .getResumenCategorias(anio, mes)
+    const promesa = grupoId
+      ? api.getResumenCategoriasGrupo(grupoId, anio, mes)
+      : api.getResumenCategorias(anio, mes);
+    promesa
       .then((d) => {
         if (!cancelado) setDatos(d);
       })
@@ -36,7 +38,7 @@ export default function ResumenCategorias({ anio, mes }) {
     return () => {
       cancelado = true;
     };
-  }, [anio, mes]);
+  }, [anio, mes, grupoId]);
 
   if (cargando) return null;
   if (datos.length === 0) return null;
