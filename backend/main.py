@@ -593,6 +593,67 @@ def saldos_grupo(
 
     return list(saldos.values())
 
+@app.get("/api/grupos/{grupo_id}/resumen", response_model=schemas.GrupoResumenMensual)
+def resumen_grupo(
+    grupo_id: int,
+    anio: int | None = None,
+    mes: int | None = None,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    verificar_miembro(db, grupo_id, usuario.id)
+
+    grupo = db.query(models.Grupo).get(grupo_id)
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado")
+
+    hoy = date.today()
+    anio = anio or hoy.year
+    mes = mes or hoy.month
+
+    total_mes = (
+        db.query(func.coalesce(func.sum(models.GastoCompartido.monto), 0))
+        .filter(models.GastoCompartido.grupo_id == grupo_id)
+        .filter(extract("year", models.GastoCompartido.fecha) == anio)
+        .filter(extract("month", models.GastoCompartido.fecha) == mes)
+        .scalar()
+    )
+    total_mes = Decimal(total_mes)
+    limite = Decimal(grupo.limite_mensual)
+    porcentaje = float(total_mes / limite * 100) if limite > 0 else 0.0
+
+    return schemas.GrupoResumenMensual(
+        grupo_id=grupo_id,
+        anio=anio,
+        mes=mes,
+        total_mes=total_mes,
+        limite=limite,
+        porcentaje=round(porcentaje, 1),
+        en_rojo=total_mes > limite,
+    )
+
+
+@app.put("/api/grupos/{grupo_id}/limite", response_model=schemas.GrupoOut)
+def actualizar_limite_grupo(
+    grupo_id: int,
+    payload: schemas.GrupoUpdateLimite,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    grupo = db.query(models.Grupo).get(grupo_id)
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado")
+
+    verificar_miembro(db, grupo_id, usuario.id)
+
+    # Solo el creador puede cambiar el límite
+    if grupo.creado_por_id != usuario.id:
+        raise HTTPException(status_code=403, detail="Solo quien creó el grupo puede cambiar el límite")
+
+    grupo.limite_mensual = payload.limite_mensual
+    db.commit()
+    db.refresh(grupo)
+    return grupo
 
 def verificar_miembro(db: Session, grupo_id: int, usuario_id: int) -> models.MiembroGrupo:
     miembro = db.query(models.MiembroGrupo).filter(
