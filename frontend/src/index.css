@@ -1263,3 +1263,114 @@ ul.gastos .acciones .monto {
 .cc-progreso {
   margin: 2px 0;
 }
+
+/* ============================================================
+   Categorías: chips de filtro, badge en lista y resumen
+   ============================================================ */
+
+.filtros-categorias {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.chip-filtro {
+  font-family: var(--font-body);
+  font-size: 12px;
+  padding: 5px 11px;
+  border: 1px solid var(--border);
+  border-radius: 99px;
+  background: var(--surface);
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+
+.chip-filtro:hover {
+  border-color: var(--brand);
+  color: var(--brand);
+}
+
+.chip-filtro.activo {
+  background: var(--brand);
+  color: var(--surface);
+  border-color: var(--brand);
+}
+
+.cat-badge {
+  display: inline-block;
+  font-family: var(--font-body);
+  font-size: 11px;
+  padding: 1px 7px;
+  border-radius: 99px;
+  background: var(--accent-soft);
+  color: var(--accent);
+  margin-left: 2px;
+}
+
+/* Resumen por categoría */
+.resumen-categorias .titulo {
+  margin-bottom: 14px;
+}
+
+.categorias-lista {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.categoria-fila {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 5px;
+  font-size: 13px;
+}
+
+.categoria-nombre {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  color: var(--ink);
+}
+
+.categoria-punto {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+
+.categoria-monto {
+  font-family: var(--font-mono);
+  font-weight: 600;
+  color: var(--ink);
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.categoria-porcentaje {
+  font-family: var(--font-body);
+  font-size: 11px;
+  color: var(--ink-faint);
+  font-weight: 400;
+}
+
+.categoria-barra {
+  height: 6px;
+  background: var(--surface-alt);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.categoria-barra-fill {
+  height: 100%;
+  border-radius: 3px;
+  transition: width 0.4s ease;
+}

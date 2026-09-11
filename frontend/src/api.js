@@ -54,8 +54,15 @@ export const api = {
   yo: () => request("/auth/yo"),
 
   getTarjetas: () => request("/tarjetas"),
-  getGastos: (anio, mes) => request(`/gastos?anio=${anio}&mes=${mes}`),
+  getGastos: (anio, mes, categoria = null) => {
+    let url = `/gastos?anio=${anio}&mes=${mes}`;
+    if (categoria) url += `&categoria=${encodeURIComponent(categoria)}`;
+    return request(url);
+  },
   getResumen: (anio, mes) => request(`/resumen?anio=${anio}&mes=${mes}`),
+  getResumenCategorias: (anio, mes) =>
+    request(`/resumen/categorias?anio=${anio}&mes=${mes}`),
+  getCategorias: () => request("/categorias"),
   crearGasto: (gasto) =>
     request("/gastos", { method: "POST", body: JSON.stringify(gasto) }),
   eliminarGasto: (id) => request(`/gastos/${id}`, { method: "DELETE" }),

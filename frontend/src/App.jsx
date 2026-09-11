@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { PiggyBank, Plus, Trash2, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { PiggyBank, Plus, Trash2, ChevronLeft, ChevronRight, Download, Tag } from "lucide-react";
 import { api, hayTokenGuardado, setAuthToken } from "./api.js";
 import TarjetasPanel from "./TarjetasPanel.jsx";
 import GruposPanel from "./GruposPanel.jsx";
 import CardCarousel from "./CardCarousel.jsx";
 import AuthScreen from "./AuthScreen.jsx";
+import ResumenCategorias from "./ResumenCategorias.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -43,30 +44,37 @@ export default function App() {
   const [tarjetas, setTarjetas] = useState([]);
   const [gastos, setGastos] = useState([]);
   const [resumen, setResumen] = useState(null);
+  const [categorias, setCategorias] = useState([]);
+  const [filtroCategoria, setFiltroCategoria] = useState(null);
   const [form, setForm] = useState({
     fecha: todayISO(),
     tarjeta_id: "",
     monto: "",
     descripcion: "",
+    categoria: "",
   });
   const [error, setError] = useState("");
 
   const cargarDatos = useCallback(async () => {
-    const [tarjetasData, gastosData, resumenData] = await Promise.all([
+    const [tarjetasData, gastosData, resumenData, categoriasData] = await Promise.all([
       api.getTarjetas(),
-      api.getGastos(periodo.anio, periodo.mes),
+      api.getGastos(periodo.anio, periodo.mes, filtroCategoria),
       api.getResumen(periodo.anio, periodo.mes),
+      categorias.length > 0 ? Promise.resolve(categorias) : api.getCategorias(),
     ]);
     setTarjetas(tarjetasData);
     setGastos(gastosData);
     setResumen(resumenData);
+    if (categorias.length === 0 && categoriasData?.categorias) {
+      setCategorias(categoriasData.categorias);
+    }
     setForm((f) => ({
       ...f,
       tarjeta_id: tarjetasData.some((t) => t.id === Number(f.tarjeta_id))
         ? f.tarjeta_id
         : tarjetasData[0]?.id || "",
     }));
-  }, [periodo]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [periodo, filtroCategoria]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function manejarError(err) {
     setError(err.message);
@@ -91,6 +99,7 @@ export default function App() {
       }
       return { anio, mes };
     });
+    setFiltroCategoria(null);
   }
 
   const [rangoExport, setRangoExport] = useState("mes");
@@ -153,8 +162,9 @@ export default function App() {
         fecha: form.fecha,
         monto: montoNum,
         descripcion: form.descripcion || null,
+        categoria: form.categoria || null,
       });
-      setForm((f) => ({ ...f, monto: "", descripcion: "" }));
+      setForm((f) => ({ ...f, monto: "", descripcion: "", categoria: "" }));
       await cargarDatos();
     } catch (err) {
       manejarError(err);
@@ -220,6 +230,8 @@ export default function App() {
         </span>
       </div>
 
+      <ResumenCategorias anio={periodo.anio} mes={periodo.mes} />
+
       <TarjetasPanel tarjetas={tarjetas} onChange={cargarDatos} />
 
       <GruposPanel usuarioId={usuario.id} />
@@ -267,6 +279,22 @@ export default function App() {
               />
             </div>
             <div>
+              <label>Categoría</label>
+              <select
+                value={form.categoria}
+                onChange={(e) => setForm({ ...form, categoria: e.target.value })}
+              >
+                <option value="">Sin categoría</option>
+                {categorias.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+          <div className="form-row">
+            <div style={{ gridColumn: "1 / -1" }}>
               <label>Descripción (opcional)</label>
               <input
                 type="text"
@@ -300,8 +328,32 @@ export default function App() {
         </div>
       </div>
 
+      {categorias.length > 0 && (
+        <div className="filtros-categorias">
+          <button
+            className={"chip-filtro" + (filtroCategoria === null ? " activo" : "")}
+            onClick={() => setFiltroCategoria(null)}
+          >
+            Todas
+          </button>
+          {categorias.map((c) => (
+            <button
+              key={c}
+              className={"chip-filtro" + (filtroCategoria === c ? " activo" : "")}
+              onClick={() => setFiltroCategoria(c)}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+      )}
+
       {gastos.length === 0 ? (
-        <p className="vacio">Todavía no registras gastos este mes.</p>
+        <p className="vacio">
+          {filtroCategoria
+            ? `No hay gastos en la categoría "${filtroCategoria}".`
+            : "Todavía no registras gastos este mes."}
+        </p>
       ) : (
         <ul className="gastos">
           {gastos.map((g) => {
@@ -313,6 +365,12 @@ export default function App() {
                     {g.fecha}
                     <span className="sep">·</span>
                     {tarjeta?.nombre}
+                    {g.categoria && (
+                      <>
+                        <span className="sep">·</span>
+                        <span className="cat-badge">{g.categoria}</span>
+                      </>
+                    )}
                   </span>
                   {g.descripcion && <span className="desc">{g.descripcion}</span>}
                 </div>
