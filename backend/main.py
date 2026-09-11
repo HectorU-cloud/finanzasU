@@ -1,12 +1,14 @@
 import calendar
 import csv
 import io
+import os
 from datetime import date
 from decimal import Decimal
 
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI, Depends, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import StreamingResponse
+from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.exceptions import RequestValidationError
 from sqlalchemy import extract, func
 from sqlalchemy.orm import Session
 
@@ -21,11 +23,35 @@ Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="API Finanzas Personales")
 
+
+@app.exception_handler(RequestValidationError)
+async def manejar_error_validacion(request: Request, exc: RequestValidationError):
+    """Convierte los errores de validación de Pydantic en un mensaje simple y legible."""
+    errores = exc.errors()
+    if errores:
+        primero = errores[0]
+        campo = primero["loc"][-1] if primero["loc"] else "dato"
+        mensaje = primero["msg"].removeprefix("Value error, ")
+        detalle = f"{campo}: {mensaje}"
+    else:
+        detalle = "Datos inválidos"
+    return JSONResponse(status_code=422, content={"detail": detalle})
+
+
 # En desarrollo permitimos cualquier origen local (Vite corre en 5173 por defecto).
 # En producción, cambia esto por la URL exacta de tu frontend en Vercel.
+# Orígenes permitidos para llamar a esta API. En Render, define la variable de entorno
+# ALLOWED_ORIGINS con tu(s) dominio(s) de Vercel separados por coma, por ejemplo:
+#   ALLOWED_ORIGINS=https://finanzasu.vercel.app,https://frontend-psi-kohl-14.vercel.app
+# Si no se define, solo se permite desarrollo local (Vite en el puerto 5173).
+_origenes_env = os.getenv("ALLOWED_ORIGINS", "")
+ALLOWED_ORIGINS = [o.strip() for o in _origenes_env.split(",") if o.strip()] or [
+    "http://localhost:5173",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -117,6 +143,17 @@ def crear_tarjeta(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
+    existe = (
+        db.query(models.Tarjeta)
+        .filter(
+            models.Tarjeta.usuario_id == usuario.id,
+            func.lower(models.Tarjeta.nombre) == tarjeta.nombre.lower(),
+        )
+        .first()
+    )
+    if existe:
+        raise HTTPException(status_code=400, detail="Ya tienes una tarjeta con ese nombre")
+
     nueva = models.Tarjeta(**tarjeta.model_dump(), usuario_id=usuario.id)
     db.add(nueva)
     db.commit()
@@ -133,6 +170,17 @@ def actualizar_tarjeta(
 ):
     tarjeta = tarjeta_del_usuario(db, tarjeta_id, usuario)
     if payload.nombre is not None:
+        existe = (
+            db.query(models.Tarjeta)
+            .filter(
+                models.Tarjeta.usuario_id == usuario.id,
+                models.Tarjeta.id != tarjeta_id,
+                func.lower(models.Tarjeta.nombre) == payload.nombre.lower(),
+            )
+            .first()
+        )
+        if existe:
+            raise HTTPException(status_code=400, detail="Ya tienes una tarjeta con ese nombre")
         tarjeta.nombre = payload.nombre
     if payload.dia_corte is not None:
         tarjeta.dia_corte = payload.dia_corte
@@ -344,6 +392,10 @@ def unirse_grupo(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
+    codigo = codigo.strip()
+    if not codigo:
+        raise HTTPException(status_code=400, detail="Ingresa un código de invitación")
+
     grupo = db.query(models.Grupo).filter(models.Grupo.codigo_invitacion == codigo).first()
     if not grupo:
         raise HTTPException(status_code=404, detail="Código inválido")
@@ -538,4 +590,59 @@ def marcar_division_pagada(
     db.commit()
     db.refresh(division)
     return division
+
+
+@app.post("/api/grupos/{grupo_id}/salir", status_code=204)
+def salir_de_grupo(
+    grupo_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    grupo = db.query(models.Grupo).get(grupo_id)
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado")
+
+    miembro = verificar_miembro(db, grupo_id, usuario.id)
+
+    if grupo.creado_por_id == usuario.id:
+        raise HTTPException(
+            status_code=400,
+            detail="Eres quien creó el grupo; si ya no lo necesitas, elimínalo en vez de salir",
+        )
+
+    # Si tiene saldos pendientes (le deben o debe), avisamos antes de dejarlo salir.
+    debe_o_le_deben = (
+        db.query(models.DivisionGasto)
+        .join(models.GastoCompartido)
+        .filter(
+            models.GastoCompartido.grupo_id == grupo_id,
+            models.DivisionGasto.usuario_id == usuario.id,
+            models.DivisionGasto.pagado == 0,
+        )
+        .first()
+    )
+    if debe_o_le_deben:
+        raise HTTPException(
+            status_code=400,
+            detail="Tienes divisiones pendientes de pago en este grupo; salda tus cuentas antes de salir",
+        )
+
+    db.delete(miembro)
+    db.commit()
+
+
+@app.delete("/api/grupos/{grupo_id}", status_code=204)
+def eliminar_grupo(
+    grupo_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    grupo = db.query(models.Grupo).get(grupo_id)
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado")
+    if grupo.creado_por_id != usuario.id:
+        raise HTTPException(status_code=403, detail="Solo quien creó el grupo puede eliminarlo")
+
+    db.delete(grupo)  # cascada: borra miembros, gastos compartidos y sus divisiones
+    db.commit()
 

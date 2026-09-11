@@ -75,6 +75,8 @@ export const api = {
     request("/gastos-compartidos", { method: "POST", body: JSON.stringify(datos) }),
   marcarDivisionPagada: (divisionId) =>
     request(`/divisiones/${divisionId}/pagar`, { method: "PATCH" }),
+  salirDeGrupo: (grupoId) => request(`/grupos/${grupoId}/salir`, { method: "POST" }),
+  eliminarGrupo: (grupoId) => request(`/grupos/${grupoId}`, { method: "DELETE" }),
 
   exportarGastos: async (desde, hasta) => {
     const headers = {};

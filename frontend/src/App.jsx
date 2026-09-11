@@ -138,6 +138,14 @@ export default function App() {
       setError("Completa fecha, tarjeta y un monto válido.");
       return;
     }
+    if (form.fecha > todayISO()) {
+      setError("La fecha no puede ser futura.");
+      return;
+    }
+    if (montoNum > 100000) {
+      setError("Ese monto parece demasiado alto. Revisa si escribiste bien la cifra.");
+      return;
+    }
     setError("");
     try {
       await api.crearGasto({
@@ -214,7 +222,7 @@ export default function App() {
 
       <TarjetasPanel tarjetas={tarjetas} onChange={cargarDatos} />
 
-      <GruposPanel />
+      <GruposPanel usuarioId={usuario.id} />
 
       <div className="panel">
         <form onSubmit={handleSubmit}>
@@ -228,6 +236,8 @@ export default function App() {
               <input
                 type="date"
                 value={form.fecha}
+                max={todayISO()}
+                min="2000-01-01"
                 onChange={(e) => setForm({ ...form, fecha: e.target.value })}
               />
             </div>

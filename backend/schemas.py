@@ -1,6 +1,24 @@
 from datetime import date
 from decimal import Decimal
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
+
+FECHA_MINIMA = date(2000, 1, 1)
+MONTO_MAXIMO = Decimal("100000")
+
+
+def _validar_fecha(v: date) -> date:
+    if v > date.today():
+        raise ValueError("la fecha no puede ser futura")
+    if v < FECHA_MINIMA:
+        raise ValueError("la fecha no es válida")
+    return v
+
+
+def _validar_texto_no_vacio(v: str) -> str:
+    v = v.strip()
+    if not v:
+        raise ValueError("no puede estar vacío")
+    return v
 
 
 class UsuarioCreate(BaseModel):
@@ -8,10 +26,15 @@ class UsuarioCreate(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6, max_length=72)
 
+    @field_validator("nombre")
+    @classmethod
+    def _nombre_valido(cls, v):
+        return _validar_texto_no_vacio(v)
+
 
 class UsuarioLogin(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=1)
 
 
 class UsuarioOut(BaseModel):
@@ -27,10 +50,25 @@ class Token(BaseModel):
     usuario: UsuarioOut
 
 
+REDES_VALIDAS = {"Visa", "Mastercard", "American Express", "Diners Club", "Otra"}
+
+
 class TarjetaBase(BaseModel):
-    nombre: str
+    nombre: str = Field(min_length=1, max_length=50)
     dia_corte: int = Field(ge=1, le=31)
-    red: str | None = None
+    red: str | None = Field(default=None, max_length=20)
+
+    @field_validator("nombre")
+    @classmethod
+    def _nombre_valido(cls, v):
+        return _validar_texto_no_vacio(v)
+
+    @field_validator("red")
+    @classmethod
+    def _red_valida(cls, v):
+        if v is not None and v not in REDES_VALIDAS:
+            raise ValueError("la red debe ser una de: " + ", ".join(sorted(REDES_VALIDAS)))
+        return v
 
 
 class TarjetaCreate(TarjetaBase):
@@ -38,9 +76,23 @@ class TarjetaCreate(TarjetaBase):
 
 
 class TarjetaUpdate(BaseModel):
-    nombre: str | None = None
+    nombre: str | None = Field(default=None, max_length=50)
     dia_corte: int | None = Field(default=None, ge=1, le=31)
-    red: str | None = None
+    red: str | None = Field(default=None, max_length=20)
+
+    @field_validator("nombre")
+    @classmethod
+    def _nombre_valido(cls, v):
+        if v is None:
+            return v
+        return _validar_texto_no_vacio(v)
+
+    @field_validator("red")
+    @classmethod
+    def _red_valida(cls, v):
+        if v is not None and v not in REDES_VALIDAS:
+            raise ValueError("la red debe ser una de: " + ", ".join(sorted(REDES_VALIDAS)))
+        return v
 
 
 class Tarjeta(TarjetaBase):
@@ -51,8 +103,13 @@ class Tarjeta(TarjetaBase):
 class GastoBase(BaseModel):
     tarjeta_id: int
     fecha: date
-    monto: Decimal = Field(gt=0)
-    descripcion: str | None = None
+    monto: Decimal = Field(gt=0, le=MONTO_MAXIMO)
+    descripcion: str | None = Field(default=None, max_length=150)
+
+    @field_validator("fecha")
+    @classmethod
+    def _fecha_valida(cls, v):
+        return _validar_fecha(v)
 
 
 class GastoCreate(GastoBase):
@@ -82,10 +139,14 @@ class Resumen(BaseModel):
     en_rojo: bool
     tarjetas: list[ResumenTarjeta]
 
-# schemas.py (adiciones)
 
 class GrupoCreate(BaseModel):
     nombre: str = Field(min_length=1, max_length=80)
+
+    @field_validator("nombre")
+    @classmethod
+    def _nombre_valido(cls, v):
+        return _validar_texto_no_vacio(v)
 
 
 class GrupoOut(BaseModel):
@@ -101,17 +162,34 @@ class MiembroGrupoOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     usuario_id: int
     rol: str
-    usuario: UsuarioOut  # reutilizas el existente
+    usuario: UsuarioOut
 
 
 class GastoCompartidoCreate(BaseModel):
     grupo_id: int
     fecha: date
-    monto: Decimal = Field(gt=0)
-    descripcion: str | None = None
-    categoria: str | None = None
-    # Lista de usuarios y montos (opcional, si no se provee se divide en partes iguales)
+    monto: Decimal = Field(gt=0, le=MONTO_MAXIMO)
+    descripcion: str | None = Field(default=None, max_length=150)
+    categoria: str | None = Field(default=None, max_length=50)
+    # Lista de usuarios y montos (opcional; si no se provee se divide en partes iguales)
     divisiones: list[tuple[int, Decimal]] | None = None  # (usuario_id, monto)
+
+    @field_validator("fecha")
+    @classmethod
+    def _fecha_valida(cls, v):
+        return _validar_fecha(v)
+
+    @field_validator("divisiones")
+    @classmethod
+    def _divisiones_validas(cls, v):
+        if v is None:
+            return v
+        if len(v) == 0:
+            raise ValueError("debes incluir al menos una división")
+        for _, monto in v:
+            if monto <= 0:
+                raise ValueError("cada división debe ser un monto mayor a 0")
+        return v
 
 
 class GastoCompartidoOut(BaseModel):
@@ -137,4 +215,4 @@ class DivisionGastoOut(BaseModel):
 class SaldoUsuario(BaseModel):
     usuario_id: int
     nombre: str
-    debe: Decimal  # positivo = debe a la caja común, negativo = le deben
+    debe: Decimal  # positivo = le deben, negativo = debe

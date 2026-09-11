@@ -7,6 +7,8 @@ import {
   ArrowLeft,
   Check,
   ReceiptText,
+  LogOut,
+  Trash2,
 } from "lucide-react";
 import { api } from "./api.js";
 
@@ -14,7 +16,7 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export default function GruposPanel() {
+export default function GruposPanel({ usuarioId }) {
   const [abierto, setAbierto] = useState(false);
   const [grupos, setGrupos] = useState([]);
   const [grupoActivo, setGrupoActivo] = useState(null); // objeto grupo o null
@@ -82,7 +84,12 @@ export default function GruposPanel() {
           {grupoActivo ? (
             <DetalleGrupo
               grupo={grupoActivo}
+              usuarioId={usuarioId}
               onVolver={() => setGrupoActivo(null)}
+              onSalioOEliminado={() => {
+                setGrupoActivo(null);
+                cargarGrupos();
+              }}
               onError={setError}
             />
           ) : (
@@ -135,12 +142,16 @@ export default function GruposPanel() {
   );
 }
 
-function DetalleGrupo({ grupo, onVolver, onError }) {
+function DetalleGrupo({ grupo, usuarioId, onVolver, onSalioOEliminado, onError }) {
   const [saldos, setSaldos] = useState([]);
   const [gastos, setGastos] = useState([]);
   const [copiado, setCopiado] = useState(false);
   const [form, setForm] = useState({ fecha: todayISO(), monto: "", descripcion: "" });
+  const [personalizar, setPersonalizar] = useState(false);
+  const [montosPersonalizados, setMontosPersonalizados] = useState({});
   const [error, setError] = useState("");
+
+  const esCreador = grupo.creado_por_id === usuarioId;
 
   const cargar = useCallback(async () => {
     const [s, g] = await Promise.all([
@@ -169,6 +180,24 @@ function DetalleGrupo({ grupo, onVolver, onError }) {
     }
   }
 
+  function activarPersonalizado(checked) {
+    setPersonalizar(checked);
+    if (checked) {
+      const montoTotal = Number(form.monto) || 0;
+      const n = grupo.miembros.length;
+      const inicial = {};
+      grupo.miembros.forEach((m) => {
+        inicial[m.usuario_id] = n > 0 ? (montoTotal / n).toFixed(2) : "0.00";
+      });
+      setMontosPersonalizados(inicial);
+    }
+  }
+
+  const sumaPersonalizada = Object.values(montosPersonalizados).reduce(
+    (acc, v) => acc + (Number(v) || 0),
+    0
+  );
+
   async function agregarGasto(e) {
     e.preventDefault();
     const monto = Number(form.monto);
@@ -176,6 +205,29 @@ function DetalleGrupo({ grupo, onVolver, onError }) {
       setError("Completa fecha y un monto válido.");
       return;
     }
+    if (form.fecha > todayISO()) {
+      setError("La fecha no puede ser futura.");
+      return;
+    }
+    if (monto > 100000) {
+      setError("Ese monto parece demasiado alto. Revisa si escribiste bien la cifra.");
+      return;
+    }
+
+    let divisiones;
+    if (personalizar) {
+      divisiones = Object.entries(montosPersonalizados).map(([uid, m]) => [Number(uid), Number(m)]);
+      const suma = divisiones.reduce((acc, [, m]) => acc + m, 0);
+      if (divisiones.some(([, m]) => !m || m <= 0)) {
+        setError("Cada persona debe tener un monto mayor a 0.");
+        return;
+      }
+      if (Math.abs(suma - monto) > 0.01) {
+        setError(`La suma de las partes ($${suma.toFixed(2)}) no coincide con el monto total ($${monto.toFixed(2)}).`);
+        return;
+      }
+    }
+
     setError("");
     try {
       await api.crearGastoCompartido({
@@ -183,8 +235,11 @@ function DetalleGrupo({ grupo, onVolver, onError }) {
         fecha: form.fecha,
         monto,
         descripcion: form.descripcion || null,
+        divisiones,
       });
       setForm({ fecha: todayISO(), monto: "", descripcion: "" });
+      setPersonalizar(false);
+      setMontosPersonalizados({});
       await cargar();
     } catch (err) {
       setError(err.message);
@@ -200,11 +255,46 @@ function DetalleGrupo({ grupo, onVolver, onError }) {
     }
   }
 
+  async function salir() {
+    const ok = window.confirm(`¿Salir del grupo "${grupo.nombre}"?`);
+    if (!ok) return;
+    try {
+      await api.salirDeGrupo(grupo.id);
+      onSalioOEliminado();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function eliminar() {
+    const ok = window.confirm(
+      `¿Eliminar el grupo "${grupo.nombre}"? Esto borra todos sus gastos compartidos y saldos. No se puede deshacer.`
+    );
+    if (!ok) return;
+    try {
+      await api.eliminarGrupo(grupo.id);
+      onSalioOEliminado();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   return (
     <div>
-      <button className="volver-grupos" onClick={onVolver}>
-        <ArrowLeft size={14} /> Todos los grupos
-      </button>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <button className="volver-grupos" onClick={onVolver} style={{ marginBottom: 0 }}>
+          <ArrowLeft size={14} /> Todos los grupos
+        </button>
+        {esCreador ? (
+          <button className="mini-btn peligro" onClick={eliminar} title="Eliminar grupo">
+            <Trash2 size={15} />
+          </button>
+        ) : (
+          <button className="mini-btn peligro" onClick={salir} title="Salir del grupo">
+            <LogOut size={15} />
+          </button>
+        )}
+      </div>
 
       <div className="grupo-encabezado">
         <h3>{grupo.nombre}</h3>
@@ -237,11 +327,13 @@ function DetalleGrupo({ grupo, onVolver, onError }) {
           <input
             type="date"
             value={form.fecha}
+            max={todayISO()}
+            min="2000-01-01"
             onChange={(e) => setForm({ ...form, fecha: e.target.value })}
           />
         </div>
         <div>
-          <label>Monto (se reparte en partes iguales)</label>
+          <label>Monto total</label>
           <input
             type="number"
             step="0.01"
@@ -260,6 +352,39 @@ function DetalleGrupo({ grupo, onVolver, onError }) {
           onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
         />
       </div>
+
+      <label style={{ display: "flex", alignItems: "center", gap: 6, marginBottom: 10, cursor: "pointer" }}>
+        <input
+          type="checkbox"
+          style={{ width: "auto" }}
+          checked={personalizar}
+          onChange={(e) => activarPersonalizado(e.target.checked)}
+        />
+        <span style={{ fontSize: 13 }}>Dividir en montos personalizados (en vez de partes iguales)</span>
+      </label>
+
+      {personalizar && (
+        <div className="panel" style={{ marginBottom: 12, padding: 12 }}>
+          {grupo.miembros.map((m) => (
+            <div key={m.usuario_id} className="tarjeta-row">
+              <span style={{ flex: 1, fontSize: 13 }}>{m.usuario.nombre}</span>
+              <input
+                type="number"
+                step="0.01"
+                style={{ width: 90 }}
+                value={montosPersonalizados[m.usuario_id] ?? ""}
+                onChange={(e) =>
+                  setMontosPersonalizados({ ...montosPersonalizados, [m.usuario_id]: e.target.value })
+                }
+              />
+            </div>
+          ))}
+          <p className="corte-label" style={{ marginTop: 8 }}>
+            Suma: ${sumaPersonalizada.toFixed(2)} / ${Number(form.monto || 0).toFixed(2)}
+          </p>
+        </div>
+      )}
+
       {error && <p className="error">{error}</p>}
       <button className="submit" onClick={agregarGasto} type="button" style={{ marginBottom: 16 }}>
         <ReceiptText size={15} />
