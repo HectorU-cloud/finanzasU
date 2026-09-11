@@ -1,6 +1,7 @@
-import { useState } from "react";
-import { ChevronDown, CreditCard, Pencil, Trash2, Check, X, Plus } from "lucide-react";
+import { useState, useEffect } from "react";
+import { ChevronDown, CreditCard, Pencil, Trash2, Check, X, Plus, MoreVertical } from "lucide-react";
 import { api } from "./api.js";
+import ConfirmModal from "./ConfirmModal.jsx";
 
 const REDES = ["Visa", "Mastercard", "American Express", "Diners Club", "Otra"];
 
@@ -10,11 +11,25 @@ export default function TarjetasPanel({ tarjetas = [], onChange }) {
   const [borrador, setBorrador] = useState({ nombre: "", dia_corte: "", red: REDES[0] });
   const [nueva, setNueva] = useState({ nombre: "", dia_corte: "", red: REDES[0] });
   const [error, setError] = useState("");
+  const [menuAbiertoId, setMenuAbiertoId] = useState(null);
+  const [tarjetaAEliminar, setTarjetaAEliminar] = useState(null);
+
+  // Cerrar el menú al hacer clic fuera
+  useEffect(() => {
+    function cerrarSiEsFuera(e) {
+      if (!e.target.closest(".acciones-menu")) {
+        setMenuAbiertoId(null);
+      }
+    }
+    document.addEventListener("click", cerrarSiEsFuera);
+    return () => document.removeEventListener("click", cerrarSiEsFuera);
+  }, []);
 
   function empezarEdicion(t) {
     setEditandoId(t.id);
     setBorrador({ nombre: t.nombre, dia_corte: t.dia_corte, red: t.red || REDES[0] });
     setError("");
+    setMenuAbiertoId(null);
   }
 
   async function guardarEdicion(id) {
@@ -37,16 +52,15 @@ export default function TarjetasPanel({ tarjetas = [], onChange }) {
     }
   }
 
-  async function eliminar(id, nombre) {
-    const ok = window.confirm(
-      `¿Eliminar "${nombre}"? Esto también borra todos sus gastos registrados. Esta acción no se puede deshacer.`
-    );
-    if (!ok) return;
+  async function confirmarEliminar() {
+    if (!tarjetaAEliminar) return;
     try {
-      await api.eliminarTarjeta(id);
+      await api.eliminarTarjeta(tarjetaAEliminar.id);
+      setTarjetaAEliminar(null);
       onChange();
     } catch (err) {
       setError(err.message);
+      setTarjetaAEliminar(null);
     }
   }
 
@@ -118,17 +132,33 @@ export default function TarjetasPanel({ tarjetas = [], onChange }) {
                 <>
                   <span style={{ flex: 1, fontSize: 14 }}>{t.nombre}</span>
                   <span className="corte-label">{t.red || "Sin red"} · corte día {t.dia_corte}</span>
-                  <div className="acciones-tarjeta">
-                    <button className="mini-btn" onClick={() => empezarEdicion(t)} title="Editar">
-                      <Pencil size={15} />
-                    </button>
+                  <div className="acciones-menu">
                     <button
-                      className="mini-btn peligro"
-                      onClick={() => eliminar(t.id, t.nombre)}
-                      title="Eliminar (borra también sus gastos)"
+                      className="mini-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMenuAbiertoId(menuAbiertoId === t.id ? null : t.id);
+                      }}
+                      title="Más opciones"
                     >
-                      <Trash2 size={15} />
+                      <MoreVertical size={16} />
                     </button>
+                    {menuAbiertoId === t.id && (
+                      <div className="dropdown-menu">
+                        <button onClick={() => empezarEdicion(t)}>
+                          <Pencil size={14} /> Editar
+                        </button>
+                        <button
+                          className="peligro"
+                          onClick={() => {
+                            setTarjetaAEliminar(t);
+                            setMenuAbiertoId(null);
+                          }}
+                        >
+                          <Trash2 size={14} /> Eliminar
+                        </button>
+                      </div>
+                    )}
                   </div>
                 </>
               )}
@@ -165,6 +195,16 @@ export default function TarjetasPanel({ tarjetas = [], onChange }) {
           </form>
           {error && <p className="error">{error}</p>}
         </div>
+      )}
+
+      {tarjetaAEliminar && (
+        <ConfirmModal
+          titulo="Eliminar tarjeta"
+          mensaje={`¿Eliminar "${tarjetaAEliminar.nombre}"? Esto también borra todos sus gastos registrados. Esta acción no se puede deshacer.`}
+          textoConfirmar="Sí, eliminar"
+          onConfirmar={confirmarEliminar}
+          onCancelar={() => setTarjetaAEliminar(null)}
+        />
       )}
     </div>
   );
