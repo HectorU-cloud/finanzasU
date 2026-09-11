@@ -16,6 +16,7 @@ import {
 import { api } from "./api.js";
 import ResumenCategorias from "./ResumenCategorias.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
+import EditarGastoCompartidoModal from "./EditarGastoCompartidoModal.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -163,6 +164,7 @@ function DetalleGrupo({ grupo, usuarioId, onVolver, onSalioOEliminado, onError }
   const [categorias, setCategorias] = useState([]);
   const [menuAbiertoId, setMenuAbiertoId] = useState(null);
   const [gastoAEliminar, setGastoAEliminar] = useState(null);
+  const [gastoEditando, setGastoEditando] = useState(null);
 
   const esCreador = grupo.creado_por_id === usuarioId;
 
@@ -558,6 +560,14 @@ async function confirmarEliminar() {
                     {menuAbiertoId === g.id && (
                       <div className="dropdown-menu">
                         <button
+                          onClick={() => {
+                            setGastoEditando(g);
+                            setMenuAbiertoId(null);
+                          }}
+                        >
+                          <Pencil size={14} /> Editar
+                        </button>
+                        <button
                           className="peligro"
                           onClick={() => {
                             setGastoAEliminar(g);
@@ -588,6 +598,19 @@ async function confirmarEliminar() {
           ))}
           ))}
         </ul>
+      )}
+
+      {gastoEditando && (
+        <EditarGastoCompartidoModal
+          grupoId={grupo.id}
+          gasto={gastoEditando}
+          categorias={categorias}
+          onCerrar={() => setGastoEditando(null)}
+          onGuardado={() => {
+            setGastoEditando(null);
+            cargar();
+          }}
+        />
       )}
 
       {gastoAEliminar && (
