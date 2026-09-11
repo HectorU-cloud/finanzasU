@@ -10,6 +10,7 @@ import AuthScreen from "./AuthScreen.jsx";
 import CambiarPasswordModal from "./CambiarPasswordModal.jsx";
 import ResumenCategorias from "./ResumenCategorias.jsx";
 import EditarGastoModal from "./EditarGastoModal.jsx";
+import ConfirmModal from "./ConfirmModal.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -66,6 +67,7 @@ export default function App() {
 
   const [modalPassword, setModalPassword] = useState(false);
   const [gastoEditando, setGastoEditando] = useState(null);
+  const [gastoAEliminar, setGastoAEliminar] = useState(null);
 
   const [tarjetas, setTarjetas] = useState([]);
   const [gastos, setGastos] = useState([]);
@@ -420,7 +422,7 @@ export default function App() {
                   <button className="mini-btn" onClick={() => setGastoEditando(g)} title="Editar">
                     <Pencil size={15} />
                   </button>
-                  <button className="mini-btn peligro" onClick={() => handleDelete(g.id)} title="Quitar">
+                  <button className="mini-btn peligro" onClick={() => setGastoEliminar(g)} title="Quitar">
                     <Trash2 size={15} />
                   </button>
                 </div>
@@ -446,6 +448,18 @@ export default function App() {
           }}
         />
       )}
+      {gastoAEliminar && (
+  <ConfirmModal
+    titulo="Eliminar gasto"
+    mensaje={`¿Seguro que quieres eliminar el gasto de $${Number(gastoAEliminar.monto).toFixed(2)}${gastoAEliminar.categoria ? ` (${gastoAEliminar.categoria})` : ""}? Esta acción no se puede deshacer.`}
+    textoConfirmar="Sí, eliminar"
+    onConfirmar={async () => {
+      await handleDelete(gastoAEliminar.id);
+      setGastoAEliminar(null);
+    }}
+    onCancelar={() => setGastoAEliminar(null)}
+  />
+)}
     </div>
   );
 }
