@@ -270,13 +270,14 @@ def eliminar_gasto(
 def exportar_gastos(
     desde: date,
     hasta: date,
+    categoria: str | None = None,
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
     if hasta < desde:
         raise HTTPException(status_code=400, detail="El rango de fechas es inválido")
 
-    gastos = (
+    query = (
         db.query(models.Gasto)
         .join(models.Tarjeta)
         .filter(
@@ -284,33 +285,35 @@ def exportar_gastos(
             models.Gasto.fecha >= desde,
             models.Gasto.fecha <= hasta,
         )
-        .order_by(models.Gasto.fecha)
-        .all()
     )
+    if categoria is not None:
+        query = query.filter(models.Gasto.categoria == categoria)
+
+    gastos = query.order_by(models.Gasto.fecha).all()
 
     buffer = io.StringIO()
     writer = csv.writer(buffer)
-    writer.writerow(["Fecha", "Tarjeta", "Monto", "Categoría", "Descripción"])   # ← CAMBIO
+    writer.writerow(["Fecha", "Tarjeta", "Monto", "Categoria", "Descripcion"])
     for g in gastos:
         writer.writerow([
             g.fecha.isoformat(),
             g.tarjeta.nombre if g.tarjeta else "",
             f"{g.monto:.2f}",
-            g.categoria or "",      # ← NUEVO
+            g.categoria or "",
             g.descripcion or "",
         ])
     total = sum((g.monto for g in gastos), Decimal("0"))
     writer.writerow([])
-    writer.writerow(["", "", "Total", f"{total:.2f}"])
+    writer.writerow(["", "", "", "Total", f"{total:.2f}"])
     buffer.seek(0)
 
-    nombre_archivo = f"gastos_{desde.isoformat()}_a_{hasta.isoformat()}.csv"
+    sufijo = f"_{categoria}" if categoria else ""
+    nombre_archivo = f"gastos{sufijo}_{desde.isoformat()}_a_{hasta.isoformat()}.csv"
     return StreamingResponse(
         iter([buffer.getvalue()]),
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{nombre_archivo}"'},
     )
-
 
 # ---------- Resumen mensual ----------
 
