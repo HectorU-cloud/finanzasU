@@ -7,12 +7,13 @@ import CardCarousel from "./CardCarousel.jsx";
 import AuthScreen from "./AuthScreen.jsx";
 import CambiarPasswordModal from "./CambiarPasswordModal.jsx";
 import ResumenCategorias from "./ResumenCategorias.jsx";
-
+import EditarGastoModal from "./EditarGastoModal.jsx";
+import { PiggyBank, Plus, Trash2, ChevronLeft, ChevronRight, Download, Tag, Pencil } from "lucide-react";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
-
+const [gastoEditando, setGastoEditando] = useState(null);
 const NOMBRES_MES = [
   "enero", "febrero", "marzo", "abril", "mayo", "junio",
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
@@ -412,11 +413,14 @@ setForm((f) => ({ ...f, monto: "", descripcion: "" }));
                   {g.descripcion && <span className="desc">{g.descripcion}</span>}
                 </div>
                 <div className="acciones">
-                  <span className="monto">${Number(g.monto).toFixed(2)}</span>
-                  <button className="mini-btn peligro" onClick={() => handleDelete(g.id)} title="Quitar">
-                    <Trash2 size={15} />
-                  </button>
-                </div>
+  <span className="monto">${Number(g.monto).toFixed(2)}</span>
+  <button className="mini-btn" onClick={() => setGastoEditando(g)} title="Editar">
+    <Pencil size={15} />
+  </button>
+  <button className="mini-btn peligro" onClick={() => handleDelete(g.id)} title="Quitar">
+    <Trash2 size={15} />
+  </button>
+</div>
               </li>
             );
           })}
@@ -425,6 +429,19 @@ setForm((f) => ({ ...f, monto: "", descripcion: "" }));
 
       {modalPassword && (
         <CambiarPasswordModal onCerrar={() => setModalPassword(false)} />
+      )}
+
+      {gastoEditando && (
+        <EditarGastoModal
+          gasto={gastoEditando}
+          tarjetas={tarjetas}
+          categorias={categorias}
+          onCerrar={() => setGastoEditando(null)}
+          onGuardado={() => {
+            setGastoEditando(null);
+            cargarDatos();
+          }}
+        />
       )}
     </div>
   );
