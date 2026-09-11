@@ -717,6 +717,28 @@ def listar_gastos_grupo(
         .all()
     )
 
+@app.delete("/api/grupos/{grupo_id}/gastos/{gasto_id}", status_code=204)
+def eliminar_gasto_compartido(
+    grupo_id: int,
+    gasto_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    verificar_miembro(db, grupo_id, usuario.id)
+
+    gasto = (
+        db.query(models.GastoCompartido)
+        .filter(
+            models.GastoCompartido.id == gasto_id,
+            models.GastoCompartido.grupo_id == grupo_id,
+        )
+        .first()
+    )
+    if not gasto:
+        raise HTTPException(status_code=404, detail="Gasto no encontrado")
+
+    db.delete(gasto)  # cascade borra las divisiones
+    db.commit()
 
 @app.patch("/api/divisiones/{division_id}/pagar", response_model=schemas.DivisionGastoOut)
 def marcar_division_pagada(
