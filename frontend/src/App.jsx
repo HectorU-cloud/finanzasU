@@ -128,7 +128,7 @@ export default function App() {
     setExportando(true);
     setError("");
     try {
-      const { blob, filename } = await api.exportarGastos(desde, hasta);
+      const { blob, filename } = await api.exportarGastos(desde, hasta, filtroCategoria);
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
