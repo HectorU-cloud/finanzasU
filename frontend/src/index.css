@@ -1523,3 +1523,87 @@ ul.gastos .acciones .monto {
 .dropdown-menu button.peligro:hover {
   background: var(--danger-soft);
 }
+
+/* Presupuesto grupal */
+.presupuesto-grupo {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  margin: 12px 0;
+  background: var(--surface);
+}
+
+.presupuesto-grupo.rojo {
+  border-color: var(--danger);
+  background: var(--danger-soft);
+}
+
+.presupuesto-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.presupuesto-label {
+  font-size: 12px;
+  color: var(--ink-soft);
+  font-weight: 500;
+}
+
+.presupuesto-montos {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.presupuesto-gastado {
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.presupuesto-grupo.rojo .presupuesto-gastado {
+  color: var(--danger);
+}
+
+.presupuesto-limite {
+  font-size: 13px;
+  color: var(--ink-faint);
+}
+
+.presupuesto-barra {
+  height: 6px;
+  background: var(--surface-alt);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.presupuesto-barra-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  transition: width 0.3s ease;
+}
+
+.presupuesto-grupo.rojo .presupuesto-barra-fill {
+  background: var(--danger);
+}
+
+.presupuesto-pct {
+  font-size: 11px;
+  color: var(--ink-faint);
+  margin: 6px 0 0;
+}
+
+.presupuesto-form {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.presupuesto-form input {
+  flex: 1;
+}
