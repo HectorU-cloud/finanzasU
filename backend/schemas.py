@@ -208,7 +208,7 @@ class GrupoOut(BaseModel):
     nombre: str
     codigo_invitacion: str
     creado_por_id: int
-    limite_mensual : decimal
+    limite_mensual : Decimal
     miembros: list["MiembroGrupoOut"] = []
 
 
