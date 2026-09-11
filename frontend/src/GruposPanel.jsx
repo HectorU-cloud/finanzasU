@@ -11,6 +11,7 @@ import {
   Trash2,
   Pencil,
   X,
+  MoreVertical,
 } from "lucide-react";
 import { api } from "./api.js";
 import ResumenCategorias from "./ResumenCategorias.jsx";
@@ -160,6 +161,8 @@ function DetalleGrupo({ grupo, usuarioId, onVolver, onSalioOEliminado, onError }
   const [nuevoLimite, setNuevoLimite] = useState("");
   const [confirmarAccion, setConfirmarAccion] = useState(null); // "salir" | "eliminar" | null
   const [categorias, setCategorias] = useState([]);
+  const [menuAbiertoId, setMenuAbiertoId] = useState(null);
+  const [gastoAEliminar, setGastoAEliminar] = useState(null);
 
   const esCreador = grupo.creado_por_id === usuarioId;
 
@@ -178,6 +181,16 @@ function DetalleGrupo({ grupo, usuarioId, onVolver, onSalioOEliminado, onError }
     cargar().catch((e) => onError(e.message));
     api.getCategorias().then((d) => setCategorias(d.categorias)).catch(() => {});
   }, [cargar, onError]);
+
+  useEffect(() => {
+    function cerrarSiEsFuera(e) {
+      if (!e.target.closest(".acciones-menu")) {
+        setMenuAbiertoId(null);
+      }
+    }
+    document.addEventListener("click", cerrarSiEsFuera);
+    return () => document.removeEventListener("click", cerrarSiEsFuera);
+  }, []);
 
   function nombreDe(usuarioId) {
     return grupo.miembros.find((m) => m.usuario_id === usuarioId)?.usuario.nombre || "—";
@@ -273,6 +286,18 @@ function DetalleGrupo({ grupo, usuarioId, onVolver, onSalioOEliminado, onError }
       await cargar();
     } catch (err) {
       setError(err.message);
+    }
+  }
+
+  async function confirmarEliminarGasto() {
+    if (!gastoAEliminar) return;
+    try {
+      await api.eliminarGastoCompartido(grupo.id, gastoAEliminar.id);
+      setGastoAEliminar(null);
+      await cargar();
+    } catch (err) {
+      setError(err.message);
+      setGastoAEliminar(null);
     }
   }
 
@@ -517,7 +542,34 @@ async function confirmarEliminar() {
                   <span className="sep">·</span>
                   pagó {nombreDe(g.pagado_por_id)}
                 </span>
-                <span className="monto">${Number(g.monto).toFixed(2)}</span>
+                <div className="acciones">
+                  <span className="monto">${Number(g.monto).toFixed(2)}</span>
+                  <div className="acciones-menu">
+                    <button
+                      className="mini-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMenuAbiertoId(menuAbiertoId === g.id ? null : g.id);
+                      }}
+                      title="Más opciones"
+                    >
+                      <MoreVertical size={15} />
+                    </button>
+                    {menuAbiertoId === g.id && (
+                      <div className="dropdown-menu">
+                        <button
+                          className="peligro"
+                          onClick={() => {
+                            setGastoAEliminar(g);
+                            setMenuAbiertoId(null);
+                          }}
+                        >
+                          <Trash2 size={14} /> Eliminar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </div>
               {g.descripcion && <span className="desc">{g.descripcion}</span>}
               <div className="divisiones-lista">
@@ -534,7 +586,18 @@ async function confirmarEliminar() {
               </div>
             </li>
           ))}
+          ))}
         </ul>
+      )}
+
+      {gastoAEliminar && (
+        <ConfirmModal
+          titulo="Eliminar gasto compartido"
+          mensaje={`¿Eliminar el gasto de $${Number(gastoAEliminar.monto).toFixed(2)}${gastoAEliminar.descripcion ? ` ("${gastoAEliminar.descripcion}")` : ""}? Esto también borra las divisiones entre los miembros. No se puede deshacer.`}
+          textoConfirmar="Sí, eliminar"
+          onConfirmar={confirmarEliminarGasto}
+          onCancelar={() => setGastoAEliminar(null)}
+        />
       )}
       {confirmarAccion === "salir" && (
   <ConfirmModal
