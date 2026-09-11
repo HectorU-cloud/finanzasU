@@ -83,6 +83,13 @@ export const api = {
     request(`/grupos/unirse?codigo=${encodeURIComponent(codigo)}`, { method: "POST" }),
   getGastosGrupo: (grupoId) => request(`/grupos/${grupoId}/gastos`),
   getSaldosGrupo: (grupoId) => request(`/grupos/${grupoId}/saldos`),
+  getResumenGrupo: (grupoId, anio, mes) =>
+    request(`/grupos/${grupoId}/resumen?anio=${anio}&mes=${mes}`),
+  actualizarLimiteGrupo: (grupoId, limite) =>
+    request(`/grupos/${grupoId}/limite`, {
+      method: "PUT",
+      body: JSON.stringify({ limite_mensual: limite }),
+    }),
   crearGastoCompartido: (datos) =>
     request("/gastos-compartidos", { method: "POST", body: JSON.stringify(datos) }),
   marcarDivisionPagada: (divisionId) =>
