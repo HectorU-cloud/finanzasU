@@ -13,6 +13,7 @@ import {
   X,
 } from "lucide-react";
 import { api } from "./api.js";
+import ResumenCategorias from "./ResumenCategorias.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
 
 function todayISO() {
@@ -408,6 +409,12 @@ async function confirmarEliminar() {
           )}
         </div>
       )} 
+
+      <ResumenCategorias
+        anio={hoy.getFullYear()}
+        mes={hoy.getMonth() + 1}
+        grupoId={grupo.id}
+      />
 
       <form className="form-row" onSubmit={agregarGasto} style={{ marginTop: 14 }}>
         <div>
