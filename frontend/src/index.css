@@ -1410,3 +1410,22 @@ ul.gastos .acciones .monto {
   align-items: center;
   gap: 8px;
 }
+
+/* Responsive: en móvil, apilar los campos de formularios */
+@media (max-width: 560px) {
+  .form-row {
+    grid-template-columns: 1fr;
+    gap: 10px;
+  }
+
+  /* Evita que la fecha y la tarjeta se solapen */
+  .form-row > div {
+    min-width: 0;
+  }
+
+  input[type="date"],
+  input[type="number"] {
+    width: 100%;
+    min-width: 0;
+  }
+}
