@@ -15,11 +15,10 @@ from sqlalchemy.orm import Session
 import auth
 import models
 import schemas
-from database import Base, engine, get_db
+from database import get_db
 
 LIMITE_MENSUAL = Decimal("350")
 
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="API Finanzas Personales")
 
