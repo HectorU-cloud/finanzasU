@@ -150,7 +150,7 @@ function DetalleGrupo({ grupo, usuarioId, onVolver, onSalioOEliminado, onError }
   const [saldos, setSaldos] = useState([]);
   const [gastos, setGastos] = useState([]);
   const [copiado, setCopiado] = useState(false);
-  const [form, setForm] = useState({ fecha: todayISO(), monto: "", descripcion: "" });
+  const [form, setForm] = useState({ fecha: todayISO(), monto: "", descripcion: "", categoria: "" });
   const [personalizar, setPersonalizar] = useState(false);
   const [montosPersonalizados, setMontosPersonalizados] = useState({});
   const [error, setError] = useState("");
@@ -159,6 +159,7 @@ function DetalleGrupo({ grupo, usuarioId, onVolver, onSalioOEliminado, onError }
   const [editandoLimite, setEditandoLimite] = useState(false);
   const [nuevoLimite, setNuevoLimite] = useState("");
   const [confirmarAccion, setConfirmarAccion] = useState(null); // "salir" | "eliminar" | null
+  const [categorias, setCategorias] = useState([]);
 
   const esCreador = grupo.creado_por_id === usuarioId;
 
@@ -175,6 +176,7 @@ function DetalleGrupo({ grupo, usuarioId, onVolver, onSalioOEliminado, onError }
   
   useEffect(() => {
     cargar().catch((e) => onError(e.message));
+    api.getCategorias().then((d) => setCategorias(d.categorias)).catch(() => {});
   }, [cargar, onError]);
 
   function nombreDe(usuarioId) {
@@ -246,9 +248,10 @@ function DetalleGrupo({ grupo, usuarioId, onVolver, onSalioOEliminado, onError }
         fecha: form.fecha,
         monto,
         descripcion: form.descripcion || null,
+        categoria: form.categoria || null,
         divisiones,
       });
-      setForm({ fecha: todayISO(), monto: "", descripcion: "" });
+      setForm({ fecha: todayISO(), monto: "", descripcion: "", categoria: form.categoria });
       setPersonalizar(false);
       setMontosPersonalizados({});
       await cargar();
@@ -438,6 +441,20 @@ async function confirmarEliminar() {
           />
         </div>
       </form>
+      
+      <div style={{ marginBottom: 10 }}>
+        <label>Categoría (opcional)</label>
+        <select
+          value={form.categoria}
+          onChange={(e) => setForm({ ...form, categoria: e.target.value })}
+        >
+          <option value="">Sin categoría</option>
+          {categorias.map((c) => (
+            <option key={c} value={c}>{c}</option>
+          ))}
+        </select>
+      </div>
+      
       <div style={{ marginBottom: 10 }}>
         <label>Descripción (opcional)</label>
         <input
