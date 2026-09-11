@@ -233,7 +233,7 @@ def listar_gastos(
     if mes is not None:
         query = query.filter(extract("month", models.Gasto.fecha) == mes)
     if categoria is not None:
-        query = query.filter(extract("month", models.Gasto.fecha) == categoria)
+        query = query.filter(models.Gasto.fecha) == categoria)
     return query.order_by(models.Gasto.fecha.desc()).all()
 
 
