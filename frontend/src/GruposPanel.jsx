@@ -11,6 +11,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { api } from "./api.js";
+import ConfirmModal from "./ConfirmModal.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -150,6 +151,7 @@ function DetalleGrupo({ grupo, usuarioId, onVolver, onSalioOEliminado, onError }
   const [personalizar, setPersonalizar] = useState(false);
   const [montosPersonalizados, setMontosPersonalizados] = useState({});
   const [error, setError] = useState("");
+  const [confirmarAccion, setConfirmarAccion] = useState(null); // "salir" | "eliminar" | null
 
   const esCreador = grupo.creado_por_id === usuarioId;
 
@@ -255,29 +257,27 @@ function DetalleGrupo({ grupo, usuarioId, onVolver, onSalioOEliminado, onError }
     }
   }
 
-  async function salir() {
-    const ok = window.confirm(`¿Salir del grupo "${grupo.nombre}"?`);
-    if (!ok) return;
-    try {
-      await api.salirDeGrupo(grupo.id);
-      onSalioOEliminado();
-    } catch (err) {
-      setError(err.message);
-    }
+  async function confirmarSalir() {
+  try {
+    await api.salirDeGrupo(grupo.id);
+    setConfirmarAccion(null);
+    onSalioOEliminado();
+  } catch (err) {
+    setError(err.message);
+    setConfirmarAccion(null);
   }
+}
 
-  async function eliminar() {
-    const ok = window.confirm(
-      `¿Eliminar el grupo "${grupo.nombre}"? Esto borra todos sus gastos compartidos y saldos. No se puede deshacer.`
-    );
-    if (!ok) return;
-    try {
-      await api.eliminarGrupo(grupo.id);
-      onSalioOEliminado();
-    } catch (err) {
-      setError(err.message);
-    }
+async function confirmarEliminar() {
+  try {
+    await api.eliminarGrupo(grupo.id);
+    setConfirmarAccion(null);
+    onSalioOEliminado();
+  } catch (err) {
+    setError(err.message);
+    setConfirmarAccion(null);
   }
+}
 
   return (
     <div>
@@ -286,14 +286,14 @@ function DetalleGrupo({ grupo, usuarioId, onVolver, onSalioOEliminado, onError }
           <ArrowLeft size={14} /> Todos los grupos
         </button>
         {esCreador ? (
-          <button className="mini-btn peligro" onClick={eliminar} title="Eliminar grupo">
-            <Trash2 size={15} />
-          </button>
-        ) : (
-          <button className="mini-btn peligro" onClick={salir} title="Salir del grupo">
-            <LogOut size={15} />
-          </button>
-        )}
+  <button className="mini-btn peligro" onClick={() => setConfirmarAccion("eliminar")} title="Eliminar grupo">
+    <Trash2 size={15} />
+  </button>
+) : (
+  <button className="mini-btn peligro" onClick={() => setConfirmarAccion("salir")} title="Salir del grupo">
+    <LogOut size={15} />
+  </button>
+)}
       </div>
 
       <div className="grupo-encabezado">
