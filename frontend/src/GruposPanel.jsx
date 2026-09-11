@@ -414,6 +414,7 @@ async function confirmarEliminar() {
       )} 
 
       <ResumenCategorias
+        key={gastos.length}
         anio={hoy.getFullYear()}
         mes={hoy.getMonth() + 1}
         grupoId={grupo.id}
