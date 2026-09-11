@@ -422,7 +422,7 @@ export default function App() {
                   <button className="mini-btn" onClick={() => setGastoEditando(g)} title="Editar">
                     <Pencil size={15} />
                   </button>
-                  <button className="mini-btn peligro" onClick={() => setGastoEliminar(g)} title="Quitar">
+                  <button className="mini-btn peligro" onClick={() => setGastoAEliminar(g)} title="Quitar">
                     <Trash2 size={15} />
                   </button>
                 </div>
@@ -448,18 +448,19 @@ export default function App() {
           }}
         />
       )}
+
       {gastoAEliminar && (
-  <ConfirmModal
-    titulo="Eliminar gasto"
-    mensaje={`¿Seguro que quieres eliminar el gasto de $${Number(gastoAEliminar.monto).toFixed(2)}${gastoAEliminar.categoria ? ` (${gastoAEliminar.categoria})` : ""}? Esta acción no se puede deshacer.`}
-    textoConfirmar="Sí, eliminar"
-    onConfirmar={async () => {
-      await handleDelete(gastoAEliminar.id);
-      setGastoAEliminar(null);
-    }}
-    onCancelar={() => setGastoAEliminar(null)}
-  />
-)}
+        <ConfirmModal
+          titulo="Eliminar gasto"
+          mensaje={`¿Seguro que quieres eliminar el gasto de $${Number(gastoAEliminar.monto).toFixed(2)}${gastoAEliminar.categoria ? ` (${gastoAEliminar.categoria})` : ""}? Esta acción no se puede deshacer.`}
+          textoConfirmar="Sí, eliminar"
+          onConfirmar={async () => {
+            await handleDelete(gastoAEliminar.id);
+            setGastoAEliminar(null);
+          }}
+          onCancelar={() => setGastoAEliminar(null)}
+        />
+      )}
     </div>
   );
 }
