@@ -9,6 +9,8 @@ import {
   ReceiptText,
   LogOut,
   Trash2,
+  Pencil,
+  X,
 } from "lucide-react";
 import { api } from "./api.js";
 import ConfirmModal from "./ConfirmModal.jsx";
@@ -151,19 +153,25 @@ function DetalleGrupo({ grupo, usuarioId, onVolver, onSalioOEliminado, onError }
   const [personalizar, setPersonalizar] = useState(false);
   const [montosPersonalizados, setMontosPersonalizados] = useState({});
   const [error, setError] = useState("");
+  const hoy = new Date();
+  const [resumenGrupo, setResumenGrupo] = useState(null);
+  const [editandoLimite, setEditandoLimite] = useState(false);
+  const [nuevoLimite, setNuevoLimite] = useState("");
   const [confirmarAccion, setConfirmarAccion] = useState(null); // "salir" | "eliminar" | null
 
   const esCreador = grupo.creado_por_id === usuarioId;
 
   const cargar = useCallback(async () => {
-    const [s, g] = await Promise.all([
+    const [s, g, r] = await Promise.all([
       api.getSaldosGrupo(grupo.id),
       api.getGastosGrupo(grupo.id),
+      api.getResumenGrupo(grupo.id, hoy.getFullYear(), hoy.getMonth() + 1),
     ]);
     setSaldos(s);
     setGastos(g);
-  }, [grupo.id]);
-
+    setResumenGrupo(r);
+  }, [grupo.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  
   useEffect(() => {
     cargar().catch((e) => onError(e.message));
   }, [cargar, onError]);
@@ -248,6 +256,22 @@ function DetalleGrupo({ grupo, usuarioId, onVolver, onSalioOEliminado, onError }
     }
   }
 
+  async function guardarLimite(e) {
+    e.preventDefault();
+    const valor = Number(nuevoLimite);
+    if (!valor || valor <= 0) {
+      setError("El límite debe ser mayor a 0");
+      return;
+    }
+    try {
+      await api.actualizarLimiteGrupo(grupo.id, valor);
+      setEditandoLimite(false);
+      await cargar();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
   async function marcarPagado(divisionId) {
     try {
       await api.marcarDivisionPagada(divisionId);
@@ -320,6 +344,70 @@ async function confirmarEliminar() {
           </div>
         ))}
       </div>
+
+     {resumenGrupo && (
+        <div className={"presupuesto-grupo" + (resumenGrupo.en_rojo ? " rojo" : "")}>
+          <div className="presupuesto-header">
+            <span className="presupuesto-label">Presupuesto del mes</span>
+            {esCreador && !editandoLimite && (
+              <button
+                className="mini-btn"
+                onClick={() => {
+                  setEditandoLimite(true);
+                  setNuevoLimite(String(resumenGrupo.limite));
+                }}
+                title="Editar límite"
+              >
+                <Pencil size={13} />
+              </button>
+            )}
+          </div>
+
+          {editandoLimite ? (
+            <form onSubmit={guardarLimite} className="presupuesto-form">
+              <input
+                type="number"
+                step="0.01"
+                value={nuevoLimite}
+                onChange={(e) => setNuevoLimite(e.target.value)}
+                autoFocus
+              />
+              <button type="submit" className="mini-btn" title="Guardar">
+                <Check size={14} />
+              </button>
+              <button
+                type="button"
+                className="mini-btn"
+                onClick={() => setEditandoLimite(false)}
+                title="Cancelar"
+              >
+                <X size={14} />
+              </button>
+            </form>
+          ) : (
+            <>
+              <div className="presupuesto-montos">
+                <span className="presupuesto-gastado">
+                  ${Number(resumenGrupo.total_mes).toFixed(2)}
+                </span>
+                <span className="presupuesto-limite">
+                  / ${Number(resumenGrupo.limite).toFixed(2)}
+                </span>
+              </div>
+              <div className="presupuesto-barra">
+                <div
+                  className="presupuesto-barra-fill"
+                  style={{ width: `${Math.min(resumenGrupo.porcentaje, 100)}%` }}
+                />
+              </div>
+              <p className="presupuesto-pct">
+                {resumenGrupo.porcentaje}% usado
+                {resumenGrupo.en_rojo && " · ¡Excedido!"}
+              </p>
+            </>
+          )}
+        </div>
+      )} 
 
       <form className="form-row" onSubmit={agregarGasto} style={{ marginTop: 14 }}>
         <div>
