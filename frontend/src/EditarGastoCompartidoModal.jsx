@@ -10,6 +10,7 @@ export default function EditarGastoCompartidoModal({
   grupoId,
   gasto,
   categorias,
+  tarjetas = [],
   onCerrar,
   onGuardado,
 }) {
@@ -18,6 +19,7 @@ export default function EditarGastoCompartidoModal({
     monto: gasto.monto,
     descripcion: gasto.descripcion || "",
     categoria: gasto.categoria || "",
+    tarjeta_id: gasto.tarjeta_id || "",
   });
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
@@ -41,6 +43,7 @@ export default function EditarGastoCompartidoModal({
         monto: montoNum,
         descripcion: form.descripcion || null,
         categoria: form.categoria || null,
+        tarjeta_id: form.tarjeta_id ? Number(form.tarjeta_id) : null,
       });
       onGuardado();
     } catch (err) {
@@ -87,6 +90,18 @@ export default function EditarGastoCompartidoModal({
             <p style={{ fontSize: 11, color: "var(--ink-faint)", marginTop: 4 }}>
               Si cambias el monto, las divisiones se recalculan equitativamente.
             </p>
+          </div>
+          <div>
+            <label>Pagado con (opcional)</label>
+            <select
+              value={form.tarjeta_id}
+              onChange={(e) => setForm({ ...form, tarjeta_id: e.target.value })}
+            >
+              <option value="">Sin especificar</option>
+              {tarjetas.map((t) => (
+                <option key={t.id} value={t.id}>{t.nombre}</option>
+              ))}
+            </select>
           </div>
           <div>
             <label>Categoría (opcional)</label>

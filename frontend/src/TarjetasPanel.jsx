@@ -5,14 +5,14 @@ import ConfirmModal from "./ConfirmModal.jsx";
 
 const REDES = ["Visa", "Mastercard", "American Express", "Diners Club", "Otra"];
 
-export default function TarjetasPanel({ tarjetas = [], onChange }) {
-  const [abierto, setAbierto] = useState(false);
+export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onToggle }) {
   const [editandoId, setEditandoId] = useState(null);
   const [borrador, setBorrador] = useState({ nombre: "", dia_corte: "", red: REDES[0] });
   const [nueva, setNueva] = useState({ nombre: "", dia_corte: "", red: REDES[0] });
   const [error, setError] = useState("");
   const [menuAbiertoId, setMenuAbiertoId] = useState(null);
   const [tarjetaAEliminar, setTarjetaAEliminar] = useState(null);
+  const [enviando, setEnviando] = useState(false);
 
   // Cerrar el menú al hacer clic fuera
   useEffect(() => {
@@ -66,24 +66,28 @@ export default function TarjetasPanel({ tarjetas = [], onChange }) {
 
   async function agregar(e) {
     e.preventDefault();
+    if (enviando) return;
     const dia = Number(nueva.dia_corte);
     if (!nueva.nombre.trim() || !dia || dia < 1 || dia > 31) {
       setError("Nombre y día de corte (1-31) son obligatorios.");
       return;
     }
     setError("");
+    setEnviando(true);
     try {
       await api.crearTarjeta({ nombre: nueva.nombre.trim(), dia_corte: dia, red: nueva.red });
       setNueva({ nombre: "", dia_corte: "", red: REDES[0] });
       onChange();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setEnviando(false);
     }
   }
 
   return (
-    <div className="panel">
-      <div className="panel-header" onClick={() => setAbierto((a) => !a)}>
+    <div className="panel" id="panel-tarjetas">
+      <div className="panel-header" onClick={() => onToggle(!abierto)}>
         <span className="titulo">
           <CreditCard size={16} />
           Gestionar tarjetas
@@ -189,7 +193,7 @@ export default function TarjetasPanel({ tarjetas = [], onChange }) {
                 <option key={r} value={r}>{r}</option>
               ))}
             </select>
-            <button type="submit" className="mini-btn" title="Agregar tarjeta">
+            <button type="submit" className="mini-btn" title="Agregar tarjeta" disabled={enviando}>
               <Plus size={18} />
             </button>
           </form>

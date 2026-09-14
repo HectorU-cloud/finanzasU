@@ -2,7 +2,7 @@ import { useState } from "react";
 import { KeyRound, X } from "lucide-react";
 import { api } from "./api.js";
 
-export default function CambiarPasswordModal({ onCerrar }) {
+export default function CambiarPasswordModal({ onCerrar, onExito }) {
   const [form, setForm] = useState({ actual: "", nueva: "", confirmar: "" });
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
@@ -30,7 +30,7 @@ export default function CambiarPasswordModal({ onCerrar }) {
         password_nueva: form.nueva,
       });
       setExito(true);
-      setTimeout(onCerrar, 1500);
+      setTimeout(onExito, 1500);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -51,7 +51,7 @@ export default function CambiarPasswordModal({ onCerrar }) {
         </div>
         {exito ? (
           <p style={{ color: "var(--accent)", fontSize: 14, margin: "20px 0" }}>
-            ✅ Contraseña actualizada correctamente.
+            ✅ Contraseña actualizada. Cerrando sesión para que ingreses con la nueva...
           </p>
         ) : (
           <form

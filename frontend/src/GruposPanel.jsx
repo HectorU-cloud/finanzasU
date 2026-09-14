@@ -22,7 +22,7 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export default function GruposPanel({ usuarioId }) {
+export default function GruposPanel({ usuarioId, tarjetas = [] }) {
   const [abierto, setAbierto] = useState(false);
   const [grupos, setGrupos] = useState([]);
   const [grupoActivo, setGrupoActivo] = useState(null); // objeto grupo o null
@@ -91,6 +91,7 @@ export default function GruposPanel({ usuarioId }) {
             <DetalleGrupo
               grupo={grupoActivo}
               usuarioId={usuarioId}
+              tarjetas={tarjetas}
               onVolver={() => setGrupoActivo(null)}
               onSalioOEliminado={() => {
                 setGrupoActivo(null);
@@ -148,14 +149,15 @@ export default function GruposPanel({ usuarioId }) {
   );
 }
 
-function DetalleGrupo({ grupo, usuarioId, onVolver, onSalioOEliminado, onError }) {
+function DetalleGrupo({ grupo, usuarioId, tarjetas, onVolver, onSalioOEliminado, onError }) {
   const [saldos, setSaldos] = useState([]);
   const [gastos, setGastos] = useState([]);
   const [copiado, setCopiado] = useState(false);
-  const [form, setForm] = useState({ fecha: todayISO(), monto: "", descripcion: "", categoria: "" });
+  const [form, setForm] = useState({ fecha: todayISO(), monto: "", descripcion: "", categoria: "", tarjeta_id: "" });
   const [personalizar, setPersonalizar] = useState(false);
   const [montosPersonalizados, setMontosPersonalizados] = useState({});
   const [error, setError] = useState("");
+  const [enviando, setEnviando] = useState(false);
   const hoy = new Date();
   const [resumenGrupo, setResumenGrupo] = useState(null);
   const [editandoLimite, setEditandoLimite] = useState(false);
@@ -228,6 +230,7 @@ function DetalleGrupo({ grupo, usuarioId, onVolver, onSalioOEliminado, onError }
 
   async function agregarGasto(e) {
     e.preventDefault();
+    if (enviando) return;
     const monto = Number(form.monto);
     if (!form.fecha || !monto || monto <= 0) {
       setError("Completa fecha y un monto válido.");
@@ -257,6 +260,7 @@ function DetalleGrupo({ grupo, usuarioId, onVolver, onSalioOEliminado, onError }
     }
 
     setError("");
+    setEnviando(true);
     try {
       await api.crearGastoCompartido({
         grupo_id: grupo.id,
@@ -264,14 +268,45 @@ function DetalleGrupo({ grupo, usuarioId, onVolver, onSalioOEliminado, onError }
         monto,
         descripcion: form.descripcion || null,
         categoria: form.categoria || null,
+        tarjeta_id: form.tarjeta_id ? Number(form.tarjeta_id) : null,
         divisiones,
       });
-      setForm({ fecha: todayISO(), monto: "", descripcion: "", categoria: form.categoria });
+      setForm({ fecha: todayISO(), monto: "", descripcion: "", categoria: form.categoria, tarjeta_id: form.tarjeta_id });
       setPersonalizar(false);
       setMontosPersonalizados({});
       await cargar();
     } catch (err) {
       setError(err.message);
+    } finally {
+      setEnviando(false);
+    }
+  }
+
+  async function guardarLimite(e) {
+    e.preventDefault();
+    const valor = Number(nuevoLimite);
+    if (!valor || valor <= 0) {
+      setError("El límite debe ser mayor a 0");
+      return;
+    }
+    try {
+      await api.actualizarLimiteGrupo(grupo.id, valor);
+      setEditandoLimite(false);
+      await cargar();
+    } catch (err) {
+      setError(err.message);
+    }
+  }
+
+  async function confirmarEliminarGasto() {
+    if (!gastoAEliminar) return;
+    try {
+      await api.eliminarGastoCompartido(grupo.id, gastoAEliminar.id);
+      setGastoAEliminar(null);
+      await cargar();
+    } catch (err) {
+      setError(err.message);
+      setGastoAEliminar(null);
     }
   }
 
@@ -471,6 +506,19 @@ async function confirmarEliminar() {
       </form>
       
       <div style={{ marginBottom: 10 }}>
+        <label>Pagado con (opcional)</label>
+        <select
+          value={form.tarjeta_id}
+          onChange={(e) => setForm({ ...form, tarjeta_id: e.target.value })}
+        >
+          <option value="">Sin especificar</option>
+          {tarjetas.map((t) => (
+            <option key={t.id} value={t.id}>{t.nombre}</option>
+          ))}
+        </select>
+      </div>
+
+      <div style={{ marginBottom: 10 }}>
         <label>Categoría (opcional)</label>
         <select
           value={form.categoria}
@@ -526,9 +574,9 @@ async function confirmarEliminar() {
       )}
 
       {error && <p className="error">{error}</p>}
-      <button className="submit" onClick={agregarGasto} type="button" style={{ marginBottom: 16 }}>
+      <button className="submit" onClick={agregarGasto} type="button" disabled={enviando} style={{ marginBottom: 16 }}>
         <ReceiptText size={15} />
-        Agregar gasto compartido
+        {enviando ? "Agregando..." : "Agregar gasto compartido"}
       </button>
 
       <p className="lista-titulo">Gastos del grupo</p>
@@ -605,6 +653,7 @@ async function confirmarEliminar() {
           grupoId={grupo.id}
           gasto={gastoEditando}
           categorias={categorias}
+          tarjetas={tarjetas}
           onCerrar={() => setGastoEditando(null)}
           onGuardado={() => {
             setGastoEditando(null);

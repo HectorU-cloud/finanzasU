@@ -1,5 +1,5 @@
 import { useRef, useState } from "react";
-import { CreditCard, AlertTriangle } from "lucide-react";
+import { AlertTriangle, Plus } from "lucide-react";
 
 const NETWORK_LABELS = {
   Visa: "VISA",
@@ -9,7 +9,7 @@ const NETWORK_LABELS = {
   Otra: "",
 };
 
-export default function CardCarousel({ tarjetas }) {
+export default function CardCarousel({ tarjetas, onCrear }) {
   const scrollRef = useRef(null);
   const [activo, setActivo] = useState(0);
 
@@ -29,10 +29,12 @@ export default function CardCarousel({ tarjetas }) {
 
   if (!tarjetas || tarjetas.length === 0) {
     return (
-      <div className="carousel-vacio">
-        <CreditCard size={20} />
-        <p>Todavía no tienes tarjetas. Agrega una en "Gestionar tarjetas".</p>
-      </div>
+      <button className="carousel-vacio" onClick={onCrear}>
+        <span className="carousel-vacio-icono">
+          <Plus size={18} />
+        </span>
+        <p>Todavía no tienes tarjetas. Toca aquí para crear la primera.</p>
+      </button>
     );
   }
 

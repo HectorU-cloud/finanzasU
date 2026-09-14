@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   PiggyBank, Plus, Trash2, ChevronLeft, ChevronRight, Download, Pencil, MoreVertical,
 } from "lucide-react";
@@ -68,7 +68,14 @@ export default function App() {
   const [modalPassword, setModalPassword] = useState(false);
   const [gastoEditando, setGastoEditando] = useState(null);
   const [gastoAEliminar, setGastoAEliminar] = useState(null);
+  const [exito, setExito] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [panelTarjetasAbierto, setPanelTarjetasAbierto] = useState(false);
 
+  function mostrarExito(mensaje) {
+    setExito(mensaje);
+    setTimeout(() => setExito(""), 2500);
+  }
   const [tarjetas, setTarjetas] = useState([]);
   const [gastos, setGastos] = useState([]);
   const [resumen, setResumen] = useState(null);
@@ -85,13 +92,17 @@ export default function App() {
   });
   const [error, setError] = useState("");
 
+  const peticionIdRef = useRef(0);
+
   const cargarDatos = useCallback(async () => {
+    const miId = ++peticionIdRef.current;
     const [tarjetasData, gastosData, resumenData, categoriasData] = await Promise.all([
       api.getTarjetas(),
       api.getGastos(periodo.anio, periodo.mes, filtroCategoria),
       api.getResumen(periodo.anio, periodo.mes),
       categorias.length > 0 ? Promise.resolve(categorias) : api.getCategorias(),
     ]);
+    if (peticionIdRef.current !== miId) return; // llegó una petición más nueva primero; ignorar esta
     setTarjetas(tarjetasData);
     setGastos(gastosData);
     setResumen(resumenData);
@@ -182,6 +193,7 @@ export default function App() {
 
   async function handleSubmit(e) {
     e.preventDefault();
+    if (enviando) return;
     const montoNum = Number(form.monto);
     if (!form.fecha || !form.tarjeta_id || !form.monto || isNaN(montoNum) || montoNum <= 0) {
       setError("Completa fecha, tarjeta y un monto válido.");
@@ -196,6 +208,7 @@ export default function App() {
       return;
     }
     setError("");
+    setEnviando(true);
     try {
       await api.crearGasto({
         tarjeta_id: Number(form.tarjeta_id),
@@ -208,8 +221,11 @@ export default function App() {
       guardarUltima(ULTIMA_CATEGORIA_KEY, form.categoria);
       setForm((f) => ({ ...f, monto: "", descripcion: "" }));
       await cargarDatos();
+      mostrarExito("Gasto agregado ✓");
     } catch (err) {
       manejarError(err);
+    } finally {
+      setEnviando(false);
     }
   }
 
@@ -267,7 +283,13 @@ export default function App() {
         </div>
       </header>
 
-      <CardCarousel tarjetas={resumen?.tarjetas} />
+      <CardCarousel
+        tarjetas={resumen?.tarjetas}
+        onCrear={() => {
+          setPanelTarjetasAbierto(true);
+          document.getElementById("panel-tarjetas")?.scrollIntoView({ behavior: "smooth" });
+        }}
+      />
 
       <div className={"total-bar" + (enRojo ? " rojo" : "")}>
         <span className="titulo">Total del mes (todas las tarjetas)</span>
@@ -279,9 +301,14 @@ export default function App() {
 
       <ResumenCategorias anio={periodo.anio} mes={periodo.mes} />
 
-      <TarjetasPanel tarjetas={tarjetas} onChange={cargarDatos} />
+      <TarjetasPanel
+        tarjetas={tarjetas}
+        onChange={cargarDatos}
+        abierto={panelTarjetasAbierto}
+        onToggle={setPanelTarjetasAbierto}
+      />
 
-      <GruposPanel usuarioId={usuario.id} />
+      <GruposPanel usuarioId={usuario.id} tarjetas={tarjetas} />
 
       <div className="panel">
         <form
@@ -359,9 +386,10 @@ export default function App() {
             </div>
           </div>
           {error && <p className="error">{error}</p>}
-          <button className="submit" type="submit">
+          {exito && <p className="exito">{exito}</p>}
+          <button className="submit" type="submit" disabled={enviando}>
             <Plus size={16} />
-            Agregar gasto
+            {enviando ? "Agregando..." : "Agregar gasto"}
           </button>
         </form>
       </div>
@@ -471,7 +499,33 @@ export default function App() {
       )}
 
       {modalPassword && (
-        <CambiarPasswordModal onCerrar={() => setModalPassword(false)} />
+        <CambiarPasswordModal onCerrar={() => setModalPassword(false)} onExito={handleLogout} />
+      )}
+
+      {gastoEditando && (
+        <EditarGastoModal
+          gasto={gastoEditando}
+          tarjetas={tarjetas}
+          categorias={categorias}
+          onCerrar={() => setGastoEditando(null)}
+          onGuardado={() => {
+            setGastoEditando(null);
+            cargarDatos();
+          }}
+        />
+      )}
+
+      {gastoAEliminar && (
+        <ConfirmModal
+          titulo="Eliminar gasto"
+          mensaje={`¿Seguro que quieres eliminar el gasto de $${Number(gastoAEliminar.monto).toFixed(2)}${gastoAEliminar.categoria ? ` (${gastoAEliminar.categoria})` : ""}? Esta acción no se puede deshacer.`}
+          textoConfirmar="Sí, eliminar"
+          onConfirmar={async () => {
+            await handleDelete(gastoAEliminar.id);
+            setGastoAEliminar(null);
+          }}
+          onCancelar={() => setGastoAEliminar(null)}
+        />
       )}
 
       {gastoEditando && (
