@@ -527,32 +527,6 @@ export default function App() {
           onCancelar={() => setGastoAEliminar(null)}
         />
       )}
-
-      {gastoEditando && (
-        <EditarGastoModal
-          gasto={gastoEditando}
-          tarjetas={tarjetas}
-          categorias={categorias}
-          onCerrar={() => setGastoEditando(null)}
-          onGuardado={() => {
-            setGastoEditando(null);
-            cargarDatos();
-          }}
-        />
-      )}
-
-      {gastoAEliminar && (
-        <ConfirmModal
-          titulo="Eliminar gasto"
-          mensaje={`¿Seguro que quieres eliminar el gasto de $${Number(gastoAEliminar.monto).toFixed(2)}${gastoAEliminar.categoria ? ` (${gastoAEliminar.categoria})` : ""}? Esta acción no se puede deshacer.`}
-          textoConfirmar="Sí, eliminar"
-          onConfirmar={async () => {
-            await handleDelete(gastoAEliminar.id);
-            setGastoAEliminar(null);
-          }}
-          onCancelar={() => setGastoAEliminar(null)}
-        />
-      )}
     </div>
   );
 }

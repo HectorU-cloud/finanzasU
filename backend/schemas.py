@@ -74,6 +74,7 @@ class TarjetaBase(BaseModel):
     nombre: str = Field(min_length=1, max_length=50)
     dia_corte: int = Field(ge=1, le=31)
     red: str | None = Field(default=None, max_length=20)
+    tema: str | None = Field(default="clasico", max_length=30)
 
     @field_validator("nombre")
     @classmethod
@@ -96,6 +97,7 @@ class TarjetaUpdate(BaseModel):
     nombre: str | None = Field(default=None, max_length=50)
     dia_corte: int | None = Field(default=None, ge=1, le=31)
     red: str | None = Field(default=None, max_length=20)
+    tema: str | None = Field(default=None, max_length=30)
 
     @field_validator("nombre")
     @classmethod
@@ -173,6 +175,7 @@ class ResumenTarjeta(BaseModel):
     nombre: str
     dia_corte: int
     red: str | None = None
+    tema: str | None = None
     dias_para_corte: int
     gastado_mes: Decimal
     en_rojo: bool

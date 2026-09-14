@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { AlertTriangle, Plus } from "lucide-react";
+import CardNetworkLogo from "./CardNetworkLogo.jsx";
 
 const NETWORK_LABELS = {
   Visa: "VISA",
@@ -50,7 +51,7 @@ export default function CardCarousel({ tarjetas, onCrear }) {
           const red = NETWORK_LABELS[t.red] ?? t.red ?? "";
 
           return (
-            <div key={t.id} className={"credit-card" + (t.en_rojo ? " rojo" : "")}>
+            <div key={t.id} className={"credit-card tema-" +(t.tema || "clasico") +(t.en_rojo ? " rojo" : "")}>
               <div className="credit-card-top">
                 <div>
                   <p className="cc-label">Gastado en este ciclo</p>
@@ -85,7 +86,11 @@ export default function CardCarousel({ tarjetas, onCrear }) {
                 <div style={{ textAlign: "right" }}>
                   <p className="cc-mini-label">Tarjeta</p>
                   <p className="cc-nombre">{t.nombre}</p>
-                  {red && <p className="cc-red">{red}</p>}
+                  {t.red && (
+                    <div className="cc-logo">
+                      <CardNetworkLogo red={t.red} size={26} color="#f4efe3" />
+                    </div>
+                  )}
                 </div>
               </div>
             </div>

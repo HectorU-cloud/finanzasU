@@ -1667,3 +1667,49 @@ ul.gastos .acciones .monto {
 .presupuesto-form input {
   flex: 1;
 }
+
+/* Logo de red de tarjeta en el carrusel */
+.cc-logo {
+  display: inline-flex;
+  margin-top: 6px;
+  opacity: 0.95;
+}
+
+/* ============================================================
+   Plantillas de tarjetas (temas visuales)
+   ============================================================ */
+
+/* Clásico (por defecto) */
+.credit-card.tema-clasico {
+  background: linear-gradient(135deg, #1a1523 0%, #2d2438 100%);
+}
+
+/* Amex verde esmeralda */
+.credit-card.tema-amex-verde {
+  background: linear-gradient(135deg, #0d5f4f 0%, #1a8a73 50%, #0d5f4f 100%);
+}
+
+/* Visa Gold metálico */
+.credit-card.tema-visa-gold {
+  background: linear-gradient(135deg, #8c6b1f 0%, #d4ad4a 45%, #8c6b1f 100%);
+}
+
+/* Mastercard azul profundo */
+.credit-card.tema-mastercard-azul {
+  background: linear-gradient(135deg, #0f2a5c 0%, #1e4a8a 100%);
+}
+
+/* Diners marrón elegante */
+.credit-card.tema-diners-marron {
+  background: linear-gradient(135deg, #4a2a1a 0%, #7a4a2a 100%);
+}
+
+/* Negro Premium */
+.credit-card.tema-negro-premium {
+  background: linear-gradient(135deg, #000000 0%, #2a2a2a 100%);
+}
+
+/* Morado moderno */
+.credit-card.tema-morado-moderno {
+  background: linear-gradient(135deg, #4a1d7a 0%, #7c3aed 100%);
+}

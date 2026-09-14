@@ -186,6 +186,8 @@ def actualizar_tarjeta(
         tarjeta.dia_corte = payload.dia_corte
     if payload.red is not None:
         tarjeta.red = payload.red
+    if payload.tema is not None:
+        tarjeta.tema = payload.tema    
     db.commit()
     db.refresh(tarjeta)
     return tarjeta
@@ -382,6 +384,7 @@ def resumen_mensual(
             nombre=t.nombre,
             dia_corte=t.dia_corte,
             red=t.red,
+            tema=t.tema,
             dias_para_corte=dias_para_corte(t.dia_corte, hoy),
             gastado_mes=Decimal(gastado),
             en_rojo=en_rojo,

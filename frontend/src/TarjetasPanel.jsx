@@ -2,13 +2,24 @@ import { useState, useEffect } from "react";
 import { ChevronDown, CreditCard, Pencil, Trash2, Check, X, Plus, MoreVertical } from "lucide-react";
 import { api } from "./api.js";
 import ConfirmModal from "./ConfirmModal.jsx";
+import CardNetworkLogo from "./CardNetworkLogo.jsx";
+
+const TEMAS = [
+  { valor: "clasico", nombre: "Clásico (oscuro)" },
+  { valor: "amex-verde", nombre: "Amex verde" },
+  { valor: "visa-gold", nombre: "Visa Gold" },
+  { valor: "mastercard-azul", nombre: "Mastercard azul" },
+  { valor: "diners-marron", nombre: "Diners marrón" },
+  { valor: "negro-premium", nombre: "Negro Premium" },
+  { valor: "morado-moderno", nombre: "Morado moderno" },
+];
 
 const REDES = ["Visa", "Mastercard", "American Express", "Diners Club", "Otra"];
 
 export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onToggle }) {
   const [editandoId, setEditandoId] = useState(null);
-  const [borrador, setBorrador] = useState({ nombre: "", dia_corte: "", red: REDES[0] });
-  const [nueva, setNueva] = useState({ nombre: "", dia_corte: "", red: REDES[0] });
+  const [borrador, setBorrador] = useState({ nombre: "", dia_corte: "", red: REDES[0], tema: "clasico" });
+  const [nueva, setNueva] = useState({ nombre: "", dia_corte: "", red: REDES[0], tema: "clasico" });
   const [error, setError] = useState("");
   const [menuAbiertoId, setMenuAbiertoId] = useState(null);
   const [tarjetaAEliminar, setTarjetaAEliminar] = useState(null);
@@ -27,7 +38,12 @@ export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onTogg
 
   function empezarEdicion(t) {
     setEditandoId(t.id);
-    setBorrador({ nombre: t.nombre, dia_corte: t.dia_corte, red: t.red || REDES[0] });
+    setBorrador({
+      nombre: t.nombre,
+      dia_corte: t.dia_corte,
+      red: t.red || REDES[0],
+      tema: t.tema || "clasico",
+    });
     setError("");
     setMenuAbiertoId(null);
   }
@@ -44,6 +60,7 @@ export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onTogg
         nombre: borrador.nombre.trim(),
         dia_corte: dia,
         red: borrador.red,
+        tema: borrador.tema,
       });
       setEditandoId(null);
       onChange();
@@ -75,8 +92,13 @@ export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onTogg
     setError("");
     setEnviando(true);
     try {
-      await api.crearTarjeta({ nombre: nueva.nombre.trim(), dia_corte: dia, red: nueva.red });
-      setNueva({ nombre: "", dia_corte: "", red: REDES[0] });
+      await api.crearTarjeta({
+        nombre: nueva.nombre.trim(),
+        dia_corte: dia,
+        red: nueva.red,
+        tema: nueva.tema,
+      });
+      setNueva({ nombre: "", dia_corte: "", red: REDES[0], tema: "clasico" });
       onChange();
     } catch (err) {
       setError(err.message);
@@ -123,6 +145,16 @@ export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onTogg
                       <option key={r} value={r}>{r}</option>
                     ))}
                   </select>
+                  <select
+                    value={borrador.tema}
+                    onChange={(e) => setBorrador({ ...borrador, tema: e.target.value })}
+                    style={{ width: "auto" }}
+                    title="Estilo de tarjeta"
+                  >
+                    {TEMAS.map((t) => (
+                      <option key={t.valor} value={t.valor}>{t.nombre}</option>
+                    ))}
+                  </select>
                   <div className="acciones-tarjeta">
                     <button className="mini-btn" onClick={() => guardarEdicion(t.id)} title="Guardar">
                       <Check size={16} />
@@ -135,7 +167,10 @@ export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onTogg
               ) : (
                 <>
                   <span style={{ flex: 1, fontSize: 14 }}>{t.nombre}</span>
-                  <span className="corte-label">{t.red || "Sin red"} · corte día {t.dia_corte}</span>
+                  <span className="corte-label" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    {t.red && <CardNetworkLogo red={t.red} size={18} color="var(--ink-soft)" />}
+                    <span>corte día {t.dia_corte}</span>
+                  </span>
                   <div className="acciones-menu">
                     <button
                       className="mini-btn"
@@ -191,6 +226,16 @@ export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onTogg
             >
               {REDES.map((r) => (
                 <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+            <select
+              value={nueva.tema}
+              onChange={(e) => setNueva({ ...nueva, tema: e.target.value })}
+              style={{ width: "auto" }}
+              title="Estilo de tarjeta"
+            >
+              {TEMAS.map((t) => (
+                <option key={t.valor} value={t.valor}>{t.nombre}</option>
               ))}
             </select>
             <button type="submit" className="mini-btn" title="Agregar tarjeta" disabled={enviando}>

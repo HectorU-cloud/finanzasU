@@ -25,6 +25,7 @@ class Tarjeta(Base):
     nombre = Column(String(50), nullable=False)
     dia_corte = Column(Integer, nullable=False)
     red = Column(String(20), nullable=True)
+    tema = Column(String(30), nullable=False, default="clasico")
 
     usuario = relationship("Usuario", back_populates="tarjetas")
     gastos = relationship("Gasto", back_populates="tarjeta", cascade="all, delete-orphan")
