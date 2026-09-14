@@ -310,33 +310,6 @@ function DetalleGrupo({ grupo, usuarioId, tarjetas, onVolver, onSalioOEliminado,
     }
   }
 
-  async function guardarLimite(e) {
-    e.preventDefault();
-    const valor = Number(nuevoLimite);
-    if (!valor || valor <= 0) {
-      setError("El límite debe ser mayor a 0");
-      return;
-    }
-    try {
-      await api.actualizarLimiteGrupo(grupo.id, valor);
-      setEditandoLimite(false);
-      await cargar();
-    } catch (err) {
-      setError(err.message);
-    }
-  }
-
-  async function confirmarEliminarGasto() {
-    if (!gastoAEliminar) return;
-    try {
-      await api.eliminarGastoCompartido(grupo.id, gastoAEliminar.id);
-      setGastoAEliminar(null);
-      await cargar();
-    } catch (err) {
-      setError(err.message);
-      setGastoAEliminar(null);
-    }
-  }
 
   async function marcarPagado(divisionId) {
     try {
@@ -643,7 +616,6 @@ async function confirmarEliminar() {
                 ))}
               </div>
             </li>
-          ))}
           ))}
         </ul>
       )}
