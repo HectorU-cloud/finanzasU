@@ -1,6 +1,9 @@
 import os
+from dotenv import load_dotenv   # ← NUEVO
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
+
+load_dotenv()   # ← NUEVO: carga backend/.env automáticamente
 
 DATABASE_URL = os.getenv("DATABASE_URL")
 if not DATABASE_URL:

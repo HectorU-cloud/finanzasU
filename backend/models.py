@@ -77,6 +77,7 @@ class GastoCompartido(Base):
     id = Column(Integer, primary_key=True, index=True)
     grupo_id = Column(Integer, ForeignKey("grupos.id"), nullable=False)
     pagado_por_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    tarjeta_id = Column(Integer, ForeignKey("tarjetas.id"), nullable=True)
     fecha = Column(Date, nullable=False)
     monto = Column(Numeric(10, 2), nullable=False)
     descripcion = Column(String(150), nullable=True)
@@ -84,6 +85,7 @@ class GastoCompartido(Base):
 
     grupo = relationship("Grupo", back_populates="gastos_compartidos")
     pagado_por = relationship("Usuario", foreign_keys=[pagado_por_id])
+    tarjeta = relationship("Tarjeta")
     divisiones = relationship("DivisionGasto", back_populates="gasto", cascade="all, delete-orphan")
 
 

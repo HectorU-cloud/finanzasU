@@ -37,12 +37,6 @@ async def manejar_error_validacion(request: Request, exc: RequestValidationError
     return JSONResponse(status_code=422, content={"detail": detalle})
 
 
-# En desarrollo permitimos cualquier origen local (Vite corre en 5173 por defecto).
-# En producción, cambia esto por la URL exacta de tu frontend en Vercel.
-# Orígenes permitidos para llamar a esta API. En Render, define la variable de entorno
-# ALLOWED_ORIGINS con tu(s) dominio(s) de Vercel separados por coma, por ejemplo:
-#   ALLOWED_ORIGINS=https://finanzasu.vercel.app,https://frontend-psi-kohl-14.vercel.app
-# Si no se define, solo se permite desarrollo local (Vite en el puerto 5173).
 _origenes_env = os.getenv("ALLOWED_ORIGINS", "")
 ALLOWED_ORIGINS = [o.strip() for o in _origenes_env.split(",") if o.strip()] or [
     "http://localhost:5173",
@@ -99,13 +93,6 @@ def registrar(datos: schemas.UsuarioCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(usuario)
 
-    # Sembramos dos tarjetas de ejemplo para que la cuenta nueva no arranque vacía.
-    db.add_all([
-        models.Tarjeta(nombre="Tarjeta 1", dia_corte=31, usuario_id=usuario.id),
-        models.Tarjeta(nombre="Tarjeta 2", dia_corte=4, usuario_id=usuario.id),
-    ])
-    db.commit()
-
     token = auth.crear_token(usuario.id)
     return schemas.Token(access_token=token, usuario=usuario)
 
@@ -120,6 +107,7 @@ def login(datos: schemas.UsuarioLogin, db: Session = Depends(get_db)):
     token = auth.crear_token(usuario.id)
     return schemas.Token(access_token=token, usuario=usuario)
 
+
 @app.post("/api/auth/cambiar-password", status_code=204)
 def cambiar_password(
     datos: schemas.CambiarPassword,
@@ -132,6 +120,7 @@ def cambiar_password(
         raise HTTPException(status_code=400, detail="La nueva contraseña debe ser diferente")
     usuario.password_hash = auth.hash_password(datos.password_nueva)
     db.commit()
+
 
 @app.get("/api/auth/yo", response_model=schemas.UsuarioOut)
 def yo(usuario: models.Usuario = Depends(auth.obtener_usuario_actual)):
@@ -243,12 +232,14 @@ def crear_gasto(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
-    tarjeta_del_usuario(db, gasto.tarjeta_id, usuario)  # valida que la tarjeta sea suya
+    tarjeta_del_usuario(db, gasto.tarjeta_id, usuario)
     nuevo = models.Gasto(**gasto.model_dump())
     db.add(nuevo)
     db.commit()
     db.refresh(nuevo)
     return nuevo
+
+
 @app.put("/api/gastos/{gasto_id}", response_model=schemas.Gasto)
 def actualizar_gasto(
     gasto_id: int,
@@ -265,7 +256,6 @@ def actualizar_gasto(
     if not gasto:
         raise HTTPException(status_code=404, detail="Gasto no encontrado")
 
-    # Si cambia la tarjeta, verificar que sea suya
     if payload.tarjeta_id is not None and payload.tarjeta_id != gasto.tarjeta_id:
         tarjeta_del_usuario(db, payload.tarjeta_id, usuario)
         gasto.tarjeta_id = payload.tarjeta_id
@@ -282,6 +272,7 @@ def actualizar_gasto(
     db.commit()
     db.refresh(gasto)
     return gasto
+
 
 @app.delete("/api/gastos/{gasto_id}", status_code=204)
 def eliminar_gasto(
@@ -350,6 +341,7 @@ def exportar_gastos(
         headers={"Content-Disposition": f'attachment; filename="{nombre_archivo}"'},
     )
 
+
 # ---------- Resumen mensual ----------
 
 @app.get("/api/resumen", response_model=schemas.Resumen)
@@ -404,7 +396,11 @@ def resumen_mensual(
         tarjetas=resumen_tarjetas,
     )
 
+
+# ---------- Grupos ----------
+
 import secrets
+
 
 @app.post("/api/grupos", response_model=schemas.GrupoOut)
 def crear_grupo(
@@ -412,8 +408,7 @@ def crear_grupo(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
-    # Generar código único de 8 caracteres alfanuméricos
-    codigo = secrets.token_urlsafe(6)  # ej: "aB3dEfG8"
+    codigo = secrets.token_urlsafe(6)
     while db.query(models.Grupo).filter(models.Grupo.codigo_invitacion == codigo).first():
         codigo = secrets.token_urlsafe(6)
 
@@ -423,9 +418,8 @@ def crear_grupo(
         codigo_invitacion=codigo,
     )
     db.add(nuevo_grupo)
-    db.flush()  # para obtener el id
+    db.flush()
 
-    # Agregar al creador como administrador
     miembro = models.MiembroGrupo(
         grupo_id=nuevo_grupo.id,
         usuario_id=usuario.id,
@@ -435,6 +429,7 @@ def crear_grupo(
     db.commit()
     db.refresh(nuevo_grupo)
     return nuevo_grupo
+
 
 @app.post("/api/grupos/unirse", response_model=schemas.GrupoOut)
 def unirse_grupo(
@@ -450,7 +445,6 @@ def unirse_grupo(
     if not grupo:
         raise HTTPException(status_code=404, detail="Código inválido")
 
-    # Verificar que no sea ya miembro
     existe = db.query(models.MiembroGrupo).filter(
         models.MiembroGrupo.grupo_id == grupo.id,
         models.MiembroGrupo.usuario_id == usuario.id,
@@ -468,6 +462,7 @@ def unirse_grupo(
     db.refresh(grupo)
     return grupo
 
+
 @app.get("/api/grupos", response_model=list[schemas.GrupoOut])
 def listar_grupos(
     db: Session = Depends(get_db),
@@ -477,13 +472,13 @@ def listar_grupos(
         models.MiembroGrupo.usuario_id == usuario.id
     ).all()
 
+
 @app.post("/api/gastos-compartidos", response_model=schemas.GastoCompartidoOut)
 def crear_gasto_compartido(
     datos: schemas.GastoCompartidoCreate,
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
-    # Verificar que el usuario es miembro del grupo
     miembro = db.query(models.MiembroGrupo).filter(
         models.MiembroGrupo.grupo_id == datos.grupo_id,
         models.MiembroGrupo.usuario_id == usuario.id,
@@ -491,14 +486,15 @@ def crear_gasto_compartido(
     if not miembro:
         raise HTTPException(status_code=403, detail="No eres miembro de este grupo")
 
+    if datos.tarjeta_id is not None:
+        tarjeta_del_usuario(db, datos.tarjeta_id, usuario)
+
     ids_miembros = {
         m[0] for m in db.query(models.MiembroGrupo.usuario_id).filter(
             models.MiembroGrupo.grupo_id == datos.grupo_id
         ).all()
     }
 
-    # Si no se especifican divisiones, se reparte equitativamente entre todos los miembros,
-    # repartiendo el resto en centavos para que la suma cuadre exacto con el monto total.
     if datos.divisiones is None:
         ids = sorted(ids_miembros)
         n = len(ids)
@@ -522,10 +518,10 @@ def crear_gasto_compartido(
         if total_division != datos.monto:
             raise HTTPException(status_code=400, detail="La suma de las divisiones no coincide con el monto total")
 
-    # Crear el gasto
     nuevo_gasto = models.GastoCompartido(
         grupo_id=datos.grupo_id,
         pagado_por_id=usuario.id,
+        tarjeta_id=datos.tarjeta_id,
         fecha=datos.fecha,
         monto=datos.monto,
         descripcion=datos.descripcion,
@@ -534,7 +530,6 @@ def crear_gasto_compartido(
     db.add(nuevo_gasto)
     db.flush()
 
-    # Crear las divisiones
     for uid, monto in divisiones:
         div = models.DivisionGasto(
             gasto_compartido_id=nuevo_gasto.id,
@@ -548,13 +543,13 @@ def crear_gasto_compartido(
     db.refresh(nuevo_gasto)
     return nuevo_gasto
 
+
 @app.get("/api/grupos/{grupo_id}/saldos", response_model=list[schemas.SaldoUsuario])
 def saldos_grupo(
     grupo_id: int,
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
-    # Verificar membresía
     miembro = db.query(models.MiembroGrupo).filter(
         models.MiembroGrupo.grupo_id == grupo_id,
         models.MiembroGrupo.usuario_id == usuario.id,
@@ -562,20 +557,17 @@ def saldos_grupo(
     if not miembro:
         raise HTTPException(status_code=403, detail="No eres miembro de este grupo")
 
-    # Obtener todos los miembros del grupo
     miembros = db.query(models.Usuario).join(models.MiembroGrupo).filter(
         models.MiembroGrupo.grupo_id == grupo_id
     ).all()
 
     saldos = {}
     for m in miembros:
-        # Total que ha pagado (crédito a favor)
         pagado = db.query(func.coalesce(func.sum(models.GastoCompartido.monto), 0)).filter(
             models.GastoCompartido.grupo_id == grupo_id,
             models.GastoCompartido.pagado_por_id == m.id,
         ).scalar()
 
-        # Total que debe (sus divisiones)
         debe = db.query(func.coalesce(func.sum(models.DivisionGasto.monto), 0)).join(
             models.GastoCompartido
         ).filter(
@@ -583,15 +575,15 @@ def saldos_grupo(
             models.DivisionGasto.usuario_id == m.id,
         ).scalar()
 
-        # Saldo = pagado - debe (positivo = le deben, negativo = debe)
         saldo = Decimal(pagado) - Decimal(debe)
         saldos[m.id] = {
             "usuario_id": m.id,
             "nombre": m.nombre,
-            "debe": saldo,  # si es positivo, le deben; si es negativo, debe
+            "debe": saldo,
         }
 
     return list(saldos.values())
+
 
 @app.get("/api/grupos/{grupo_id}/resumen", response_model=schemas.GrupoResumenMensual)
 def resumen_grupo(
@@ -646,7 +638,6 @@ def actualizar_limite_grupo(
 
     verificar_miembro(db, grupo_id, usuario.id)
 
-    # Solo el creador puede cambiar el límite
     if grupo.creado_por_id != usuario.id:
         raise HTTPException(status_code=403, detail="Solo quien creó el grupo puede cambiar el límite")
 
@@ -654,6 +645,7 @@ def actualizar_limite_grupo(
     db.commit()
     db.refresh(grupo)
     return grupo
+
 
 @app.get("/api/grupos/{grupo_id}/resumen-categorias", response_model=list[schemas.ResumenCategoria])
 def resumen_categorias_grupo(
@@ -694,6 +686,7 @@ def resumen_categorias_grupo(
     resumen.sort(key=lambda r: r.total, reverse=True)
     return resumen
 
+
 def verificar_miembro(db: Session, grupo_id: int, usuario_id: int) -> models.MiembroGrupo:
     miembro = db.query(models.MiembroGrupo).filter(
         models.MiembroGrupo.grupo_id == grupo_id,
@@ -702,6 +695,7 @@ def verificar_miembro(db: Session, grupo_id: int, usuario_id: int) -> models.Mie
     if not miembro:
         raise HTTPException(status_code=403, detail="No eres miembro de este grupo")
     return miembro
+
 
 @app.get("/api/grupos/{grupo_id}/gastos", response_model=list[schemas.GastoCompartidoOut])
 def listar_gastos_grupo(
@@ -716,6 +710,7 @@ def listar_gastos_grupo(
         .order_by(models.GastoCompartido.fecha.desc())
         .all()
     )
+
 
 @app.delete("/api/grupos/{grupo_id}/gastos/{gasto_id}", status_code=204)
 def eliminar_gasto_compartido(
@@ -737,8 +732,9 @@ def eliminar_gasto_compartido(
     if not gasto:
         raise HTTPException(status_code=404, detail="Gasto no encontrado")
 
-    db.delete(gasto)  # cascade borra las divisiones
+    db.delete(gasto)
     db.commit()
+
 
 @app.put("/api/grupos/{grupo_id}/gastos/{gasto_id}", response_model=schemas.GastoCompartidoOut)
 def actualizar_gasto_compartido(
@@ -761,7 +757,6 @@ def actualizar_gasto_compartido(
     if not gasto:
         raise HTTPException(status_code=404, detail="Gasto no encontrado")
 
-    # Si cambia el monto, recalculamos las divisiones equitativamente
     if payload.monto is not None and payload.monto != gasto.monto:
         nuevo_monto = payload.monto
         divisiones = gasto.divisiones
@@ -785,10 +780,14 @@ def actualizar_gasto_compartido(
         gasto.descripcion = payload.descripcion
     if payload.categoria is not None:
         gasto.categoria = payload.categoria
+    if payload.tarjeta_id is not None:
+        tarjeta_del_usuario(db, payload.tarjeta_id, usuario)
+        gasto.tarjeta_id = payload.tarjeta_id
 
     db.commit()
     db.refresh(gasto)
     return gasto
+
 
 @app.patch("/api/divisiones/{division_id}/pagar", response_model=schemas.DivisionGastoOut)
 def marcar_division_pagada(
@@ -803,7 +802,6 @@ def marcar_division_pagada(
     gasto = db.query(models.GastoCompartido).get(division.gasto_compartido_id)
     verificar_miembro(db, gasto.grupo_id, usuario.id)
 
-    # Solo quien debe, o quien pagó el gasto originalmente, puede marcarlo como saldado.
     if usuario.id not in (division.usuario_id, gasto.pagado_por_id):
         raise HTTPException(status_code=403, detail="No puedes modificar esta división")
 
@@ -831,7 +829,6 @@ def salir_de_grupo(
             detail="Eres quien creó el grupo; si ya no lo necesitas, elimínalo en vez de salir",
         )
 
-    # Si tiene saldos pendientes (le deben o debe), avisamos antes de dejarlo salir.
     debe_o_le_deben = (
         db.query(models.DivisionGasto)
         .join(models.GastoCompartido)
@@ -864,8 +861,9 @@ def eliminar_grupo(
     if grupo.creado_por_id != usuario.id:
         raise HTTPException(status_code=403, detail="Solo quien creó el grupo puede eliminarlo")
 
-    db.delete(grupo)  # cascada: borra miembros, gastos compartidos y sus divisiones
+    db.delete(grupo)
     db.commit()
+
 
 # ---------- Resumen por categoría ----------
 
@@ -909,6 +907,5 @@ def resumen_por_categoria(
         )
         for cat, t in filas
     ]
-    # Ordenar de mayor a menor
     resumen.sort(key=lambda r: r.total, reverse=True)
     return resumen

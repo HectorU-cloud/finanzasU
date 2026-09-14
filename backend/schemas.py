@@ -5,7 +5,6 @@ from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
 FECHA_MINIMA = date(2000, 1, 1)
 MONTO_MAXIMO = Decimal("100000")
 
-# Categorías disponibles para clasificar los gastos personales y compartidos.
 CATEGORIAS_VALIDAS = [
     "Comida",
     "Transporte",
@@ -49,9 +48,11 @@ class UsuarioLogin(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1)
 
+
 class CambiarPassword(BaseModel):
     password_actual: str = Field(min_length=1)
     password_nueva: str = Field(min_length=6, max_length=72)
+
 
 class UsuarioOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
@@ -119,7 +120,7 @@ class Tarjeta(TarjetaBase):
 class GastoBase(BaseModel):
     tarjeta_id: int
     fecha: date
-    monto: Decimal = Field(gt=0, le=MONTO_MAXIMO)
+    monto: Decimal = Field(gt=0, le=MONTO_MAXIMO, decimal_places=2)
     descripcion: str | None = Field(default=None, max_length=150)
     categoria: str | None = Field(default=None, max_length=50)
 
@@ -138,9 +139,11 @@ class GastoBase(BaseModel):
 
 class GastoCreate(GastoBase):
     pass
+
+
 class GastoUpdate(BaseModel):
     fecha: date | None = None
-    monto: Decimal | None = Field(default=None, gt=0, le=MONTO_MAXIMO)
+    monto: Decimal | None = Field(default=None, gt=0, le=MONTO_MAXIMO, decimal_places=2)
     descripcion: str | None = Field(default=None, max_length=150)
     categoria: str | None = Field(default=None, max_length=50)
     tarjeta_id: int | None = None
@@ -158,6 +161,7 @@ class GastoUpdate(BaseModel):
         if v is not None and v not in CATEGORIAS_VALIDAS:
             raise ValueError("la categoría no es válida")
         return v
+
 
 class Gasto(GastoBase):
     model_config = ConfigDict(from_attributes=True)
@@ -208,7 +212,7 @@ class GrupoOut(BaseModel):
     nombre: str
     codigo_invitacion: str
     creado_por_id: int
-    limite_mensual : Decimal
+    limite_mensual: Decimal
     miembros: list["MiembroGrupoOut"] = []
 
 
@@ -222,9 +226,10 @@ class MiembroGrupoOut(BaseModel):
 class GastoCompartidoCreate(BaseModel):
     grupo_id: int
     fecha: date
-    monto: Decimal = Field(gt=0, le=MONTO_MAXIMO)
+    monto: Decimal = Field(gt=0, le=MONTO_MAXIMO, decimal_places=2)
     descripcion: str | None = Field(default=None, max_length=150)
     categoria: str | None = Field(default=None, max_length=50)
+    tarjeta_id: int | None = None
     divisiones: list[tuple[int, Decimal]] | None = None
 
     @field_validator("fecha")
@@ -251,11 +256,13 @@ class GastoCompartidoCreate(BaseModel):
                 raise ValueError("cada división debe ser un monto mayor a 0")
         return v
 
+
 class GastoCompartidoUpdate(BaseModel):
     fecha: date | None = None
-    monto: Decimal | None = Field(default=None, gt=0, le=MONTO_MAXIMO)
+    monto: Decimal | None = Field(default=None, gt=0, le=MONTO_MAXIMO, decimal_places=2)
     descripcion: str | None = Field(default=None, max_length=150)
     categoria: str | None = Field(default=None, max_length=50)
+    tarjeta_id: int | None = None
 
     @field_validator("fecha")
     @classmethod
@@ -277,6 +284,7 @@ class GastoCompartidoOut(BaseModel):
     id: int
     grupo_id: int
     pagado_por_id: int
+    tarjeta_id: int | None
     fecha: date
     monto: Decimal
     descripcion: str | None
@@ -296,6 +304,7 @@ class SaldoUsuario(BaseModel):
     usuario_id: int
     nombre: str
     debe: Decimal
+
 
 class GrupoResumenMensual(BaseModel):
     grupo_id: int
