@@ -14,6 +14,7 @@ import ConfirmModal from "./ConfirmModal.jsx";
 import Home from "./Home.jsx";
 import BottomNav from "./BottomNav.jsx";
 import CuentasScreen from "./CuentasScreen.jsx";
+import IngresosScreen from "./IngresosScreen.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -256,7 +257,7 @@ export default function App() {
     return <AuthScreen onAutenticado={setUsuario} />;
   }
 
-    const VISTAS_CON_NAV = ["home", "cuentas", "tarjetas", "grupos", "perfil"];
+    const VISTAS_CON_NAV = ["home", "cuentas", "ingresos", "grupos", "perfil"];
 
   if (VISTAS_CON_NAV.includes(vista)) {
     return (
@@ -270,11 +271,7 @@ export default function App() {
           />
         )}
         {vista === "cuentas" && <CuentasScreen />}
-        {vista === "tarjetas" && (
-          <div className="max-w-md mx-auto p-6 text-center text-gray-500">
-            Pantalla de tarjetas en construcción
-          </div>
-        )}
+        {vista === "ingresos" && <IngresosScreen />}
         {vista === "grupos" && (
           <div className="max-w-md mx-auto p-6">
             <GruposPanel usuarioId={usuario.id} tarjetas={tarjetas} />

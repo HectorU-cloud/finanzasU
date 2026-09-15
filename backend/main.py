@@ -216,17 +216,155 @@ def resumen_total_cuentas(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
-    """Suma el saldo de todas las cuentas del usuario."""
+    """Suma el saldo de todas las cuentas del usuario (incluye ingresos)."""
     cuentas = (
         db.query(models.Cuenta)
         .filter(models.Cuenta.usuario_id == usuario.id)
         .all()
     )
-    total = sum((Decimal(c.saldo_inicial) for c in cuentas), Decimal("0"))
+    total = Decimal("0")
+    for c in cuentas:
+        ingresos = (
+            db.query(func.coalesce(func.sum(models.Ingreso.monto), 0))
+            .filter(models.Ingreso.cuenta_id == c.id)
+            .scalar()
+        )
+        total += Decimal(c.saldo_inicial) + Decimal(ingresos)
     return {
         "total": float(total),
         "cantidad_cuentas": len(cuentas),
     }
+
+# ---------- Ingresos ----------
+
+@app.get("/api/ingresos", response_model=list[schemas.IngresoOut])
+def listar_ingresos(
+    anio: int | None = None,
+    mes: int | None = None,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    query = db.query(models.Ingreso).filter(models.Ingreso.usuario_id == usuario.id)
+    if anio is not None:
+        query = query.filter(extract("year", models.Ingreso.fecha) == anio)
+    if mes is not None:
+        query = query.filter(extract("month", models.Ingreso.fecha) == mes)
+    return query.order_by(models.Ingreso.fecha.desc()).all()
+
+
+@app.post("/api/ingresos", response_model=schemas.IngresoOut)
+def crear_ingreso(
+    datos: schemas.IngresoCreate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    cuenta = (
+        db.query(models.Cuenta)
+        .filter(
+            models.Cuenta.id == datos.cuenta_id,
+            models.Cuenta.usuario_id == usuario.id,
+        )
+        .first()
+    )
+    if not cuenta:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+
+    nuevo = models.Ingreso(**datos.model_dump(), usuario_id=usuario.id)
+    db.add(nuevo)
+    db.commit()
+    db.refresh(nuevo)
+    return nuevo
+
+
+@app.put("/api/ingresos/{ingreso_id}", response_model=schemas.IngresoOut)
+def actualizar_ingreso(
+    ingreso_id: int,
+    payload: schemas.IngresoUpdate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    ingreso = (
+        db.query(models.Ingreso)
+        .filter(
+            models.Ingreso.id == ingreso_id,
+            models.Ingreso.usuario_id == usuario.id,
+        )
+        .first()
+    )
+    if not ingreso:
+        raise HTTPException(status_code=404, detail="Ingreso no encontrado")
+
+    if payload.cuenta_id is not None:
+        cuenta = (
+            db.query(models.Cuenta)
+            .filter(
+                models.Cuenta.id == payload.cuenta_id,
+                models.Cuenta.usuario_id == usuario.id,
+            )
+            .first()
+        )
+        if not cuenta:
+            raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+        ingreso.cuenta_id = payload.cuenta_id
+
+    if payload.fecha is not None:
+        ingreso.fecha = payload.fecha
+    if payload.monto is not None:
+        ingreso.monto = payload.monto
+    if payload.descripcion is not None:
+        ingreso.descripcion = payload.descripcion
+    if payload.categoria is not None:
+        ingreso.categoria = payload.categoria
+
+    db.commit()
+    db.refresh(ingreso)
+    return ingreso
+
+
+@app.delete("/api/ingresos/{ingreso_id}", status_code=204)
+def eliminar_ingreso(
+    ingreso_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    ingreso = (
+        db.query(models.Ingreso)
+        .filter(
+            models.Ingreso.id == ingreso_id,
+            models.Ingreso.usuario_id == usuario.id,
+        )
+        .first()
+    )
+    if not ingreso:
+        raise HTTPException(status_code=404, detail="Ingreso no encontrado")
+    db.delete(ingreso)
+    db.commit()
+
+
+@app.get("/api/ingresos/resumen")
+def resumen_ingresos(
+    anio: int | None = None,
+    mes: int | None = None,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    hoy = date.today()
+    anio = anio or hoy.year
+    mes = mes or hoy.month
+
+    total = (
+        db.query(func.coalesce(func.sum(models.Ingreso.monto), 0))
+        .filter(models.Ingreso.usuario_id == usuario.id)
+        .filter(extract("year", models.Ingreso.fecha) == anio)
+        .filter(extract("month", models.Ingreso.fecha) == mes)
+        .scalar()
+    )
+    return {"anio": anio, "mes": mes, "total": float(Decimal(total))}
+
+
+@app.get("/api/categorias-ingreso", response_model=schemas.CategoriasDisponibles)
+def listar_categorias_ingreso():
+    return schemas.CategoriasDisponibles(categorias=schemas.CATEGORIAS_INGRESO)
 
 # ---------- Tarjetas ----------
 

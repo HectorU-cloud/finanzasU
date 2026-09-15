@@ -114,3 +114,18 @@ class Cuenta(Base):
     creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     usuario = relationship("Usuario")
+
+class Ingreso(Base):
+    __tablename__ = "ingresos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    cuenta_id = Column(Integer, ForeignKey("cuentas.id"), nullable=False)
+    monto = Column(Numeric(12, 2), nullable=False)
+    fecha = Column(Date, nullable=False)
+    descripcion = Column(String(150), nullable=True)
+    categoria = Column(String(50), nullable=True)
+    creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    usuario = relationship("Usuario")
+    cuenta = relationship("Cuenta")

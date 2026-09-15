@@ -29,7 +29,17 @@ export default function Home({ usuario, resumen, tarjetas, onIrACuentas }) {
       .finally(() => setCargandoCuentas(false));
   }, []);
 
-  const totalCuentas = cuentas.reduce((acc, c) => acc + Number(c.saldo_inicial || 0), 0);
+    const [totalIngresos, setTotalIngresos] = useState(0);
+
+  useEffect(() => {
+    const hoy = new Date();
+    api.getResumenIngresos(hoy.getFullYear(), hoy.getMonth() + 1)
+      .then((d) => setTotalIngresos(d.total || 0))
+      .catch(() => {});
+  }, []);
+
+  const saldoBaseCuentas = cuentas.reduce((acc, c) => acc + Number(c.saldo_inicial || 0), 0);
+  const totalCuentas = saldoBaseCuentas + totalIngresos;
   const totalTarjetas = Number(resumen?.total_mes ?? 0);
   const saldoNeto = totalCuentas - totalTarjetas;
 

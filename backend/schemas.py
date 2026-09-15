@@ -373,3 +373,80 @@ class Cuenta(CuentaBase):
     model_config = ConfigDict(from_attributes=True)
     id: int
     creado_en: datetime | None = None
+    total_ingresos: Decimal = Decimal("0")
+    saldo_actual: Decimal | None = None
+
+CATEGORIAS_INGRESO = [
+    "Sueldo",
+    "Freelance",
+    "Negocio",
+    "Inversión",
+    "Bono",
+    "Regalo",
+    "Otros",
+]
+
+
+class IngresoBase(BaseModel):
+    cuenta_id: int
+    fecha: date
+    monto: Decimal = Field(gt=0, le=MONTO_MAXIMO, decimal_places=2)
+    descripcion: str | None = Field(default=None, max_length=150)
+    categoria: str | None = Field(default=None, max_length=50)
+
+    @field_validator("fecha")
+    @classmethod
+    def _fecha_valida(cls, v):
+        return _validar_fecha(v)
+
+    @field_validator("categoria")
+    @classmethod
+    def _categoria_valida(cls, v):
+        if v is not None and v not in CATEGORIAS_INGRESO:
+            raise ValueError("la categoría no es válida")
+        return v
+
+
+class IngresoCreate(IngresoBase):
+    pass
+
+
+class IngresoUpdate(BaseModel):
+    cuenta_id: int | None = None
+    fecha: date | None = None
+    monto: Decimal | None = Field(default=None, gt=0, le=MONTO_MAXIMO, decimal_places=2)
+    descripcion: str | None = Field(default=None, max_length=150)
+    categoria: str | None = Field(default=None, max_length=50)
+
+    @field_validator("fecha")
+    @classmethod
+    def _fecha_valida(cls, v):
+        if v is None:
+            return v
+        return _validar_fecha(v)
+
+    @field_validator("categoria")
+    @classmethod
+    def _categoria_valida(cls, v):
+        if v is not None and v not in CATEGORIAS_INGRESO:
+            raise ValueError("la categoría no es válida")
+        return v
+
+
+class IngresoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    cuenta_id: int
+    fecha: date
+    monto: Decimal
+    descripcion: str | None
+    categoria: str | None
+
+
+class ResumenTotalCuenta(BaseModel):
+    cuenta_id: int
+    nombre: str
+    tipo: str
+    saldo_inicial: Decimal
+    total_ingresos: Decimal
+    saldo_actual: Decimal

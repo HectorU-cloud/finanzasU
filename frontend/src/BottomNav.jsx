@@ -1,11 +1,11 @@
-import { Home, Wallet, CreditCard, Users, User } from "lucide-react";
+import { Home, Wallet, TrendingUp, Users, User } from "lucide-react";
 
 const TABS = [
-  { id: "home",    label: "Inicio",   icono: Home },
-  { id: "cuentas", label: "Cuentas",  icono: Wallet },
-  { id: "tarjetas",label: "Tarjetas", icono: CreditCard },
-  { id: "grupos",  label: "Grupos",   icono: Users },
-  { id: "perfil",  label: "Perfil",   icono: User },
+  { id: "home",     label: "Inicio",    icono: Home },
+  { id: "cuentas",  label: "Cuentas",   icono: Wallet },
+  { id: "ingresos", label: "Ingresos",  icono: TrendingUp },
+  { id: "grupos",   label: "Grupos",    icono: Users },
+  { id: "perfil",   label: "Perfil",    icono: User },
 ];
 
 export default function BottomNav({ vista, onCambiar }) {

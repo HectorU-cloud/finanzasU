@@ -56,7 +56,24 @@ export const api = {
   cambiarPassword: (datos) =>
   request("/auth/cambiar-password", { method: "POST", body: JSON.stringify(datos) }),
 
-    // Cuentas
+  // Cuentas
+  // Ingresos
+  getIngresos: (anio, mes) => {
+    let url = "/ingresos";
+    const params = [];
+    if (anio) params.push(`anio=${anio}`);
+    if (mes) params.push(`mes=${mes}`);
+    if (params.length) url += `?${params.join("&")}`;
+    return request(url);
+  },
+  crearIngreso: (ingreso) =>
+    request("/ingresos", { method: "POST", body: JSON.stringify(ingreso) }),
+  actualizarIngreso: (id, cambios) =>
+    request(`/ingresos/${id}`, { method: "PUT", body: JSON.stringify(cambios) }),
+  eliminarIngreso: (id) => request(`/ingresos/${id}`, { method: "DELETE" }),
+  getResumenIngresos: (anio, mes) =>
+    request(`/ingresos/resumen?anio=${anio}&mes=${mes}`),
+  getCategoriasIngreso: () => request("/categorias-ingreso"),
   getCuentas: () => request("/cuentas"),
   crearCuenta: (cuenta) =>
     request("/cuentas", { method: "POST", body: JSON.stringify(cuenta) }),
