@@ -18,7 +18,7 @@ const COLORES_CUENTA = {
   otra: "from-gray-500 to-gray-700",
 };
 
-export default function Home({ usuario, resumen, tarjetas, onIrACuentas, onPagarTarjeta, onVerTarjeta }) {
+export default function Home({ usuario, resumen, tarjetas, onIrACuentas, onPagarTarjeta, onVerTarjeta, onAgregarTarjeta }) {
   const [cuentas, setCuentas] = useState([]);
   const [cargandoCuentas, setCargandoCuentas] = useState(true);
   const [totalCuentasReal, setTotalCuentasReal] = useState(0);
@@ -132,11 +132,14 @@ export default function Home({ usuario, resumen, tarjetas, onIrACuentas, onPagar
             ))
           ) : (
             <div className="rounded-2xl border-2 border-dashed border-gray-300 p-6 text-center">
-              <p className="text-sm text-gray-500 mb-2">Aún no tienes tarjetas</p>
-              <button className="text-coral font-medium text-sm">
-                + Agregar tarjeta
-              </button>
-            </div>
+            <p className="text-sm text-gray-500 mb-3">Aún no tienes tarjetas</p>
+            <button
+              onClick={onAgregarTarjeta}
+              className="bg-coral text-white font-semibold text-sm px-5 py-2.5 rounded-full hover:bg-coral-dark transition-colors"
+            >
+              + Agregar tarjeta
+            </button>
+          </div>
           )}
         </div>
       </section>
