@@ -12,6 +12,8 @@ import ResumenCategorias from "./ResumenCategorias.jsx";
 import EditarGastoModal from "./EditarGastoModal.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
 import Home from "./Home.jsx";
+import BottomNav from "./BottomNav.jsx";
+import CuentasScreen from "./CuentasScreen.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -254,14 +256,57 @@ export default function App() {
     return <AuthScreen onAutenticado={setUsuario} />;
   }
 
-  if (vista === "home") {
+    const VISTAS_CON_NAV = ["home", "cuentas", "tarjetas", "grupos", "perfil"];
+
+  if (VISTAS_CON_NAV.includes(vista)) {
     return (
-      <Home
-        usuario={usuario}
-        resumen={resumen}
-        tarjetas={resumen?.tarjetas}
-        onIrACuentas={() => setVista("cuentas")}
-      />
+      <div className="min-h-screen bg-cream pb-24">
+        {vista === "home" && (
+          <Home
+            usuario={usuario}
+            resumen={resumen}
+            tarjetas={resumen?.tarjetas}
+            onIrACuentas={() => setVista("cuentas")}
+          />
+        )}
+        {vista === "cuentas" && <CuentasScreen />}
+        {vista === "tarjetas" && (
+          <div className="max-w-md mx-auto p-6 text-center text-gray-500">
+            Pantalla de tarjetas en construcción
+          </div>
+        )}
+        {vista === "grupos" && (
+          <div className="max-w-md mx-auto p-6">
+            <GruposPanel usuarioId={usuario.id} tarjetas={tarjetas} />
+          </div>
+        )}
+        {vista === "perfil" && (
+          <div className="max-w-md mx-auto p-6">
+            <div className="bg-white rounded-2xl p-6 text-center">
+              <div className="w-16 h-16 rounded-full bg-coral text-white flex items-center justify-center text-2xl font-bold mx-auto mb-3">
+                {usuario.nombre[0]?.toUpperCase()}
+              </div>
+              <h2 className="text-lg font-bold text-carbon">{usuario.nombre}</h2>
+              <p className="text-sm text-gray-500 mb-5">{usuario.email}</p>
+              <div className="space-y-2">
+                <button
+                  onClick={() => setModalPassword(true)}
+                  className="w-full py-3 rounded-xl border border-gray-200 text-sm font-medium hover:bg-gray-50"
+                >
+                  Cambiar contraseña
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className="w-full py-3 rounded-xl bg-coral text-white text-sm font-semibold hover:bg-coral-dark"
+                >
+                  Cerrar sesión
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        <BottomNav vista={vista} onCambiar={setVista} />
+      </div>
     );
   }
 
