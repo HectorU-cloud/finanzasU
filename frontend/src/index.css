@@ -1,3 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 :root {
   /* Paleta "cuaderno de cuentas": papel cálido, tinta oscura, acento terracota. */
   --bg: #f4efe3;

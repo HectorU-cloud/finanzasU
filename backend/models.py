@@ -101,3 +101,16 @@ class DivisionGasto(Base):
 
     gasto = relationship("GastoCompartido", back_populates="divisiones")
     usuario = relationship("Usuario")
+
+class Cuenta(Base):
+    __tablename__ = "cuentas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    nombre = Column(String(80), nullable=False)
+    tipo = Column(String(30), nullable=False, default="ahorros")
+    saldo_inicial = Column(Numeric(12, 2), nullable=False, default=0)
+    fijada = Column(Integer, default=0)  # 0=no, 1=sí (destacada en Home)
+    creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    usuario = relationship("Usuario")

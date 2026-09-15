@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
 from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
 
@@ -321,3 +321,55 @@ class GrupoResumenMensual(BaseModel):
 
 class GrupoUpdateLimite(BaseModel):
     limite_mensual: Decimal = Field(gt=0, le=1000000)
+
+TIPOS_CUENTA_VALIDOS = {"efectivo", "ahorros", "corriente", "inversion", "otra"}
+
+
+class CuentaBase(BaseModel):
+    nombre: str = Field(min_length=1, max_length=80)
+    tipo: str = Field(default="ahorros", max_length=30)
+    saldo_inicial: Decimal = Field(default=Decimal("0"), ge=0)
+    fijada: bool = False
+
+    @field_validator("nombre")
+    @classmethod
+    def _nombre_valido(cls, v):
+        return _validar_texto_no_vacio(v)
+
+    @field_validator("tipo")
+    @classmethod
+    def _tipo_valido(cls, v):
+        if v not in TIPOS_CUENTA_VALIDOS:
+            raise ValueError("tipo inválido")
+        return v
+
+
+class CuentaCreate(CuentaBase):
+    pass
+
+
+class CuentaUpdate(BaseModel):
+    nombre: str | None = Field(default=None, max_length=80)
+    tipo: str | None = Field(default=None, max_length=30)
+    saldo_inicial: Decimal | None = Field(default=None, ge=0)
+    fijada: bool | None = None
+
+    @field_validator("nombre")
+    @classmethod
+    def _nombre_valido(cls, v):
+        if v is None:
+            return v
+        return _validar_texto_no_vacio(v)
+
+    @field_validator("tipo")
+    @classmethod
+    def _tipo_valido(cls, v):
+        if v is not None and v not in TIPOS_CUENTA_VALIDOS:
+            raise ValueError("tipo inválido")
+        return v
+
+
+class Cuenta(CuentaBase):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    creado_en: datetime | None = None

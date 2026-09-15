@@ -56,6 +56,15 @@ export const api = {
   cambiarPassword: (datos) =>
   request("/auth/cambiar-password", { method: "POST", body: JSON.stringify(datos) }),
 
+    // Cuentas
+  getCuentas: () => request("/cuentas"),
+  crearCuenta: (cuenta) =>
+    request("/cuentas", { method: "POST", body: JSON.stringify(cuenta) }),
+  actualizarCuenta: (id, cambios) =>
+    request(`/cuentas/${id}`, { method: "PUT", body: JSON.stringify(cambios) }),
+  eliminarCuenta: (id) => request(`/cuentas/${id}`, { method: "DELETE" }),
+  getResumenTotalCuentas: () => request("/cuentas/resumen-total"),
+
   getTarjetas: () => request("/tarjetas"),
   getGastos: (anio, mes, categoria = null) => {
     let url = `/gastos?anio=${anio}&mes=${mes}`;

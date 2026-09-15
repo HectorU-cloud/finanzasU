@@ -11,6 +11,7 @@ import CambiarPasswordModal from "./CambiarPasswordModal.jsx";
 import ResumenCategorias from "./ResumenCategorias.jsx";
 import EditarGastoModal from "./EditarGastoModal.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
+import Home from "./Home.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -44,6 +45,43 @@ export default function App() {
   const [usuario, setUsuario] = useState(null);
   const [verificandoSesion, setVerificandoSesion] = useState(true);
 
+  const hoy = new Date();
+  const [periodo, setPeriodo] = useState({ anio: hoy.getFullYear(), mes: hoy.getMonth() + 1 });
+  const esMesActual = periodo.anio === hoy.getFullYear() && periodo.mes === hoy.getMonth() + 1;
+
+  const [modalPassword, setModalPassword] = useState(false);
+  const [gastoEditando, setGastoEditando] = useState(null);
+  const [gastoAEliminar, setGastoAEliminar] = useState(null);
+  const [exito, setExito] = useState("");
+  const [enviando, setEnviando] = useState(false);
+  const [panelTarjetasAbierto, setPanelTarjetasAbierto] = useState(false);
+  const [vista, setVista] = useState("home");
+
+  const [tarjetas, setTarjetas] = useState([]);
+  const [gastos, setGastos] = useState([]);
+  const [resumen, setResumen] = useState(null);
+  const [categorias, setCategorias] = useState([]);
+  const [filtroCategoria, setFiltroCategoria] = useState(null);
+  const [menuAbiertoId, setMenuAbiertoId] = useState(null);
+
+  const [form, setForm] = useState({
+    fecha: todayISO(),
+    tarjeta_id: leerUltima(ULTIMA_TARJETA_KEY),
+    monto: "",
+    descripcion: "",
+    categoria: leerUltima(ULTIMA_CATEGORIA_KEY),
+  });
+  const [error, setError] = useState("");
+  const [rangoExport, setRangoExport] = useState("mes");
+  const [exportando, setExportando] = useState(false);
+
+  const peticionIdRef = useRef(0);
+
+  function mostrarExito(mensaje) {
+    setExito(mensaje);
+    setTimeout(() => setExito(""), 2500);
+  }
+
   useEffect(() => {
     if (!hayTokenGuardado()) {
       setVerificandoSesion(false);
@@ -61,39 +99,6 @@ export default function App() {
     setUsuario(null);
   }
 
-  const hoy = new Date();
-  const [periodo, setPeriodo] = useState({ anio: hoy.getFullYear(), mes: hoy.getMonth() + 1 });
-  const esMesActual = periodo.anio === hoy.getFullYear() && periodo.mes === hoy.getMonth() + 1;
-
-  const [modalPassword, setModalPassword] = useState(false);
-  const [gastoEditando, setGastoEditando] = useState(null);
-  const [gastoAEliminar, setGastoAEliminar] = useState(null);
-  const [exito, setExito] = useState("");
-  const [enviando, setEnviando] = useState(false);
-  const [panelTarjetasAbierto, setPanelTarjetasAbierto] = useState(false);
-
-  function mostrarExito(mensaje) {
-    setExito(mensaje);
-    setTimeout(() => setExito(""), 2500);
-  }
-  const [tarjetas, setTarjetas] = useState([]);
-  const [gastos, setGastos] = useState([]);
-  const [resumen, setResumen] = useState(null);
-  const [categorias, setCategorias] = useState([]);
-  const [filtroCategoria, setFiltroCategoria] = useState(null);
-  const [menuAbiertoId, setMenuAbiertoId] = useState(null);
-
-  const [form, setForm] = useState({
-    fecha: todayISO(),
-    tarjeta_id: leerUltima(ULTIMA_TARJETA_KEY),
-    monto: "",
-    descripcion: "",
-    categoria: leerUltima(ULTIMA_CATEGORIA_KEY),
-  });
-  const [error, setError] = useState("");
-
-  const peticionIdRef = useRef(0);
-
   const cargarDatos = useCallback(async () => {
     const miId = ++peticionIdRef.current;
     const [tarjetasData, gastosData, resumenData, categoriasData] = await Promise.all([
@@ -102,7 +107,7 @@ export default function App() {
       api.getResumen(periodo.anio, periodo.mes),
       categorias.length > 0 ? Promise.resolve(categorias) : api.getCategorias(),
     ]);
-    if (peticionIdRef.current !== miId) return; // llegó una petición más nueva primero; ignorar esta
+    if (peticionIdRef.current !== miId) return;
     setTarjetas(tarjetasData);
     setGastos(gastosData);
     setResumen(resumenData);
@@ -128,14 +133,14 @@ export default function App() {
   }, [cargarDatos, usuario]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-  function cerrarSiEsFuera(e) {
-    if (!e.target.closest(".acciones-menu")) {
-      setMenuAbiertoId(null);
+    function cerrarSiEsFuera(e) {
+      if (!e.target.closest(".acciones-menu")) {
+        setMenuAbiertoId(null);
+      }
     }
-  }
-  document.addEventListener("click", cerrarSiEsFuera);
-  return () => document.removeEventListener("click", cerrarSiEsFuera);
-}, []);
+    document.addEventListener("click", cerrarSiEsFuera);
+    return () => document.removeEventListener("click", cerrarSiEsFuera);
+  }, []);
 
   function cambiarMes(delta) {
     setPeriodo((p) => {
@@ -152,9 +157,6 @@ export default function App() {
     });
     setFiltroCategoria(null);
   }
-
-  const [rangoExport, setRangoExport] = useState("mes");
-  const [exportando, setExportando] = useState(false);
 
   async function handleExport() {
     let desde, hasta;
@@ -250,6 +252,17 @@ export default function App() {
 
   if (!usuario) {
     return <AuthScreen onAutenticado={setUsuario} />;
+  }
+
+  if (vista === "home") {
+    return (
+      <Home
+        usuario={usuario}
+        resumen={resumen}
+        tarjetas={resumen?.tarjetas}
+        onIrACuentas={() => setVista("cuentas")}
+      />
+    );
   }
 
   return (
@@ -457,41 +470,41 @@ export default function App() {
                   {g.descripcion && <span className="desc">{g.descripcion}</span>}
                 </div>
                 <div className="acciones">
-  <span className="monto">${Number(g.monto).toFixed(2)}</span>
-  <div className="acciones-menu">
-    <button
-      className="mini-btn"
-      onClick={(e) => {
-        e.stopPropagation();
-        setMenuAbiertoId(menuAbiertoId === g.id ? null : g.id);
-      }}
-      title="Más opciones"
-    >
-      <MoreVertical size={16} />
-    </button>
-    {menuAbiertoId === g.id && (
-      <div className="dropdown-menu">
-        <button
-          onClick={() => {
-            setGastoEditando(g);
-            setMenuAbiertoId(null);
-          }}
-        >
-          <Pencil size={14} /> Editar
-        </button>
-        <button
-          className="peligro"
-          onClick={() => {
-            setGastoAEliminar(g);
-            setMenuAbiertoId(null);
-          }}
-        >
-          <Trash2 size={14} /> Eliminar
-        </button>
-      </div>
-    )}
-  </div>
-</div>
+                  <span className="monto">${Number(g.monto).toFixed(2)}</span>
+                  <div className="acciones-menu">
+                    <button
+                      className="mini-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMenuAbiertoId(menuAbiertoId === g.id ? null : g.id);
+                      }}
+                      title="Más opciones"
+                    >
+                      <MoreVertical size={16} />
+                    </button>
+                    {menuAbiertoId === g.id && (
+                      <div className="dropdown-menu">
+                        <button
+                          onClick={() => {
+                            setGastoEditando(g);
+                            setMenuAbiertoId(null);
+                          }}
+                        >
+                          <Pencil size={14} /> Editar
+                        </button>
+                        <button
+                          className="peligro"
+                          onClick={() => {
+                            setGastoAEliminar(g);
+                            setMenuAbiertoId(null);
+                          }}
+                        >
+                          <Trash2 size={14} /> Eliminar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
               </li>
             );
           })}

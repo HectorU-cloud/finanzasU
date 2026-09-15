@@ -126,6 +126,107 @@ def cambiar_password(
 def yo(usuario: models.Usuario = Depends(auth.obtener_usuario_actual)):
     return usuario
 
+# ---------- Cuentas ----------
+
+@app.get("/api/cuentas", response_model=list[schemas.Cuenta])
+def listar_cuentas(
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    return (
+        db.query(models.Cuenta)
+        .filter(models.Cuenta.usuario_id == usuario.id)
+        .order_by(models.Cuenta.fijada.desc(), models.Cuenta.id.asc())
+        .all()
+    )
+
+
+@app.post("/api/cuentas", response_model=schemas.Cuenta)
+def crear_cuenta(
+    cuenta: schemas.CuentaCreate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    existe = (
+        db.query(models.Cuenta)
+        .filter(
+            models.Cuenta.usuario_id == usuario.id,
+            func.lower(models.Cuenta.nombre) == cuenta.nombre.lower(),
+        )
+        .first()
+    )
+    if existe:
+        raise HTTPException(status_code=400, detail="Ya tienes una cuenta con ese nombre")
+
+    nueva = models.Cuenta(**cuenta.model_dump(), usuario_id=usuario.id)
+    db.add(nueva)
+    db.commit()
+    db.refresh(nueva)
+    return nueva
+
+
+@app.put("/api/cuentas/{cuenta_id}", response_model=schemas.Cuenta)
+def actualizar_cuenta(
+    cuenta_id: int,
+    payload: schemas.CuentaUpdate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    cuenta = (
+        db.query(models.Cuenta)
+        .filter(models.Cuenta.id == cuenta_id, models.Cuenta.usuario_id == usuario.id)
+        .first()
+    )
+    if not cuenta:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+
+    if payload.nombre is not None:
+        cuenta.nombre = payload.nombre
+    if payload.tipo is not None:
+        cuenta.tipo = payload.tipo
+    if payload.saldo_inicial is not None:
+        cuenta.saldo_inicial = payload.saldo_inicial
+    if payload.fijada is not None:
+        cuenta.fijada = 1 if payload.fijada else 0
+
+    db.commit()
+    db.refresh(cuenta)
+    return cuenta
+
+
+@app.delete("/api/cuentas/{cuenta_id}", status_code=204)
+def eliminar_cuenta(
+    cuenta_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    cuenta = (
+        db.query(models.Cuenta)
+        .filter(models.Cuenta.id == cuenta_id, models.Cuenta.usuario_id == usuario.id)
+        .first()
+    )
+    if not cuenta:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+    db.delete(cuenta)
+    db.commit()
+
+
+@app.get("/api/cuentas/resumen-total")
+def resumen_total_cuentas(
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """Suma el saldo de todas las cuentas del usuario."""
+    cuentas = (
+        db.query(models.Cuenta)
+        .filter(models.Cuenta.usuario_id == usuario.id)
+        .all()
+    )
+    total = sum((Decimal(c.saldo_inicial) for c in cuentas), Decimal("0"))
+    return {
+        "total": float(total),
+        "cantidad_cuentas": len(cuentas),
+    }
 
 # ---------- Tarjetas ----------
 
