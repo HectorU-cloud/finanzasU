@@ -20,7 +20,7 @@ const COLORES_CUENTA = {
   otra: "from-gray-500 to-gray-700",
 };
 
-export default function CuentasScreen() {
+export default function CuentasScreen({ onCambiarVista }) {
   const [cuentas, setCuentas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [modalAbierto, setModalAbierto] = useState(false);
@@ -175,10 +175,26 @@ export default function CuentasScreen() {
         </div>
       )}
 
-      {error && (
-        <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2 mt-4">
-          {error}
-        </p>
+        {error && (
+        <div className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-3 mt-4">
+          <p>{error}</p>
+          {onCambiarVista && error.includes("pagos de tarjeta") && (
+            <button
+              onClick={() => onCambiarVista("pagos")}
+              className="mt-2 text-xs font-semibold text-coral underline"
+            >
+              Ir a Pagos →
+            </button>
+          )}
+          {onCambiarVista && error.includes("ingresos registrados") && (
+            <button
+              onClick={() => onCambiarVista("ingresos")}
+              className="mt-2 text-xs font-semibold text-coral underline"
+            >
+              Ir a Ingresos →
+            </button>
+          )}
+        </div>
       )}
 
       {modalAbierto && (

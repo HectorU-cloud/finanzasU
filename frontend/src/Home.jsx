@@ -18,7 +18,7 @@ const COLORES_CUENTA = {
   otra: "from-gray-500 to-gray-700",
 };
 
-export default function Home({ usuario, resumen, tarjetas, onIrACuentas, onPagarTarjeta }) {
+export default function Home({ usuario, resumen, tarjetas, onIrACuentas, onPagarTarjeta, onVerTarjeta }) {
   const [cuentas, setCuentas] = useState([]);
   const [cargandoCuentas, setCargandoCuentas] = useState(true);
   const [totalCuentasReal, setTotalCuentasReal] = useState(0);
@@ -83,9 +83,10 @@ export default function Home({ usuario, resumen, tarjetas, onIrACuentas, onPagar
         <div className="space-y-3">
           {tarjetas && tarjetas.length > 0 ? (
             tarjetas.slice(0, 2).map((t) => (
-              <div
+                <div
                 key={t.id}
-                className="rounded-2xl p-5 text-white shadow-lg"
+                onClick={() => onVerTarjeta?.(t)}
+                className="rounded-2xl p-5 text-white shadow-lg cursor-pointer active:scale-[0.98] transition-transform"
                 style={{
                   background:
                     t.tema === "amex-verde"
@@ -116,9 +117,12 @@ export default function Home({ usuario, resumen, tarjetas, onIrACuentas, onPagar
                   <span className="text-sm font-medium">{t.nombre}</span>
                   <span className="text-xs opacity-75">Corte día {t.dia_corte}</span>
                 </div>
-                {Number(t.gastado_mes) > 0 && onPagarTarjeta && (
+                                {Number(t.gastado_mes) > 0 && onPagarTarjeta && (
                   <button
-                    onClick={() => onPagarTarjeta(t)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onPagarTarjeta(t);
+                    }}
                     className="w-full py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-semibold transition-colors"
                   >
                     Pagar esta tarjeta

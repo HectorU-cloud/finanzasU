@@ -91,10 +91,13 @@ export const api = {
   getResumenTotalCuentas: () => request("/cuentas/resumen-total"),
 
   getTarjetas: () => request("/tarjetas"),
-  getGastos: (anio, mes, categoria = null) => {
-    let url = `/gastos?anio=${anio}&mes=${mes}`;
-    if (categoria) url += `&categoria=${encodeURIComponent(categoria)}`;
-    return request(url);
+    getGastos: (anio, mes, categoria = null, tarjetaId = null) => {
+    const params = [];
+    if (anio) params.push(`anio=${anio}`);
+    if (mes) params.push(`mes=${mes}`);
+    if (categoria) params.push(`categoria=${encodeURIComponent(categoria)}`);
+    if (tarjetaId) params.push(`tarjeta_id=${tarjetaId}`);
+    return request(`/gastos?${params.join("&")}`);
   },
   getResumen: (anio, mes) => request(`/resumen?anio=${anio}&mes=${mes}`),
   getResumenCategorias: (anio, mes) =>

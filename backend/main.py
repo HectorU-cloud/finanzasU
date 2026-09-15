@@ -223,6 +223,37 @@ def eliminar_cuenta(
     )
     if not cuenta:
         raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+
+    # Verificar que no tenga ingresos asociados
+    tiene_ingresos = (
+        db.query(models.Ingreso)
+        .filter(models.Ingreso.cuenta_id == cuenta_id)
+        .first()
+    )
+    if tiene_ingresos:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"No puedes eliminar '{cuenta.nombre}' porque tiene ingresos registrados. "
+                "Elimina primero los ingresos o muévelos a otra cuenta."
+            ),
+        )
+
+    # Verificar que no tenga pagos asociados
+    tiene_pagos = (
+        db.query(models.PagoTarjeta)
+        .filter(models.PagoTarjeta.cuenta_id == cuenta_id)
+        .first()
+    )
+    if tiene_pagos:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"No puedes eliminar '{cuenta.nombre}' porque tiene pagos de tarjeta registrados. "
+                "Elimínalos primero desde la sección Pagos."
+            ),
+        )
+
     db.delete(cuenta)
     db.commit()
 
@@ -669,6 +700,7 @@ def listar_gastos(
     anio: int | None = None,
     mes: int | None = None,
     categoria: str | None = None,
+    tarjeta_id: int | None = None,
     incluir_pagados: bool = False,
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
@@ -686,8 +718,9 @@ def listar_gastos(
         query = query.filter(extract("month", models.Gasto.fecha) == mes)
     if categoria is not None:
         query = query.filter(models.Gasto.categoria == categoria)
+    if tarjeta_id is not None:
+        query = query.filter(models.Gasto.tarjeta_id == tarjeta_id)
     return query.order_by(models.Gasto.fecha.desc()).all()
-
 
 @app.post("/api/gastos", response_model=schemas.Gasto)
 def crear_gasto(

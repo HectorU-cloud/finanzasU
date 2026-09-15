@@ -17,6 +17,7 @@ import CuentasScreen from "./CuentasScreen.jsx";
 import IngresosScreen from "./IngresosScreen.jsx";
 import PagarTarjetaModal from "./PagarTarjetaModal.jsx";
 import HistorialPagosScreen from "./HistorialPagosScreen.jsx";
+import TarjetaDetalleScreen from "./TarjetaDetalleScreen.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -70,6 +71,7 @@ export default function App() {
   const [filtroCategoria, setFiltroCategoria] = useState(null);
   const [menuAbiertoId, setMenuAbiertoId] = useState(null);
   const [tarjetaAPagar, setTarjetaAPagar] = useState(null);
+  const [tarjetaDetalle, setTarjetaDetalle] = useState(null);
 
   const [form, setForm] = useState({
     fecha: todayISO(),
@@ -273,9 +275,10 @@ export default function App() {
             tarjetas={resumen?.tarjetas}
             onIrACuentas={() => setVista("cuentas")}
             onPagarTarjeta={(t) => setTarjetaAPagar(t)}
+            onVerTarjeta={(t) => setTarjetaDetalle(t)}
           />
         )}
-        {vista === "cuentas" && <CuentasScreen />}
+        {vista === "cuentas" && <CuentasScreen onCambiarVista={setVista} />}
         {vista === "ingresos" && <IngresosScreen />}
         {vista === "pagos" && <HistorialPagosScreen />}
         {vista === "grupos" && (
@@ -322,7 +325,20 @@ export default function App() {
             }}
           />
         )}
-        <BottomNav vista={vista} onCambiar={setVista} />
+        {tarjetaDetalle && (
+          <TarjetaDetalleScreen
+            tarjeta={tarjetaDetalle}
+            onVolver={() => setTarjetaDetalle(null)}
+            onCambio={() => cargarDatos()}
+          />
+        )}
+        <BottomNav
+          vista={vista}
+          onCambiar={(nuevaVista) => {
+            setVista(nuevaVista);
+            setTarjetaDetalle(null);
+          }}
+        />
       </div>
     );
   }
