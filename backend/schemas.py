@@ -450,3 +450,34 @@ class ResumenTotalCuenta(BaseModel):
     saldo_inicial: Decimal
     total_ingresos: Decimal
     saldo_actual: Decimal
+
+class PagoTarjetaCreate(BaseModel):
+    tarjeta_id: int
+    cuenta_id: int
+    monto: Decimal = Field(gt=0, le=MONTO_MAXIMO, decimal_places=2)
+    anio: int
+    mes: int = Field(ge=1, le=12)
+    fecha_pago: date
+
+
+class PagoTarjetaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    tarjeta_id: int
+    cuenta_id: int
+    monto: Decimal
+    fecha_pago: date
+    mes_cerrado: int
+    anio_cerrado: int
+
+
+class EstadoPagoTarjeta(BaseModel):
+    tarjeta_id: int
+    tarjeta_nombre: str
+    anio: int
+    mes: int
+    total_gastos: Decimal
+    total_pagado: Decimal
+    pendiente: Decimal
+    cerrado: bool
+    porcentaje_pagado: float

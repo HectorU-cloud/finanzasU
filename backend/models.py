@@ -40,6 +40,7 @@ class Gasto(Base):
     monto = Column(Numeric(10, 2), nullable=False)
     descripcion = Column(String(150), nullable=True)
     categoria = Column(String(50), nullable=True)
+    pago_id = Column(Integer, ForeignKey("pagos_tarjeta.id"), nullable=True)
 
     tarjeta = relationship("Tarjeta", back_populates="gastos")
 
@@ -128,4 +129,21 @@ class Ingreso(Base):
     creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     usuario = relationship("Usuario")
+    cuenta = relationship("Cuenta")
+
+class PagoTarjeta(Base):
+    __tablename__ = "pagos_tarjeta"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    tarjeta_id = Column(Integer, ForeignKey("tarjetas.id"), nullable=False)
+    cuenta_id = Column(Integer, ForeignKey("cuentas.id"), nullable=False)
+    monto = Column(Numeric(12, 2), nullable=False)
+    fecha_pago = Column(Date, nullable=False)
+    mes_cerrado = Column(Integer, nullable=False)
+    anio_cerrado = Column(Integer, nullable=False)
+    creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    usuario = relationship("Usuario")
+    tarjeta = relationship("Tarjeta")
     cuenta = relationship("Cuenta")

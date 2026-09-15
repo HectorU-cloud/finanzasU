@@ -15,6 +15,7 @@ import Home from "./Home.jsx";
 import BottomNav from "./BottomNav.jsx";
 import CuentasScreen from "./CuentasScreen.jsx";
 import IngresosScreen from "./IngresosScreen.jsx";
+import PagarTarjetaModal from "./PagarTarjetaModal.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -24,6 +25,7 @@ const NOMBRES_MES = [
   "enero", "febrero", "marzo", "abril", "mayo", "junio",
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ];
+
 
 const ULTIMA_TARJETA_KEY = "finanzas_ultima_tarjeta";
 const ULTIMA_CATEGORIA_KEY = "finanzas_ultima_categoria";
@@ -66,6 +68,7 @@ export default function App() {
   const [categorias, setCategorias] = useState([]);
   const [filtroCategoria, setFiltroCategoria] = useState(null);
   const [menuAbiertoId, setMenuAbiertoId] = useState(null);
+  const [tarjetaAPagar, setTarjetaAPagar] = useState(null);
 
   const [form, setForm] = useState({
     fecha: todayISO(),
@@ -268,6 +271,7 @@ export default function App() {
             resumen={resumen}
             tarjetas={resumen?.tarjetas}
             onIrACuentas={() => setVista("cuentas")}
+            onPagarTarjeta={(t) => setTarjetaAPagar(t)}
           />
         )}
         {vista === "cuentas" && <CuentasScreen />}
@@ -301,6 +305,16 @@ export default function App() {
               </div>
             </div>
           </div>
+        )}
+        {tarjetaAPagar && (
+          <PagarTarjetaModal
+            tarjeta={tarjetaAPagar}
+            onCerrar={() => setTarjetaAPagar(null)}
+            onPagado={() => {
+              setTarjetaAPagar(null);
+              cargarDatos();
+            }}
+          />
         )}
         <BottomNav vista={vista} onCambiar={setVista} />
       </div>

@@ -18,9 +18,10 @@ const COLORES_CUENTA = {
   otra: "from-gray-500 to-gray-700",
 };
 
-export default function Home({ usuario, resumen, tarjetas, onIrACuentas }) {
+export default function Home({ usuario, resumen, tarjetas, onIrACuentas, onPagarTarjeta }) {
   const [cuentas, setCuentas] = useState([]);
   const [cargandoCuentas, setCargandoCuentas] = useState(true);
+  const [totalCuentasReal, setTotalCuentasReal] = useState(0);
 
   useEffect(() => {
     api.getCuentas()
@@ -29,17 +30,13 @@ export default function Home({ usuario, resumen, tarjetas, onIrACuentas }) {
       .finally(() => setCargandoCuentas(false));
   }, []);
 
-    const [totalIngresos, setTotalIngresos] = useState(0);
-
   useEffect(() => {
-    const hoy = new Date();
-    api.getResumenIngresos(hoy.getFullYear(), hoy.getMonth() + 1)
-      .then((d) => setTotalIngresos(d.total || 0))
+    api.getResumenTotalCuentas()
+      .then((d) => setTotalCuentasReal(d.total || 0))
       .catch(() => {});
   }, []);
 
-  const saldoBaseCuentas = cuentas.reduce((acc, c) => acc + Number(c.saldo_inicial || 0), 0);
-  const totalCuentas = saldoBaseCuentas + totalIngresos;
+  const totalCuentas = totalCuentasReal;
   const totalTarjetas = Number(resumen?.total_mes ?? 0);
   const saldoNeto = totalCuentas - totalTarjetas;
 
@@ -115,10 +112,18 @@ export default function Home({ usuario, resumen, tarjetas, onIrACuentas }) {
                     {t.en_rojo ? "Excedido" : "Al día"}
                   </span>
                 </div>
-                <div className="flex justify-between items-end">
+                <div className="flex justify-between items-end mb-3">
                   <span className="text-sm font-medium">{t.nombre}</span>
                   <span className="text-xs opacity-75">Corte día {t.dia_corte}</span>
                 </div>
+                {Number(t.gastado_mes) > 0 && onPagarTarjeta && (
+                  <button
+                    onClick={() => onPagarTarjeta(t)}
+                    className="w-full py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-semibold transition-colors"
+                  >
+                    Pagar esta tarjeta
+                  </button>
+                )}
               </div>
             ))
           ) : (
@@ -175,9 +180,8 @@ export default function Home({ usuario, resumen, tarjetas, onIrACuentas }) {
                     <p className="font-medium text-carbon text-sm">{c.nombre}</p>
                     <p className="text-xs text-gray-500 capitalize">{c.tipo}</p>
                   </div>
-                  <p className="font-semibold text-carbon">
-                    ${Number(c.saldo_inicial).toFixed(2)}
-                  </p>
+                    <p className="font-semibold text-carbon">
+                    ${Number(c.saldo_actual ?? c.saldo_inicial).toFixed(2)}</p>
                 </div>
               );
             })}

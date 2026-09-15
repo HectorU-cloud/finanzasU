@@ -56,7 +56,7 @@ export const api = {
   cambiarPassword: (datos) =>
   request("/auth/cambiar-password", { method: "POST", body: JSON.stringify(datos) }),
 
-  // Cuentas
+  
   // Ingresos
   getIngresos: (anio, mes) => {
     let url = "/ingresos";
@@ -66,6 +66,14 @@ export const api = {
     if (params.length) url += `?${params.join("&")}`;
     return request(url);
   },
+  // Pagos de tarjeta
+  getEstadoPagoTarjeta: (tarjetaId, anio, mes) =>
+    request(`/tarjetas/${tarjetaId}/estado-pago?anio=${anio}&mes=${mes}`),
+  crearPagoTarjeta: (datos) =>
+    request("/pagos-tarjeta", { method: "POST", body: JSON.stringify(datos) }),
+  getPagosTarjeta: () => request("/pagos-tarjeta"),
+  eliminarPagoTarjeta: (id) => request(`/pagos-tarjeta/${id}`, { method: "DELETE" }),
+  // Cuentas
   crearIngreso: (ingreso) =>
     request("/ingresos", { method: "POST", body: JSON.stringify(ingreso) }),
   actualizarIngreso: (id, cambios) =>

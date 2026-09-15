@@ -133,13 +133,29 @@ def listar_cuentas(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
-    return (
+    cuentas = (
         db.query(models.Cuenta)
         .filter(models.Cuenta.usuario_id == usuario.id)
         .order_by(models.Cuenta.fijada.desc(), models.Cuenta.id.asc())
         .all()
     )
-
+    resultado = []
+    for c in cuentas:
+        ingresos = (
+            db.query(func.coalesce(func.sum(models.Ingreso.monto), 0))
+            .filter(models.Ingreso.cuenta_id == c.id)
+            .scalar()
+        )
+        pagos = (
+            db.query(func.coalesce(func.sum(models.PagoTarjeta.monto), 0))
+            .filter(models.PagoTarjeta.cuenta_id == c.id)
+            .scalar()
+        )
+        saldo_actual = Decimal(c.saldo_inicial) + Decimal(ingresos) - Decimal(pagos)
+        c.total_ingresos = Decimal(ingresos)
+        c.saldo_actual = saldo_actual
+        resultado.append(c)
+    return resultado
 
 @app.post("/api/cuentas", response_model=schemas.Cuenta)
 def crear_cuenta(
@@ -216,7 +232,6 @@ def resumen_total_cuentas(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
-    """Suma el saldo de todas las cuentas del usuario (incluye ingresos)."""
     cuentas = (
         db.query(models.Cuenta)
         .filter(models.Cuenta.usuario_id == usuario.id)
@@ -229,13 +244,179 @@ def resumen_total_cuentas(
             .filter(models.Ingreso.cuenta_id == c.id)
             .scalar()
         )
-        total += Decimal(c.saldo_inicial) + Decimal(ingresos)
+        pagos = (
+            db.query(func.coalesce(func.sum(models.PagoTarjeta.monto), 0))
+            .filter(models.PagoTarjeta.cuenta_id == c.id)
+            .scalar()
+        )
+        total += Decimal(c.saldo_inicial) + Decimal(ingresos) - Decimal(pagos)
     return {
         "total": float(total),
         "cantidad_cuentas": len(cuentas),
     }
 
-# ---------- Ingresos ----------
+# ---------- Pagos de tarjetas ----------
+
+def _calcular_estado_pago(db: Session, tarjeta: models.Tarjeta, anio: int, mes: int):
+    """Calcula el estado del pago de una tarjeta para un mes."""
+    total_gastos = (
+        db.query(func.coalesce(func.sum(models.Gasto.monto), 0))
+        .filter(models.Gasto.tarjeta_id == tarjeta.id)
+        .filter(extract("year", models.Gasto.fecha) == anio)
+        .filter(extract("month", models.Gasto.fecha) == mes)
+        .scalar()
+    )
+    total_gastos = Decimal(total_gastos)
+
+    total_pagado = (
+        db.query(func.coalesce(func.sum(models.PagoTarjeta.monto), 0))
+        .filter(models.PagoTarjeta.tarjeta_id == tarjeta.id)
+        .filter(models.PagoTarjeta.anio_cerrado == anio)
+        .filter(models.PagoTarjeta.mes_cerrado == mes)
+        .scalar()
+    )
+    total_pagado = Decimal(total_pagado)
+
+    pendiente = total_gastos - total_pagado
+    if pendiente < 0:
+        pendiente = Decimal("0")
+
+    cerrado = total_gastos > 0 and total_pagado >= total_gastos
+    porcentaje = float(total_pagado / total_gastos * 100) if total_gastos > 0 else 0.0
+
+    return {
+        "total_gastos": total_gastos,
+        "total_pagado": total_pagado,
+        "pendiente": pendiente,
+        "cerrado": cerrado,
+        "porcentaje": round(porcentaje, 1),
+    }
+
+
+@app.get("/api/tarjetas/{tarjeta_id}/estado-pago", response_model=schemas.EstadoPagoTarjeta)
+def estado_pago_tarjeta(
+    tarjeta_id: int,
+    anio: int | None = None,
+    mes: int | None = None,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    tarjeta = tarjeta_del_usuario(db, tarjeta_id, usuario)
+
+    hoy = date.today()
+    anio = anio or hoy.year
+    mes = mes or hoy.month
+
+    estado = _calcular_estado_pago(db, tarjeta, anio, mes)
+
+    return schemas.EstadoPagoTarjeta(
+        tarjeta_id=tarjeta.id,
+        tarjeta_nombre=tarjeta.nombre,
+        anio=anio,
+        mes=mes,
+        total_gastos=estado["total_gastos"],
+        total_pagado=estado["total_pagado"],
+        pendiente=estado["pendiente"],
+        cerrado=estado["cerrado"],
+        porcentaje_pagado=estado["porcentaje"],
+    )
+
+
+@app.post("/api/pagos-tarjeta", response_model=schemas.PagoTarjetaOut)
+def crear_pago_tarjeta(
+    datos: schemas.PagoTarjetaCreate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    tarjeta = tarjeta_del_usuario(db, datos.tarjeta_id, usuario)
+
+    cuenta = (
+        db.query(models.Cuenta)
+        .filter(
+            models.Cuenta.id == datos.cuenta_id,
+            models.Cuenta.usuario_id == usuario.id,
+        )
+        .first()
+    )
+    if not cuenta:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+
+    # --- Validar saldo suficiente en la cuenta ---
+    ingresos_cuenta = (
+        db.query(func.coalesce(func.sum(models.Ingreso.monto), 0))
+        .filter(models.Ingreso.cuenta_id == cuenta.id)
+        .scalar()
+    )
+    pagos_cuenta = (
+        db.query(func.coalesce(func.sum(models.PagoTarjeta.monto), 0))
+        .filter(models.PagoTarjeta.cuenta_id == cuenta.id)
+        .scalar()
+    )
+    saldo_actual = (
+        Decimal(cuenta.saldo_inicial) + Decimal(ingresos_cuenta) - Decimal(pagos_cuenta)
+    )
+
+    if datos.monto > saldo_actual:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Saldo insuficiente en '{cuenta.nombre}'. "
+                f"Disponible: ${saldo_actual:.2f} · "
+                f"Intentas pagar: ${datos.monto:.2f}"
+            ),
+        )
+
+    # --- Validar monto del pago ---
+    estado = _calcular_estado_pago(db, tarjeta, datos.anio, datos.mes)
+
+    if estado["total_gastos"] == 0:
+        raise HTTPException(
+            status_code=400,
+            detail="Esta tarjeta no tiene gastos en ese mes",
+        )
+
+    if estado["cerrado"]:
+        raise HTTPException(
+            status_code=400,
+            detail="Esta tarjeta ya está pagada para ese mes",
+        )
+
+    if datos.monto > estado["pendiente"]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"El monto excede lo pendiente (${estado['pendiente']:.2f})",
+        )
+
+    # --- Registrar el pago ---
+    nuevo_pago = models.PagoTarjeta(
+        usuario_id=usuario.id,
+        tarjeta_id=tarjeta.id,
+        cuenta_id=cuenta.id,
+        monto=datos.monto,
+        fecha_pago=datos.fecha_pago,
+        mes_cerrado=datos.mes,
+        anio_cerrado=datos.anio,
+    )
+    db.add(nuevo_pago)
+    db.flush()
+
+    # ¿Cerró el mes?
+    nuevo_total_pagado = estado["total_pagado"] + datos.monto
+    if nuevo_total_pagado >= estado["total_gastos"]:
+        gastos_pendientes = (
+            db.query(models.Gasto)
+            .filter(models.Gasto.tarjeta_id == tarjeta.id)
+            .filter(extract("year", models.Gasto.fecha) == datos.anio)
+            .filter(extract("month", models.Gasto.fecha) == datos.mes)
+            .filter(models.Gasto.pago_id.is_(None))
+            .all()
+        )
+        for g in gastos_pendientes:
+            g.pago_id = nuevo_pago.id
+
+    db.commit()
+    db.refresh(nuevo_pago)
+    return nuevo_pago
 
 @app.get("/api/ingresos", response_model=list[schemas.IngresoOut])
 def listar_ingresos(
@@ -274,6 +455,7 @@ def crear_ingreso(
     db.commit()
     db.refresh(nuevo)
     return nuevo
+
 
 
 @app.put("/api/ingresos/{ingreso_id}", response_model=schemas.IngresoOut)
@@ -450,6 +632,7 @@ def listar_gastos(
     anio: int | None = None,
     mes: int | None = None,
     categoria: str | None = None,
+    incluir_pagados: bool = False,
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
@@ -458,6 +641,8 @@ def listar_gastos(
         .join(models.Tarjeta)
         .filter(models.Tarjeta.usuario_id == usuario.id)
     )
+    if not incluir_pagados:
+        query = query.filter(models.Gasto.pago_id.is_(None))
     if anio is not None:
         query = query.filter(extract("year", models.Gasto.fecha) == anio)
     if mes is not None:
@@ -602,6 +787,7 @@ def resumen_mensual(
         db.query(func.coalesce(func.sum(models.Gasto.monto), 0))
         .join(models.Tarjeta)
         .filter(models.Tarjeta.usuario_id == usuario.id)
+        .filter(models.Gasto.pago_id.is_(None))    # ← NUEVO: solo pendientes
         .filter(extract("year", models.Gasto.fecha) == anio)
         .filter(extract("month", models.Gasto.fecha) == mes)
         .scalar()
@@ -614,6 +800,7 @@ def resumen_mensual(
         gastado = (
             db.query(func.coalesce(func.sum(models.Gasto.monto), 0))
             .filter(models.Gasto.tarjeta_id == t.id)
+            .filter(models.Gasto.pago_id.is_(None))    # ← NUEVO
             .filter(extract("year", models.Gasto.fecha) == anio)
             .filter(extract("month", models.Gasto.fecha) == mes)
             .scalar()

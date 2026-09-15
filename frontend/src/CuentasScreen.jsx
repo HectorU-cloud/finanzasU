@@ -131,8 +131,8 @@ export default function CuentasScreen() {
                   <p className="text-xs text-gray-500 capitalize">{c.tipo}</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-carbon">
-                    ${Number(c.saldo_inicial).toFixed(2)}
+                    <p className="font-bold text-carbon">
+                    ${Number(c.saldo_actual ?? c.saldo_inicial).toFixed(2)}
                   </p>
                 </div>
                 <div className="relative acciones-menu-cuenta">

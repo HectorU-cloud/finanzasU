@@ -10,7 +10,7 @@ const NETWORK_LABELS = {
   Otra: "",
 };
 
-export default function CardCarousel({ tarjetas, onCrear }) {
+export default function CardCarousel({ tarjetas, onCrear, onPagar }) {
   const scrollRef = useRef(null);
   const [activo, setActivo] = useState(0);
 
@@ -93,6 +93,17 @@ export default function CardCarousel({ tarjetas, onCrear }) {
                   )}
                 </div>
               </div>
+              {onPagar && gastado > 0 && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onPagar(t);
+                  }}
+                  className="mt-2 w-full py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-semibold transition-colors"
+                >
+                  Pagar esta tarjeta
+                </button>
+              )}
             </div>
           );
         })}
