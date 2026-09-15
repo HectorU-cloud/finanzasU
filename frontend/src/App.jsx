@@ -63,6 +63,7 @@ export default function App() {
   const [enviando, setEnviando] = useState(false);
   const [panelTarjetasAbierto, setPanelTarjetasAbierto] = useState(false);
   const [vista, setVista] = useState("home");
+  const [modalTarjetas, setModalTarjetas] = useState(false);
 
   const [tarjetas, setTarjetas] = useState([]);
   const [gastos, setGastos] = useState([]);
@@ -276,6 +277,7 @@ export default function App() {
             onIrACuentas={() => setVista("cuentas")}
             onPagarTarjeta={(t) => setTarjetaAPagar(t)}
             onVerTarjeta={(t) => setTarjetaDetalle(t)}
+            onAgregarTarjeta={() => setModalTarjetas(true)}
           />
         )}
         {vista === "cuentas" && <CuentasScreen onCambiarVista={setVista} />}
@@ -332,6 +334,37 @@ export default function App() {
             onCambio={() => cargarDatos()}
           />
         )}
+        
+        {modalTarjetas && (
+          <div
+            className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4"
+            onClick={() => setModalTarjetas(false)}
+          >
+            <div
+              className="bg-white rounded-t-3xl sm:rounded-3xl p-5 w-full max-w-md shadow-2xl max-h-[90vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-bold text-carbon">Mis tarjetas</h3>
+                <button
+                  onClick={() => setModalTarjetas(false)}
+                  className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500"
+                >
+                  ✕
+                </button>
+              </div>
+              <TarjetasPanel
+                tarjetas={tarjetas}
+                onChange={() => {
+                  cargarDatos();
+                }}
+                abierto={true}
+                onToggle={() => {}}
+              />
+            </div>
+          </div>
+        )}
+        
         <BottomNav
           vista={vista}
           onCambiar={(nuevaVista) => {
