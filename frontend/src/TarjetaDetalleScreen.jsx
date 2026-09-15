@@ -155,7 +155,8 @@ export default function TarjetaDetalleScreen({ tarjeta, onVolver, onCambio }) {
   const totalMes = gastos.reduce((acc, g) => acc + Number(g.monto || 0), 0);
 
   return (
-    <div className="max-w-md mx-auto px-4 pb-28 pt-6">
+    <div className="fixed inset-0 z-40 bg-cream overflow-y-auto">
+      <div className="max-w-md mx-auto px-4 pb-28 pt-6">
       {/* Header */}
       <div className="flex items-center justify-between mb-4">
         <button
@@ -444,6 +445,7 @@ export default function TarjetaDetalleScreen({ tarjeta, onVolver, onCambio }) {
           }}
         />
       )}
+      </div>
     </div>
   );
 }
