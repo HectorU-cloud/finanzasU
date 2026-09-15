@@ -418,6 +418,43 @@ def crear_pago_tarjeta(
     db.refresh(nuevo_pago)
     return nuevo_pago
 
+@app.get("/api/pagos-tarjeta", response_model=list[schemas.PagoTarjetaOut])
+def listar_pagos_tarjeta(
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    return (
+        db.query(models.PagoTarjeta)
+        .filter(models.PagoTarjeta.usuario_id == usuario.id)
+        .order_by(models.PagoTarjeta.fecha_pago.desc())
+        .all()
+    )
+
+
+@app.delete("/api/pagos-tarjeta/{pago_id}", status_code=204)
+def eliminar_pago_tarjeta(
+    pago_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    pago = (
+        db.query(models.PagoTarjeta)
+        .filter(
+            models.PagoTarjeta.id == pago_id,
+            models.PagoTarjeta.usuario_id == usuario.id,
+        )
+        .first()
+    )
+    if not pago:
+        raise HTTPException(status_code=404, detail="Pago no encontrado")
+
+    # Desmarcar los gastos que apuntaban a este pago
+    db.query(models.Gasto).filter(models.Gasto.pago_id == pago.id).update(
+        {models.Gasto.pago_id: None}
+    )
+    db.delete(pago)
+    db.commit()
+
 @app.get("/api/ingresos", response_model=list[schemas.IngresoOut])
 def listar_ingresos(
     anio: int | None = None,

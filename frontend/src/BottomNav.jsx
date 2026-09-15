@@ -1,11 +1,12 @@
-import { Home, Wallet, TrendingUp, Users, User } from "lucide-react";
+import { Home, Wallet, TrendingUp, Users, History, User } from "lucide-react";
 
 const TABS = [
-  { id: "home",     label: "Inicio",    icono: Home },
-  { id: "cuentas",  label: "Cuentas",   icono: Wallet },
-  { id: "ingresos", label: "Ingresos",  icono: TrendingUp },
-  { id: "grupos",   label: "Grupos",    icono: Users },
-  { id: "perfil",   label: "Perfil",    icono: User },
+  { id: "home",     label: "Inicio",   icono: Home },
+  { id: "cuentas",  label: "Cuentas",  icono: Wallet },
+  { id: "ingresos", label: "Ingresos", icono: TrendingUp },
+    { id: "pagos",    label: "Pagos",    icono: History },
+  { id: "grupos",   label: "Grupos",   icono: Users },
+  { id: "perfil",   label: "Perfil",   icono: User },
 ];
 
 export default function BottomNav({ vista, onCambiar }) {
@@ -20,7 +21,7 @@ export default function BottomNav({ vista, onCambiar }) {
               <button
                 key={tab.id}
                 onClick={() => onCambiar(tab.id)}
-                className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl transition-all ${
+                className={`flex flex-col items-center gap-0.5 px-2 py-1.5 rounded-xl transition-all ${
                   activo ? "text-coral" : "text-white/60"
                 }`}
               >

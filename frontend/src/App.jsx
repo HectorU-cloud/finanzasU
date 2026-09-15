@@ -16,6 +16,7 @@ import BottomNav from "./BottomNav.jsx";
 import CuentasScreen from "./CuentasScreen.jsx";
 import IngresosScreen from "./IngresosScreen.jsx";
 import PagarTarjetaModal from "./PagarTarjetaModal.jsx";
+import HistorialPagosScreen from "./HistorialPagosScreen.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -260,7 +261,7 @@ export default function App() {
     return <AuthScreen onAutenticado={setUsuario} />;
   }
 
-    const VISTAS_CON_NAV = ["home", "cuentas", "ingresos", "grupos", "perfil"];
+    const VISTAS_CON_NAV = ["home", "cuentas", "ingresos", "pagos", "grupos", "perfil"];
 
   if (VISTAS_CON_NAV.includes(vista)) {
     return (
@@ -276,6 +277,7 @@ export default function App() {
         )}
         {vista === "cuentas" && <CuentasScreen />}
         {vista === "ingresos" && <IngresosScreen />}
+        {vista === "pagos" && <HistorialPagosScreen />}
         {vista === "grupos" && (
           <div className="max-w-md mx-auto p-6">
             <GruposPanel usuarioId={usuario.id} tarjetas={tarjetas} />
@@ -313,6 +315,10 @@ export default function App() {
             onPagado={() => {
               setTarjetaAPagar(null);
               cargarDatos();
+            }}
+            onIrAHistorial={() => {
+              setTarjetaAPagar(null);
+              setVista("pagos");
             }}
           />
         )}

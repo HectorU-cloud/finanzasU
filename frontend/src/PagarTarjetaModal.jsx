@@ -11,7 +11,7 @@ const NOMBRES_MES = [
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ];
 
-export default function PagarTarjetaModal({ tarjeta, onCerrar, onPagado }) {
+export default function PagarTarjetaModal({ tarjeta, onCerrar, onPagado, onIrAHistorial }) {
   const hoy = new Date();
   const [cuentas, setCuentas] = useState([]);
   const [estado, setEstado] = useState(null);
@@ -278,6 +278,15 @@ export default function PagarTarjetaModal({ tarjeta, onCerrar, onPagado }) {
                 <p className="text-xs text-amber-600 text-center">
                   Primero crea una cuenta para poder pagar
                 </p>
+              )}
+                            {onIrAHistorial && (
+                <button
+                  type="button"
+                  onClick={onIrAHistorial}
+                  className="w-full text-xs text-gray-500 hover:text-coral font-medium py-2 transition-colors"
+                >
+                  Ver historial de pagos →
+                </button>
               )}
             </form>
           </>
