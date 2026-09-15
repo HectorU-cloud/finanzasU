@@ -1716,3 +1716,10 @@ ul.gastos .acciones .monto {
 .credit-card.tema-morado-moderno {
   background: linear-gradient(135deg, #4a1d7a 0%, #7c3aed 100%);
 }
+/* Evitar selección accidental de texto en botones móviles */
+button,
+[role="button"] {
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
