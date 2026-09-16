@@ -32,7 +32,14 @@ async function request(path, options = {}) {
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
   if (authToken) headers.Authorization = `Bearer ${authToken}`;
 
-  const res = await fetch(BASE + path, { ...options, headers });
+  let res;
+  try {
+    res = await fetch(BASE + path, { ...options, headers });
+  } catch (err) {
+    throw new Error(
+      "No se pudo conectar con el servidor. Revisa tu conexión, o el servidor podría estar iniciando (intenta de nuevo en unos segundos)."
+    );
+  }
 
   if (res.status === 401) {
     setAuthToken(null);
@@ -121,6 +128,7 @@ export const api = {
   unirseGrupo: (codigo) =>
     request(`/grupos/unirse?codigo=${encodeURIComponent(codigo)}`, { method: "POST" }),
   getGastosGrupo: (grupoId) => request(`/grupos/${grupoId}/gastos`),
+  getAlertas: () => request("/alertas"),
   eliminarGastoCompartido: (grupoId, gastoId) =>
     request(`/grupos/${grupoId}/gastos/${gastoId}`, { method: "DELETE" }),
   actualizarGastoCompartido: (grupoId, gastoId, cambios) =>

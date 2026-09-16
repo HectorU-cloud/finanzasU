@@ -410,6 +410,7 @@ ul.gastos .acciones .monto {
 /* Autenticación */
 .auth-wrap {
   min-height: 100vh;
+  min-height: 100svh;
   display: flex;
   align-items: center;
   justify-content: center;

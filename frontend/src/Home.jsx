@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Plus, TrendingUp, Users, Wallet } from "lucide-react";
 import { api } from "./api.js";
+import AlertasBanner from "./AlertasBanner.jsx";
 
 const TIPO_ICONOS = {
   efectivo: Wallet,
@@ -52,6 +53,8 @@ export default function Home({ usuario, resumen, tarjetas, onIrACuentas, onPagar
           {usuario?.nombre?.[0]?.toUpperCase() || "?"}
         </div>
       </header>
+
+      <AlertasBanner />
 
       {/* Saldo total */}
       <div className="mb-6">

@@ -481,3 +481,12 @@ class EstadoPagoTarjeta(BaseModel):
     pendiente: Decimal
     cerrado: bool
     porcentaje_pagado: float
+
+
+class Alerta(BaseModel):
+    tipo: str  # "corte_proximo" | "pago_atrasado"
+    tarjeta_id: int
+    tarjeta_nombre: str
+    dias: int | None = None
+    monto: Decimal | None = None
+    mensaje: str

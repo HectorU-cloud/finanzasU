@@ -353,6 +353,54 @@ def estado_pago_tarjeta(
     )
 
 
+@app.get("/api/alertas", response_model=list[schemas.Alerta])
+def obtener_alertas(
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """Recordatorios: cortes próximos (siguientes 3 días) y pagos atrasados
+    de meses anteriores que aún no se han marcado como pagados."""
+    hoy = date.today()
+    primer_dia_mes_actual = date(hoy.year, hoy.month, 1)
+    tarjetas = db.query(models.Tarjeta).filter(models.Tarjeta.usuario_id == usuario.id).all()
+
+    alertas = []
+    for t in tarjetas:
+        dias = dias_para_corte(t.dia_corte, hoy)
+        if 0 <= dias <= 3:
+            texto_dias = "hoy" if dias == 0 else f"en {dias} día{'s' if dias != 1 else ''}"
+            alertas.append(schemas.Alerta(
+                tipo="corte_proximo",
+                tarjeta_id=t.id,
+                tarjeta_nombre=t.nombre,
+                dias=dias,
+                monto=None,
+                mensaje=f"{t.nombre} cierra {texto_dias}",
+            ))
+
+        pendiente_atrasado = (
+            db.query(func.coalesce(func.sum(models.Gasto.monto), 0))
+            .filter(
+                models.Gasto.tarjeta_id == t.id,
+                models.Gasto.pago_id.is_(None),
+                models.Gasto.fecha < primer_dia_mes_actual,
+            )
+            .scalar()
+        )
+        pendiente_atrasado = Decimal(pendiente_atrasado)
+        if pendiente_atrasado > 0:
+            alertas.append(schemas.Alerta(
+                tipo="pago_atrasado",
+                tarjeta_id=t.id,
+                tarjeta_nombre=t.nombre,
+                dias=None,
+                monto=pendiente_atrasado,
+                mensaje=f"{t.nombre} tiene ${pendiente_atrasado:.2f} pendiente de meses anteriores",
+            ))
+
+    return alertas
+
+
 @app.post("/api/pagos-tarjeta", response_model=schemas.PagoTarjetaOut)
 def crear_pago_tarjeta(
     datos: schemas.PagoTarjetaCreate,
