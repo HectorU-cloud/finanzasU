@@ -1,609 +1,260 @@
-import { useState } from "react";
-import {
-  CreditCard,
-  Pencil,
-  Trash2,
-  Check,
-  X,
-  Plus,
-  CalendarDays,
-  Building2,
-  ChevronDown,
-} from "lucide-react";
+import { useState, useEffect } from "react";
+import { ChevronDown, CreditCard, Pencil, Trash2, Check, X, Plus, MoreVertical } from "lucide-react";
 import { api } from "./api.js";
+import ConfirmModal from "./ConfirmModal.jsx";
+import CardNetworkLogo from "./CardNetworkLogo.jsx";
 
-const REDES = [
-  "Visa",
-  "Mastercard",
-  "American Express",
-  "Diners Club",
-  "Otra",
+const TEMAS = [
+  { valor: "clasico", nombre: "Clásico (oscuro)" },
+  { valor: "amex-verde", nombre: "Amex verde" },
+  { valor: "visa-gold", nombre: "Visa Gold" },
+  { valor: "mastercard-azul", nombre: "Mastercard azul" },
+  { valor: "diners-marron", nombre: "Diners marrón" },
+  { valor: "negro-premium", nombre: "Negro Premium" },
+  { valor: "morado-moderno", nombre: "Morado moderno" },
 ];
 
-export default function TarjetasPanel({ tarjetas = [], onChange }) {
-  const [abierto, setAbierto] = useState(false);
+const REDES = ["Visa", "Mastercard", "American Express", "Diners Club", "Otra"];
+
+export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onToggle }) {
   const [editandoId, setEditandoId] = useState(null);
-
-  const [borrador, setBorrador] = useState({
-    nombre: "",
-    dia_corte: "",
-    red: REDES[0],
-  });
-
-  const [nueva, setNueva] = useState({
-    nombre: "",
-    dia_corte: "",
-    red: REDES[0],
-  });
-
+  const [borrador, setBorrador] = useState({ nombre: "", dia_corte: "", red: REDES[0], tema: "clasico" });
+  const [nueva, setNueva] = useState({ nombre: "", dia_corte: "", red: REDES[0], tema: "clasico" });
   const [error, setError] = useState("");
+  const [menuAbiertoId, setMenuAbiertoId] = useState(null);
+  const [tarjetaAEliminar, setTarjetaAEliminar] = useState(null);
+  const [enviando, setEnviando] = useState(false);
 
-  function empezarEdicion(tarjeta) {
-    setEditandoId(tarjeta.id);
+  // Cerrar el menú al hacer clic fuera
+  useEffect(() => {
+    function cerrarSiEsFuera(e) {
+      if (!e.target.closest(".acciones-menu")) {
+        setMenuAbiertoId(null);
+      }
+    }
+    document.addEventListener("click", cerrarSiEsFuera);
+    return () => document.removeEventListener("click", cerrarSiEsFuera);
+  }, []);
 
+  function empezarEdicion(t) {
+    setEditandoId(t.id);
     setBorrador({
-      nombre: tarjeta.nombre || "",
-      dia_corte: tarjeta.dia_corte || "",
-      red: tarjeta.red || REDES[0],
+      nombre: t.nombre,
+      dia_corte: t.dia_corte,
+      red: t.red || REDES[0],
+      tema: t.tema || "clasico",
     });
-
     setError("");
-  }
-
-  function cancelarEdicion() {
-    setEditandoId(null);
-
-    setBorrador({
-      nombre: "",
-      dia_corte: "",
-      red: REDES[0],
-    });
-
-    setError("");
+    setMenuAbiertoId(null);
   }
 
   async function guardarEdicion(id) {
     const dia = Number(borrador.dia_corte);
-
-    if (
-      !borrador.nombre.trim() ||
-      !dia ||
-      dia < 1 ||
-      dia > 31
-    ) {
-      setError(
-        "Nombre y día de corte (1-31) son obligatorios."
-      );
+    if (!borrador.nombre.trim() || !dia || dia < 1 || dia > 31) {
+      setError("Nombre y día de corte (1-31) son obligatorios.");
       return;
     }
-
+    setError("");
     try {
-      setError("");
-
       await api.actualizarTarjeta(id, {
         nombre: borrador.nombre.trim(),
         dia_corte: dia,
         red: borrador.red,
+        tema: borrador.tema,
       });
-
-      cancelarEdicion();
+      setEditandoId(null);
       onChange();
     } catch (err) {
-      console.error(err);
-      setError("No se pudo actualizar la tarjeta.");
+      setError(err.message);
     }
   }
 
-  async function eliminar(id, nombre) {
-    const ok = window.confirm(
-      `¿Eliminar "${nombre}"?\n\nEsto también borrará todos sus gastos registrados. Esta acción no se puede deshacer.`
-    );
-
-    if (!ok) return;
-
+  async function confirmarEliminar() {
+    if (!tarjetaAEliminar) return;
     try {
-      setError("");
-
-      await api.eliminarTarjeta(id);
-
+      await api.eliminarTarjeta(tarjetaAEliminar.id);
+      setTarjetaAEliminar(null);
       onChange();
     } catch (err) {
-      console.error(err);
-      setError("No se pudo eliminar la tarjeta.");
+      setError(err.message);
+      setTarjetaAEliminar(null);
     }
   }
 
   async function agregar(e) {
     e.preventDefault();
-
+    if (enviando) return;
     const dia = Number(nueva.dia_corte);
-
-    if (
-      !nueva.nombre.trim() ||
-      !dia ||
-      dia < 1 ||
-      dia > 31
-    ) {
-      setError(
-        "Nombre y día de corte (1-31) son obligatorios."
-      );
+    if (!nueva.nombre.trim() || !dia || dia < 1 || dia > 31) {
+      setError("Nombre y día de corte (1-31) son obligatorios.");
       return;
     }
-
+    setError("");
+    setEnviando(true);
     try {
-      setError("");
-
       await api.crearTarjeta({
         nombre: nueva.nombre.trim(),
         dia_corte: dia,
         red: nueva.red,
+        tema: nueva.tema,
       });
-
-      setNueva({
-        nombre: "",
-        dia_corte: "",
-        red: REDES[0],
-      });
-
+      setNueva({ nombre: "", dia_corte: "", red: REDES[0], tema: "clasico" });
       onChange();
     } catch (err) {
-      console.error(err);
-      setError("No se pudo crear la tarjeta.");
+      setError(err.message);
+    } finally {
+      setEnviando(false);
     }
   }
 
   return (
-    <section className="manage-cards-section">
-
-      {/* HEADER */}
-
-      <div
-        className="manage-cards-header clickable-header"
-        onClick={() => setAbierto((actual) => !actual)}
-      >
-        <div>
-          <p className="section-kicker">
-            CONFIGURACIÓN
-          </p>
-
-          <h2>Administrar tarjetas</h2>
-
-          <p className="manage-cards-description">
-            Gestiona las tarjetas que utilizas para registrar
-            tus gastos.
-          </p>
-        </div>
-
-        <div className="manage-cards-header-right">
-
-          <span className="cards-count">
-            {tarjetas.length}{" "}
-            {tarjetas.length === 1
-              ? "tarjeta"
-              : "tarjetas"}
-          </span>
-
-          <button
-            type="button"
-            className="manage-cards-toggle"
-            onClick={(e) => {
-              e.stopPropagation();
-              setAbierto((actual) => !actual);
-            }}
-            aria-label={
-              abierto
-                ? "Ocultar tarjetas"
-                : "Mostrar tarjetas"
-            }
-          >
-            <ChevronDown
-              size={19}
-              className={
-                abierto
-                  ? "manage-chevron-open"
-                  : ""
-              }
-            />
-          </button>
-        </div>
+    <div className="panel" id="panel-tarjetas">
+      <div className="panel-header" onClick={() => onToggle(!abierto)}>
+        <span className="titulo">
+          <CreditCard size={16} />
+          Gestionar tarjetas
+        </span>
+        <ChevronDown size={18} className={"chevron" + (abierto ? " abierto" : "")} />
       </div>
 
-
-      {/* CONTENIDO */}
-
       {abierto && (
-        <div className="manage-cards-content">
-
-          {/* LISTA DE TARJETAS */}
-
-          {tarjetas.length > 0 ? (
-            <div className="managed-cards-list">
-
-              {tarjetas.map((tarjeta, index) => (
-
-                <article
-                  className="managed-card-item"
-                  key={tarjeta.id}
-                >
-
-                  {editandoId === tarjeta.id ? (
-
-                    /* =========================
-                       EDITAR TARJETA
-                    ========================= */
-
-                    <div className="managed-card-edit">
-
-                      <div className="managed-card-edit-header">
-
-                        <div className="managed-card-icon">
-                          <CreditCard size={20} />
-                        </div>
-
-                        <div>
-                          <span className="edit-label">
-                            EDITANDO TARJETA
-                          </span>
-
-                          <h3>
-                            {tarjeta.nombre}
-                          </h3>
-                        </div>
-
-                      </div>
-
-
-                      <div className="managed-card-edit-fields">
-
-                        <div className="modern-field">
-
-                          <label>
-                            <Building2 size={14} />
-                            Nombre
-                          </label>
-
-                          <input
-                            type="text"
-                            value={borrador.nombre}
-                            onChange={(e) =>
-                              setBorrador({
-                                ...borrador,
-                                nombre:
-                                  e.target.value,
-                              })
-                            }
-                          />
-
-                        </div>
-
-
-                        <div className="modern-field">
-
-                          <label>
-                            <CalendarDays size={14} />
-                            Corte
-                          </label>
-
-                          <input
-                            type="number"
-                            min="1"
-                            max="31"
-                            value={borrador.dia_corte}
-                            onChange={(e) =>
-                              setBorrador({
-                                ...borrador,
-                                dia_corte:
-                                  e.target.value,
-                              })
-                            }
-                          />
-
-                        </div>
-
-
-                        <div className="modern-field">
-
-                          <label>
-                            <CreditCard size={14} />
-                            Red
-                          </label>
-
-                          <select
-                            value={borrador.red}
-                            onChange={(e) =>
-                              setBorrador({
-                                ...borrador,
-                                red:
-                                  e.target.value,
-                              })
-                            }
-                          >
-                            {REDES.map((red) => (
-                              <option
-                                key={red}
-                                value={red}
-                              >
-                                {red}
-                              </option>
-                            ))}
-                          </select>
-
-                        </div>
-
-                      </div>
-
-
-                      <div className="managed-card-edit-actions">
-
-                        <button
-                          type="button"
-                          className="secondary-action-button"
-                          onClick={
-                            cancelarEdicion
-                          }
-                        >
-                          <X size={16} />
-                          Cancelar
-                        </button>
-
-                        <button
-                          type="button"
-                          className="primary-action-button"
-                          onClick={() =>
-                            guardarEdicion(
-                              tarjeta.id
-                            )
-                          }
-                        >
-                          <Check size={16} />
-                          Guardar cambios
-                        </button>
-
-                      </div>
-
-                    </div>
-
-                  ) : (
-
-                    /* =========================
-                       TARJETA NORMAL
-                    ========================= */
-
-                    <>
-
-                      <div
-                        className={`managed-card-icon theme-${
-                          (index % 4) + 1
-                        }`}
-                      >
-                        <CreditCard size={21} />
-                      </div>
-
-
-                      <div className="managed-card-content">
-
-                        <h3>
-                          {tarjeta.nombre}
-                        </h3>
-
-                        <p>
-                          {tarjeta.red ||
-                            "Sin red"}
-
-                          <span className="card-meta-separator">
-                            •
-                          </span>
-
-                          Corte el día{" "}
-                          <strong>
-                            {tarjeta.dia_corte}
-                          </strong>
-                        </p>
-
-                      </div>
-
-
-                      <div className="managed-card-actions">
-
-                        <button
-                          type="button"
-                          className="card-action-button edit"
-                          onClick={() =>
-                            empezarEdicion(
-                              tarjeta
-                            )
-                          }
-                          title="Editar tarjeta"
-                          aria-label={`Editar ${tarjeta.nombre}`}
-                        >
-                          <Pencil size={16} />
-                        </button>
-
-
-                        <button
-                          type="button"
-                          className="card-action-button delete"
-                          onClick={() =>
-                            eliminar(
-                              tarjeta.id,
-                              tarjeta.nombre
-                            )
-                          }
-                          title="Eliminar tarjeta"
-                          aria-label={`Eliminar ${tarjeta.nombre}`}
-                        >
-                          <Trash2 size={16} />
-                        </button>
-
-                      </div>
-
-                    </>
-                  )}
-
-                </article>
-
-              ))}
-
-            </div>
-
-          ) : (
-
-            /* =========================
-               SIN TARJETAS
-            ========================= */
-
-            <div className="managed-cards-empty">
-
-              <div className="managed-cards-empty-icon">
-                <CreditCard size={27} />
-              </div>
-
-              <h3>
-                Aún no tienes tarjetas
-              </h3>
-
-              <p>
-                Agrega tu primera tarjeta para
-                comenzar a organizar tus gastos.
-              </p>
-
-            </div>
-
-          )}
-
-
-          {/* =========================
-             NUEVA TARJETA
-          ========================= */}
-
-          <div className="new-card-box">
-
-            <div className="new-card-heading">
-
-              <div className="new-card-icon">
-                <Plus size={19} />
-              </div>
-
-              <div>
-                <h3>
-                  Agregar nueva tarjeta
-                </h3>
-
-                <p>
-                  Registra una tarjeta para
-                  comenzar a utilizarla.
-                </p>
-              </div>
-
-            </div>
-
-
-            <form
-              className="new-card-form"
-              onSubmit={agregar}
-            >
-
-              <div className="modern-field">
-
-                <label>
-                  <Building2 size={14} />
-                  Nombre
-                </label>
-
-                <input
-                  type="text"
-                  placeholder="Ej. Banco Pichincha"
-                  value={nueva.nombre}
-                  onChange={(e) =>
-                    setNueva({
-                      ...nueva,
-                      nombre:
-                        e.target.value,
-                    })
-                  }
-                />
-
-              </div>
-
-
-              <div className="modern-field">
-
-                <label>
-                  <CalendarDays size={14} />
-                  Día de corte
-                </label>
-
-                <input
-                  type="number"
-                  min="1"
-                  max="31"
-                  placeholder="15"
-                  value={nueva.dia_corte}
-                  onChange={(e) =>
-                    setNueva({
-                      ...nueva,
-                      dia_corte:
-                        e.target.value,
-                    })
-                  }
-                />
-
-              </div>
-
-
-              <div className="modern-field">
-
-                <label>
-                  <CreditCard size={14} />
-                  Red
-                </label>
-
-                <select
-                  value={nueva.red}
-                  onChange={(e) =>
-                    setNueva({
-                      ...nueva,
-                      red: e.target.value,
-                    })
-                  }
-                >
-                  {REDES.map((red) => (
-                    <option
-                      key={red}
-                      value={red}
+        <div className="panel-body">
+          {tarjetas.map((t) => (
+            <div className="tarjeta-row" key={t.id}>
+              {editandoId === t.id ? (
+                <>
+                  <input
+                    type="text"
+                    value={borrador.nombre}
+                    onChange={(e) => setBorrador({ ...borrador, nombre: e.target.value })}
+                  />
+                  <span className="corte-label">Corte día</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="31"
+                    value={borrador.dia_corte}
+                    onChange={(e) => setBorrador({ ...borrador, dia_corte: e.target.value })}
+                  />
+                  <select
+                    value={borrador.red}
+                    onChange={(e) => setBorrador({ ...borrador, red: e.target.value })}
+                    style={{ width: "auto" }}
+                  >
+                    {REDES.map((r) => (
+                      <option key={r} value={r}>{r}</option>
+                    ))}
+                  </select>
+                  <select
+                    value={borrador.tema}
+                    onChange={(e) => setBorrador({ ...borrador, tema: e.target.value })}
+                    style={{ width: "auto" }}
+                    title="Estilo de tarjeta"
+                  >
+                    {TEMAS.map((t) => (
+                      <option key={t.valor} value={t.valor}>{t.nombre}</option>
+                    ))}
+                  </select>
+                  <div className="acciones-tarjeta">
+                    <button className="mini-btn" onClick={() => guardarEdicion(t.id)} title="Guardar">
+                      <Check size={16} />
+                    </button>
+                    <button className="mini-btn" onClick={() => setEditandoId(null)} title="Cancelar">
+                      <X size={16} />
+                    </button>
+                  </div>
+                </>
+              ) : (
+                <>
+                  <span style={{ flex: 1, fontSize: 14 }}>{t.nombre}</span>
+                  <span className="corte-label" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    {t.red && <CardNetworkLogo red={t.red} size={18} color="var(--ink-soft)" />}
+                    <span>corte día {t.dia_corte}</span>
+                  </span>
+                  <div className="acciones-menu">
+                    <button
+                      className="mini-btn"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setMenuAbiertoId(menuAbiertoId === t.id ? null : t.id);
+                      }}
+                      title="Más opciones"
                     >
-                      {red}
-                    </option>
-                  ))}
-                </select>
-
-              </div>
-
-
-              <button
-                type="submit"
-                className="primary-action-button new-card-submit"
-              >
-                <Plus size={17} />
-                Agregar
-              </button>
-
-            </form>
-
-          </div>
-
-
-          {/* ERROR */}
-
-          {error && (
-            <div className="card-form-error">
-              {error}
+                      <MoreVertical size={16} />
+                    </button>
+                    {menuAbiertoId === t.id && (
+                      <div className="dropdown-menu">
+                        <button onClick={() => empezarEdicion(t)}>
+                          <Pencil size={14} /> Editar
+                        </button>
+                        <button
+                          className="peligro"
+                          onClick={() => {
+                            setTarjetaAEliminar(t);
+                            setMenuAbiertoId(null);
+                          }}
+                        >
+                          <Trash2 size={14} /> Eliminar
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
             </div>
-          )}
+          ))}
 
+          <form className="agregar-tarjeta" onSubmit={agregar}>
+            <input
+              type="text"
+              placeholder="Nombre de la nueva tarjeta"
+              value={nueva.nombre}
+              onChange={(e) => setNueva({ ...nueva, nombre: e.target.value })}
+            />
+            <input
+              type="number"
+              min="1"
+              max="31"
+              placeholder="Corte"
+              value={nueva.dia_corte}
+              onChange={(e) => setNueva({ ...nueva, dia_corte: e.target.value })}
+            />
+            <select
+              value={nueva.red}
+              onChange={(e) => setNueva({ ...nueva, red: e.target.value })}
+              style={{ width: "auto" }}
+            >
+              {REDES.map((r) => (
+                <option key={r} value={r}>{r}</option>
+              ))}
+            </select>
+            <select
+              value={nueva.tema}
+              onChange={(e) => setNueva({ ...nueva, tema: e.target.value })}
+              style={{ width: "auto" }}
+              title="Estilo de tarjeta"
+            >
+              {TEMAS.map((t) => (
+                <option key={t.valor} value={t.valor}>{t.nombre}</option>
+              ))}
+            </select>
+            <button type="submit" className="mini-btn" title="Agregar tarjeta" disabled={enviando}>
+              <Plus size={18} />
+            </button>
+          </form>
+          {error && <p className="error">{error}</p>}
         </div>
       )}
 
-    </section>
+      {tarjetaAEliminar && (
+        <ConfirmModal
+          titulo="Eliminar tarjeta"
+          mensaje={`¿Eliminar "${tarjetaAEliminar.nombre}"? Esto también borra todos sus gastos registrados. Esta acción no se puede deshacer.`}
+          textoConfirmar="Sí, eliminar"
+          onConfirmar={confirmarEliminar}
+          onCancelar={() => setTarjetaAEliminar(null)}
+        />
+      )}
+    </div>
   );
 }

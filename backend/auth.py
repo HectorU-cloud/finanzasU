@@ -11,7 +11,9 @@ from database import get_db
 
 # En producción, define la variable de entorno SECRET_KEY en Render con un
 # valor largo y aleatorio (por ejemplo, generado con `openssl rand -hex 32`).
-SECRET_KEY = os.getenv("SECRET_KEY", "cambia-esta-clave-en-produccion")
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY or len(SECRET_KEY) < 32:
+    raise RuntimeError("SECRET_KEY no configurada o muy corta. Usa: openssl rand -hex 32")
 ALGORITMO = "HS256"
 HORAS_EXPIRACION = 24 * 30  # el token dura 30 días
 

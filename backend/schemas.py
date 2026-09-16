@@ -1,6 +1,36 @@
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal
-from pydantic import BaseModel, EmailStr, Field, ConfigDict
+from pydantic import BaseModel, EmailStr, Field, ConfigDict, field_validator
+
+FECHA_MINIMA = date(2000, 1, 1)
+MONTO_MAXIMO = Decimal("100000")
+
+CATEGORIAS_VALIDAS = [
+    "Comida",
+    "Transporte",
+    "Hogar",
+    "Servicios",
+    "Salud",
+    "Ocio",
+    "Compras",
+    "Educación",
+    "Otros",
+]
+
+
+def _validar_fecha(v: date) -> date:
+    if v > date.today():
+        raise ValueError("la fecha no puede ser futura")
+    if v < FECHA_MINIMA:
+        raise ValueError("la fecha no es válida")
+    return v
+
+
+def _validar_texto_no_vacio(v: str) -> str:
+    v = v.strip()
+    if not v:
+        raise ValueError("no puede estar vacío")
+    return v
 
 
 class UsuarioCreate(BaseModel):
@@ -8,10 +38,20 @@ class UsuarioCreate(BaseModel):
     email: EmailStr
     password: str = Field(min_length=6, max_length=72)
 
+    @field_validator("nombre")
+    @classmethod
+    def _nombre_valido(cls, v):
+        return _validar_texto_no_vacio(v)
+
 
 class UsuarioLogin(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(min_length=1)
+
+
+class CambiarPassword(BaseModel):
+    password_actual: str = Field(min_length=1)
+    password_nueva: str = Field(min_length=6, max_length=72)
 
 
 class UsuarioOut(BaseModel):
@@ -27,10 +67,26 @@ class Token(BaseModel):
     usuario: UsuarioOut
 
 
+REDES_VALIDAS = {"Visa", "Mastercard", "American Express", "Diners Club", "Otra"}
+
+
 class TarjetaBase(BaseModel):
-    nombre: str
+    nombre: str = Field(min_length=1, max_length=50)
     dia_corte: int = Field(ge=1, le=31)
-    red: str | None = None
+    red: str | None = Field(default=None, max_length=20)
+    tema: str | None = Field(default="clasico", max_length=30)
+
+    @field_validator("nombre")
+    @classmethod
+    def _nombre_valido(cls, v):
+        return _validar_texto_no_vacio(v)
+
+    @field_validator("red")
+    @classmethod
+    def _red_valida(cls, v):
+        if v is not None and v not in REDES_VALIDAS:
+            raise ValueError("la red debe ser una de: " + ", ".join(sorted(REDES_VALIDAS)))
+        return v
 
 
 class TarjetaCreate(TarjetaBase):
@@ -38,9 +94,24 @@ class TarjetaCreate(TarjetaBase):
 
 
 class TarjetaUpdate(BaseModel):
-    nombre: str | None = None
+    nombre: str | None = Field(default=None, max_length=50)
     dia_corte: int | None = Field(default=None, ge=1, le=31)
-    red: str | None = None
+    red: str | None = Field(default=None, max_length=20)
+    tema: str | None = Field(default=None, max_length=30)
+
+    @field_validator("nombre")
+    @classmethod
+    def _nombre_valido(cls, v):
+        if v is None:
+            return v
+        return _validar_texto_no_vacio(v)
+
+    @field_validator("red")
+    @classmethod
+    def _red_valida(cls, v):
+        if v is not None and v not in REDES_VALIDAS:
+            raise ValueError("la red debe ser una de: " + ", ".join(sorted(REDES_VALIDAS)))
+        return v
 
 
 class Tarjeta(TarjetaBase):
@@ -51,12 +122,47 @@ class Tarjeta(TarjetaBase):
 class GastoBase(BaseModel):
     tarjeta_id: int
     fecha: date
-    monto: Decimal = Field(gt=0)
-    descripcion: str | None = None
+    monto: Decimal = Field(gt=0, le=MONTO_MAXIMO, decimal_places=2)
+    descripcion: str | None = Field(default=None, max_length=150)
+    categoria: str | None = Field(default=None, max_length=50)
+
+    @field_validator("fecha")
+    @classmethod
+    def _fecha_valida(cls, v):
+        return _validar_fecha(v)
+
+    @field_validator("categoria")
+    @classmethod
+    def _categoria_valida(cls, v):
+        if v is not None and v not in CATEGORIAS_VALIDAS:
+            raise ValueError("la categoría no es válida")
+        return v
 
 
 class GastoCreate(GastoBase):
     pass
+
+
+class GastoUpdate(BaseModel):
+    fecha: date | None = None
+    monto: Decimal | None = Field(default=None, gt=0, le=MONTO_MAXIMO, decimal_places=2)
+    descripcion: str | None = Field(default=None, max_length=150)
+    categoria: str | None = Field(default=None, max_length=50)
+    tarjeta_id: int | None = None
+
+    @field_validator("fecha")
+    @classmethod
+    def _fecha_valida(cls, v):
+        if v is None:
+            return v
+        return _validar_fecha(v)
+
+    @field_validator("categoria")
+    @classmethod
+    def _categoria_valida(cls, v):
+        if v is not None and v not in CATEGORIAS_VALIDAS:
+            raise ValueError("la categoría no es válida")
+        return v
 
 
 class Gasto(GastoBase):
@@ -69,6 +175,7 @@ class ResumenTarjeta(BaseModel):
     nombre: str
     dia_corte: int
     red: str | None = None
+    tema: str | None = None
     dias_para_corte: int
     gastado_mes: Decimal
     en_rojo: bool
@@ -81,3 +188,305 @@ class Resumen(BaseModel):
     limite: Decimal
     en_rojo: bool
     tarjetas: list[ResumenTarjeta]
+
+
+class ResumenCategoria(BaseModel):
+    categoria: str
+    total: Decimal
+    porcentaje: float
+
+
+class CategoriasDisponibles(BaseModel):
+    categorias: list[str]
+
+
+class GrupoCreate(BaseModel):
+    nombre: str = Field(min_length=1, max_length=80)
+
+    @field_validator("nombre")
+    @classmethod
+    def _nombre_valido(cls, v):
+        return _validar_texto_no_vacio(v)
+
+
+class GrupoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    nombre: str
+    codigo_invitacion: str
+    creado_por_id: int
+    limite_mensual: Decimal
+    miembros: list["MiembroGrupoOut"] = []
+
+
+class MiembroGrupoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    usuario_id: int
+    rol: str
+    usuario: UsuarioOut
+
+
+class GastoCompartidoCreate(BaseModel):
+    grupo_id: int
+    fecha: date
+    monto: Decimal = Field(gt=0, le=MONTO_MAXIMO, decimal_places=2)
+    descripcion: str | None = Field(default=None, max_length=150)
+    categoria: str | None = Field(default=None, max_length=50)
+    tarjeta_id: int | None = None
+    divisiones: list[tuple[int, Decimal]] | None = None
+
+    @field_validator("fecha")
+    @classmethod
+    def _fecha_valida(cls, v):
+        return _validar_fecha(v)
+
+    @field_validator("categoria")
+    @classmethod
+    def _categoria_valida(cls, v):
+        if v is not None and v not in CATEGORIAS_VALIDAS:
+            raise ValueError("la categoría no es válida")
+        return v
+
+    @field_validator("divisiones")
+    @classmethod
+    def _divisiones_validas(cls, v):
+        if v is None:
+            return v
+        if len(v) == 0:
+            raise ValueError("debes incluir al menos una división")
+        for _, monto in v:
+            if monto <= 0:
+                raise ValueError("cada división debe ser un monto mayor a 0")
+        return v
+
+
+class GastoCompartidoUpdate(BaseModel):
+    fecha: date | None = None
+    monto: Decimal | None = Field(default=None, gt=0, le=MONTO_MAXIMO, decimal_places=2)
+    descripcion: str | None = Field(default=None, max_length=150)
+    categoria: str | None = Field(default=None, max_length=50)
+    tarjeta_id: int | None = None
+
+    @field_validator("fecha")
+    @classmethod
+    def _fecha_valida(cls, v):
+        if v is None:
+            return v
+        return _validar_fecha(v)
+
+    @field_validator("categoria")
+    @classmethod
+    def _categoria_valida(cls, v):
+        if v is not None and v not in CATEGORIAS_VALIDAS:
+            raise ValueError("la categoría no es válida")
+        return v
+
+
+class GastoCompartidoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    grupo_id: int
+    pagado_por_id: int
+    tarjeta_id: int | None
+    fecha: date
+    monto: Decimal
+    descripcion: str | None
+    categoria: str | None
+    divisiones: list["DivisionGastoOut"]
+
+
+class DivisionGastoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    usuario_id: int
+    monto: Decimal
+    pagado: bool
+
+
+class SaldoUsuario(BaseModel):
+    usuario_id: int
+    nombre: str
+    debe: Decimal
+
+
+class GrupoResumenMensual(BaseModel):
+    grupo_id: int
+    anio: int
+    mes: int
+    total_mes: Decimal
+    limite: Decimal
+    porcentaje: float
+    en_rojo: bool
+
+
+class GrupoUpdateLimite(BaseModel):
+    limite_mensual: Decimal = Field(gt=0, le=1000000)
+
+TIPOS_CUENTA_VALIDOS = {"efectivo", "ahorros", "corriente", "inversion", "otra"}
+
+
+class CuentaBase(BaseModel):
+    nombre: str = Field(min_length=1, max_length=80)
+    tipo: str = Field(default="ahorros", max_length=30)
+    saldo_inicial: Decimal = Field(default=Decimal("0"), ge=0)
+    fijada: bool = False
+
+    @field_validator("nombre")
+    @classmethod
+    def _nombre_valido(cls, v):
+        return _validar_texto_no_vacio(v)
+
+    @field_validator("tipo")
+    @classmethod
+    def _tipo_valido(cls, v):
+        if v not in TIPOS_CUENTA_VALIDOS:
+            raise ValueError("tipo inválido")
+        return v
+
+
+class CuentaCreate(CuentaBase):
+    pass
+
+
+class CuentaUpdate(BaseModel):
+    nombre: str | None = Field(default=None, max_length=80)
+    tipo: str | None = Field(default=None, max_length=30)
+    saldo_inicial: Decimal | None = Field(default=None, ge=0)
+    fijada: bool | None = None
+
+    @field_validator("nombre")
+    @classmethod
+    def _nombre_valido(cls, v):
+        if v is None:
+            return v
+        return _validar_texto_no_vacio(v)
+
+    @field_validator("tipo")
+    @classmethod
+    def _tipo_valido(cls, v):
+        if v is not None and v not in TIPOS_CUENTA_VALIDOS:
+            raise ValueError("tipo inválido")
+        return v
+
+
+class Cuenta(CuentaBase):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    creado_en: datetime | None = None
+    total_ingresos: Decimal = Decimal("0")
+    saldo_actual: Decimal | None = None
+
+CATEGORIAS_INGRESO = [
+    "Sueldo",
+    "Freelance",
+    "Negocio",
+    "Inversión",
+    "Bono",
+    "Regalo",
+    "Otros",
+]
+
+
+class IngresoBase(BaseModel):
+    cuenta_id: int
+    fecha: date
+    monto: Decimal = Field(gt=0, le=MONTO_MAXIMO, decimal_places=2)
+    descripcion: str | None = Field(default=None, max_length=150)
+    categoria: str | None = Field(default=None, max_length=50)
+
+    @field_validator("fecha")
+    @classmethod
+    def _fecha_valida(cls, v):
+        return _validar_fecha(v)
+
+    @field_validator("categoria")
+    @classmethod
+    def _categoria_valida(cls, v):
+        if v is not None and v not in CATEGORIAS_INGRESO:
+            raise ValueError("la categoría no es válida")
+        return v
+
+
+class IngresoCreate(IngresoBase):
+    pass
+
+
+class IngresoUpdate(BaseModel):
+    cuenta_id: int | None = None
+    fecha: date | None = None
+    monto: Decimal | None = Field(default=None, gt=0, le=MONTO_MAXIMO, decimal_places=2)
+    descripcion: str | None = Field(default=None, max_length=150)
+    categoria: str | None = Field(default=None, max_length=50)
+
+    @field_validator("fecha")
+    @classmethod
+    def _fecha_valida(cls, v):
+        if v is None:
+            return v
+        return _validar_fecha(v)
+
+    @field_validator("categoria")
+    @classmethod
+    def _categoria_valida(cls, v):
+        if v is not None and v not in CATEGORIAS_INGRESO:
+            raise ValueError("la categoría no es válida")
+        return v
+
+
+class IngresoOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    cuenta_id: int
+    fecha: date
+    monto: Decimal
+    descripcion: str | None
+    categoria: str | None
+
+
+class ResumenTotalCuenta(BaseModel):
+    cuenta_id: int
+    nombre: str
+    tipo: str
+    saldo_inicial: Decimal
+    total_ingresos: Decimal
+    saldo_actual: Decimal
+
+class PagoTarjetaCreate(BaseModel):
+    tarjeta_id: int
+    cuenta_id: int
+    monto: Decimal = Field(gt=0, le=MONTO_MAXIMO, decimal_places=2)
+    anio: int
+    mes: int = Field(ge=1, le=12)
+    fecha_pago: date
+
+
+class PagoTarjetaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    tarjeta_id: int
+    cuenta_id: int
+    monto: Decimal
+    fecha_pago: date
+    mes_cerrado: int
+    anio_cerrado: int
+
+
+class EstadoPagoTarjeta(BaseModel):
+    tarjeta_id: int
+    tarjeta_nombre: str
+    anio: int
+    mes: int
+    total_gastos: Decimal
+    total_pagado: Decimal
+    pendiente: Decimal
+    cerrado: bool
+    porcentaje_pagado: float
+
+
+class Alerta(BaseModel):
+    tipo: str  # "corte_proximo" | "pago_atrasado"
+    tarjeta_id: int
+    tarjeta_nombre: str
+    dias: int | None = None
+    monto: Decimal | None = None
+    mensaje: str

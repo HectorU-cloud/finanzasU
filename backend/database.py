@@ -1,20 +1,38 @@
 import os
+from dotenv import load_dotenv   # ← NUEVO
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker, declarative_base
 
-# Por defecto usa un archivo SQLite local (finanzas.db) para que no necesites
-# instalar ni configurar un servidor de base de datos aparte.
-#
-# Si más adelante quieres usar PostgreSQL, define la variable de entorno
-# DATABASE_URL, por ejemplo:
-#   DATABASE_URL=postgresql://usuario:password@localhost:5432/finanzas
-DATABASE_URL = os.getenv("DATABASE_URL", "sqlite:///./finanzas.db")
+load_dotenv()   # ← NUEVO: carga backend/.env automáticamente
 
-connect_args = {"check_same_thread": False} if DATABASE_URL.startswith("sqlite") else {}
+DATABASE_URL = os.getenv("DATABASE_URL")
+if not DATABASE_URL:
+    raise RuntimeError("Falta DATABASE_URL. Revisa las variables en Render.")
 
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+# psycopg (v3) requiere el prefijo postgresql+psycopg:// en la URL.
+# Además, algunos proveedores (Render, Heroku, etc.) entregan "postgres://".
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+psycopg://", 1)
+elif DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg://", 1)
+
+connect_args = {}
+if DATABASE_URL.startswith("postgresql"):
+    # SSL solo cuando la variable DB_SSLMODE esté definida (por ejemplo, en Render = "require").
+    # En local, no la definas y podrás conectar sin SSL.
+    sslmode = os.getenv("DB_SSLMODE")
+    if sslmode:
+        connect_args["sslmode"] = sslmode
+
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,      # evita errores de "conexión muerta"
+    pool_size=5,             # conexiones simultáneas por defecto
+    max_overflow=10,         # conexiones extra en picos
+    pool_recycle=1800,       # recicla conexiones cada 30 min
+    connect_args=connect_args,
+)
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
 Base = declarative_base()
 
 

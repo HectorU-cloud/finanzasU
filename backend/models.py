@@ -23,8 +23,9 @@ class Tarjeta(Base):
     id = Column(Integer, primary_key=True, index=True)
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
     nombre = Column(String(50), nullable=False)
-    dia_corte = Column(Integer, nullable=False)  # día del mes, 1-31
-    red = Column(String(20), nullable=True)  # Visa, Mastercard, American Express, Diners Club, etc.
+    dia_corte = Column(Integer, nullable=False)
+    red = Column(String(20), nullable=True)
+    tema = Column(String(30), nullable=False, default="clasico")
 
     usuario = relationship("Usuario", back_populates="tarjetas")
     gastos = relationship("Gasto", back_populates="tarjeta", cascade="all, delete-orphan")
@@ -38,5 +39,111 @@ class Gasto(Base):
     fecha = Column(Date, nullable=False)
     monto = Column(Numeric(10, 2), nullable=False)
     descripcion = Column(String(150), nullable=True)
+    categoria = Column(String(50), nullable=True)
+    pago_id = Column(Integer, ForeignKey("pagos_tarjeta.id"), nullable=True)
 
     tarjeta = relationship("Tarjeta", back_populates="gastos")
+
+
+class Grupo(Base):
+    __tablename__ = "grupos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    nombre = Column(String(80), nullable=False)
+    creado_por_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    codigo_invitacion = Column(String(20), unique=True, index=True)
+    limite_mensual = Column(Numeric(10, 2), nullable=False, default=350)
+
+    creador = relationship("Usuario", foreign_keys=[creado_por_id])
+    miembros = relationship("MiembroGrupo", back_populates="grupo", cascade="all, delete-orphan")
+    gastos_compartidos = relationship("GastoCompartido", back_populates="grupo", cascade="all, delete-orphan")
+
+
+class MiembroGrupo(Base):
+    __tablename__ = "miembros_grupo"
+
+    id = Column(Integer, primary_key=True, index=True)
+    grupo_id = Column(Integer, ForeignKey("grupos.id"), nullable=False)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    rol = Column(String(20), default="miembro")
+    se_unio_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    grupo = relationship("Grupo", back_populates="miembros")
+    usuario = relationship("Usuario")
+
+
+class GastoCompartido(Base):
+    __tablename__ = "gastos_compartidos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    grupo_id = Column(Integer, ForeignKey("grupos.id"), nullable=False)
+    pagado_por_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    tarjeta_id = Column(Integer, ForeignKey("tarjetas.id"), nullable=True)
+    fecha = Column(Date, nullable=False)
+    monto = Column(Numeric(10, 2), nullable=False)
+    descripcion = Column(String(150), nullable=True)
+    categoria = Column(String(50), nullable=True)
+
+    grupo = relationship("Grupo", back_populates="gastos_compartidos")
+    pagado_por = relationship("Usuario", foreign_keys=[pagado_por_id])
+    tarjeta = relationship("Tarjeta")
+    divisiones = relationship("DivisionGasto", back_populates="gasto", cascade="all, delete-orphan")
+
+
+class DivisionGasto(Base):
+    __tablename__ = "divisiones_gasto"
+
+    id = Column(Integer, primary_key=True, index=True)
+    gasto_compartido_id = Column(Integer, ForeignKey("gastos_compartidos.id"), nullable=False)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    monto = Column(Numeric(10, 2), nullable=False)
+    pagado = Column(Integer, default=0)
+
+    gasto = relationship("GastoCompartido", back_populates="divisiones")
+    usuario = relationship("Usuario")
+
+class Cuenta(Base):
+    __tablename__ = "cuentas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    nombre = Column(String(80), nullable=False)
+    tipo = Column(String(30), nullable=False, default="ahorros")
+    saldo_inicial = Column(Numeric(12, 2), nullable=False, default=0)
+    fijada = Column(Integer, default=0)  # 0=no, 1=sí (destacada en Home)
+    creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    usuario = relationship("Usuario")
+
+class Ingreso(Base):
+    __tablename__ = "ingresos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    cuenta_id = Column(Integer, ForeignKey("cuentas.id"), nullable=False)
+    monto = Column(Numeric(12, 2), nullable=False)
+    fecha = Column(Date, nullable=False)
+    descripcion = Column(String(150), nullable=True)
+    categoria = Column(String(50), nullable=True)
+    creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    usuario = relationship("Usuario")
+    cuenta = relationship("Cuenta")
+
+class PagoTarjeta(Base):
+    __tablename__ = "pagos_tarjeta"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    tarjeta_id = Column(Integer, ForeignKey("tarjetas.id"), nullable=False)
+    cuenta_id = Column(Integer, ForeignKey("cuentas.id"), nullable=False)
+    monto = Column(Numeric(12, 2), nullable=False)
+    fecha_pago = Column(Date, nullable=False)
+    mes_cerrado = Column(Integer, nullable=False)
+    anio_cerrado = Column(Integer, nullable=False)
+    creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    usuario = relationship("Usuario")
+    tarjeta = relationship("Tarjeta")
+    cuenta = relationship("Cuenta")

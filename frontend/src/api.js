@@ -32,7 +32,14 @@ async function request(path, options = {}) {
   const headers = { "Content-Type": "application/json", ...(options.headers || {}) };
   if (authToken) headers.Authorization = `Bearer ${authToken}`;
 
-  const res = await fetch(BASE + path, { ...options, headers });
+  let res;
+  try {
+    res = await fetch(BASE + path, { ...options, headers });
+  } catch (err) {
+    throw new Error(
+      "No se pudo conectar con el servidor. Revisa tu conexión, o el servidor podría estar iniciando (intenta de nuevo en unos segundos)."
+    );
+  }
 
   if (res.status === 401) {
     setAuthToken(null);
@@ -53,21 +60,103 @@ export const api = {
   login: (datos) => request("/auth/login", { method: "POST", body: JSON.stringify(datos) }),
   yo: () => request("/auth/yo"),
 
+  cambiarPassword: (datos) =>
+  request("/auth/cambiar-password", { method: "POST", body: JSON.stringify(datos) }),
+
+  
+  // Ingresos
+  getIngresos: (anio, mes) => {
+    let url = "/ingresos";
+    const params = [];
+    if (anio) params.push(`anio=${anio}`);
+    if (mes) params.push(`mes=${mes}`);
+    if (params.length) url += `?${params.join("&")}`;
+    return request(url);
+  },
+  // Pagos de tarjeta
+  getEstadoPagoTarjeta: (tarjetaId, anio, mes) =>
+    request(`/tarjetas/${tarjetaId}/estado-pago?anio=${anio}&mes=${mes}`),
+  crearPagoTarjeta: (datos) =>
+    request("/pagos-tarjeta", { method: "POST", body: JSON.stringify(datos) }),
+  getPagosTarjeta: () => request("/pagos-tarjeta"),
+  eliminarPagoTarjeta: (id) => request(`/pagos-tarjeta/${id}`, { method: "DELETE" }),
+  // Cuentas
+  crearIngreso: (ingreso) =>
+    request("/ingresos", { method: "POST", body: JSON.stringify(ingreso) }),
+  actualizarIngreso: (id, cambios) =>
+    request(`/ingresos/${id}`, { method: "PUT", body: JSON.stringify(cambios) }),
+  eliminarIngreso: (id) => request(`/ingresos/${id}`, { method: "DELETE" }),
+  getResumenIngresos: (anio, mes) =>
+    request(`/ingresos/resumen?anio=${anio}&mes=${mes}`),
+  getCategoriasIngreso: () => request("/categorias-ingreso"),
+  getCuentas: () => request("/cuentas"),
+  crearCuenta: (cuenta) =>
+    request("/cuentas", { method: "POST", body: JSON.stringify(cuenta) }),
+  actualizarCuenta: (id, cambios) =>
+    request(`/cuentas/${id}`, { method: "PUT", body: JSON.stringify(cambios) }),
+  eliminarCuenta: (id) => request(`/cuentas/${id}`, { method: "DELETE" }),
+  getResumenTotalCuentas: () => request("/cuentas/resumen-total"),
+
   getTarjetas: () => request("/tarjetas"),
-  getGastos: (anio, mes) => request(`/gastos?anio=${anio}&mes=${mes}`),
+    getGastos: (anio, mes, categoria = null, tarjetaId = null) => {
+    const params = [];
+    if (anio) params.push(`anio=${anio}`);
+    if (mes) params.push(`mes=${mes}`);
+    if (categoria) params.push(`categoria=${encodeURIComponent(categoria)}`);
+    if (tarjetaId) params.push(`tarjeta_id=${tarjetaId}`);
+    return request(`/gastos?${params.join("&")}`);
+  },
   getResumen: (anio, mes) => request(`/resumen?anio=${anio}&mes=${mes}`),
+  getResumenCategorias: (anio, mes) =>
+    request(`/resumen/categorias?anio=${anio}&mes=${mes}`),
+  getCategorias: () => request("/categorias"),
+  getResumenCategoriasGrupo: (grupoId, anio, mes) =>
+    request(`/grupos/${grupoId}/resumen-categorias?anio=${anio}&mes=${mes}`),
   crearGasto: (gasto) =>
     request("/gastos", { method: "POST", body: JSON.stringify(gasto) }),
+  actualizarGasto: (id, cambios) =>
+    request(`/gastos/${id}`, { method: "PUT", body: JSON.stringify(cambios) }),
   eliminarGasto: (id) => request(`/gastos/${id}`, { method: "DELETE" }),
   crearTarjeta: (tarjeta) =>
     request("/tarjetas", { method: "POST", body: JSON.stringify(tarjeta) }),
   actualizarTarjeta: (id, cambios) =>
     request(`/tarjetas/${id}`, { method: "PUT", body: JSON.stringify(cambios) }),
   eliminarTarjeta: (id) => request(`/tarjetas/${id}`, { method: "DELETE" }),
-  exportarGastos: async (desde, hasta) => {
+
+  getGrupos: () => request("/grupos"),
+  crearGrupo: (nombre) => request("/grupos", { method: "POST", body: JSON.stringify({ nombre }) }),
+  unirseGrupo: (codigo) =>
+    request(`/grupos/unirse?codigo=${encodeURIComponent(codigo)}`, { method: "POST" }),
+  getGastosGrupo: (grupoId) => request(`/grupos/${grupoId}/gastos`),
+  getAlertas: () => request("/alertas"),
+  eliminarGastoCompartido: (grupoId, gastoId) =>
+    request(`/grupos/${grupoId}/gastos/${gastoId}`, { method: "DELETE" }),
+  actualizarGastoCompartido: (grupoId, gastoId, cambios) =>
+    request(`/grupos/${grupoId}/gastos/${gastoId}`, {
+      method: "PUT",
+      body: JSON.stringify(cambios),
+    }),
+  getSaldosGrupo: (grupoId) => request(`/grupos/${grupoId}/saldos`),
+  getResumenGrupo: (grupoId, anio, mes) =>
+    request(`/grupos/${grupoId}/resumen?anio=${anio}&mes=${mes}`),
+  actualizarLimiteGrupo: (grupoId, limite) =>
+    request(`/grupos/${grupoId}/limite`, {
+      method: "PUT",
+      body: JSON.stringify({ limite_mensual: limite }),
+    }),
+  crearGastoCompartido: (datos) =>
+    request("/gastos-compartidos", { method: "POST", body: JSON.stringify(datos) }),
+  marcarDivisionPagada: (divisionId) =>
+    request(`/divisiones/${divisionId}/pagar`, { method: "PATCH" }),
+  salirDeGrupo: (grupoId) => request(`/grupos/${grupoId}/salir`, { method: "POST" }),
+  eliminarGrupo: (grupoId) => request(`/grupos/${grupoId}`, { method: "DELETE" }),
+
+  exportarGastos: async (desde, hasta, categoria = null) => {
     const headers = {};
     if (authToken) headers.Authorization = `Bearer ${authToken}`;
-    const res = await fetch(`${BASE}/gastos/export?desde=${desde}&hasta=${hasta}`, { headers });
+    let url = `${BASE}/gastos/export?desde=${desde}&hasta=${hasta}`;
+    if (categoria) url += `&categoria=${encodeURIComponent(categoria)}`;
+    const res = await fetch(url, { headers });
     if (res.status === 401) {
       setAuthToken(null);
       const err = new Error("Tu sesión expiró. Inicia sesión de nuevo.");
