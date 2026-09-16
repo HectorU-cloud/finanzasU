@@ -28,7 +28,6 @@ const NOMBRES_MES = [
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ];
 
-
 const ULTIMA_TARJETA_KEY = "finanzas_ultima_tarjeta";
 const ULTIMA_CATEGORIA_KEY = "finanzas_ultima_categoria";
 
@@ -51,6 +50,16 @@ function guardarUltima(key, valor) {
 export default function App() {
   const [usuario, setUsuario] = useState(null);
   const [verificandoSesion, setVerificandoSesion] = useState(true);
+  const [tema, setTema] = useState(() => {
+    try {
+      const guardado = localStorage.getItem("finanzas_tema");
+      if (guardado) return guardado;
+    } catch {}
+    if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
+      return "dark";
+    }
+    return "light";
+  });
 
   const hoy = new Date();
   const [periodo, setPeriodo] = useState({ anio: hoy.getFullYear(), mes: hoy.getMonth() + 1 });
@@ -103,6 +112,13 @@ export default function App() {
       .catch(() => setAuthToken(null))
       .finally(() => setVerificandoSesion(false));
   }, []);
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", tema);
+    try {
+      localStorage.setItem("finanzas_tema", tema);
+    } catch {}
+  }, [tema]);
 
   function handleLogout() {
     setAuthToken(null);
@@ -264,7 +280,7 @@ export default function App() {
     return <AuthScreen onAutenticado={setUsuario} />;
   }
 
-    const VISTAS_CON_NAV = ["home", "cuentas", "ingresos", "pagos", "grupos", "perfil"];
+  const VISTAS_CON_NAV = ["home", "cuentas", "ingresos", "pagos", "grupos", "perfil"];
 
   if (VISTAS_CON_NAV.includes(vista)) {
     return (
@@ -298,14 +314,35 @@ export default function App() {
               <p className="text-sm text-gray-500 mb-5">{usuario.email}</p>
               <div className="space-y-2">
                 <button
+                  onClick={() => setTema(tema === "dark" ? "light" : "dark")}
+                  className="w-full py-3 rounded-xl border border-gray-200 text-sm font-medium flex items-center justify-between px-4"
+                >
+                  <span className="text-carbon">
+                    {tema === "dark" ? "🌙 Modo oscuro" : "☀️ Modo claro"}
+                  </span>
+                  <div
+                    className={`w-11 h-6 rounded-full transition-colors relative ${
+                      tema === "dark" ? "bg-coral" : "bg-gray-300"
+                    }`}
+                  >
+                    <div
+                      className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
+                        tema === "dark" ? "translate-x-[22px]" : "translate-x-0.5"
+                      }`}
+                    />
+                  </div>
+                </button>
+
+                <button
                   onClick={() => setModalPassword(true)}
-                  className="w-full py-3 rounded-xl border border-gray-200 text-sm font-medium hover:bg-gray-50"
+                  className="w-full py-3 rounded-xl border border-gray-200 text-sm font-medium text-carbon"
                 >
                   Cambiar contraseña
                 </button>
+
                 <button
                   onClick={handleLogout}
-                  className="w-full py-3 rounded-xl bg-coral text-white text-sm font-semibold hover:bg-coral-dark"
+                  className="w-full py-3 rounded-xl bg-coral text-white text-sm font-semibold"
                 >
                   Cerrar sesión
                 </button>
@@ -313,6 +350,7 @@ export default function App() {
             </div>
           </div>
         )}
+
         {tarjetaAPagar && (
           <PagarTarjetaModal
             tarjeta={tarjetaAPagar}
@@ -334,7 +372,7 @@ export default function App() {
             onCambio={() => cargarDatos()}
           />
         )}
-        
+
         {modalTarjetas && (
           <div
             className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4"
@@ -364,7 +402,7 @@ export default function App() {
             </div>
           </div>
         )}
-        
+
         <BottomNav
           vista={vista}
           onCambiar={(nuevaVista) => {
