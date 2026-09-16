@@ -97,6 +97,20 @@ export const api = {
   eliminarCuenta: (id) => request(`/cuentas/${id}`, { method: "DELETE" }),
   getResumenTotalCuentas: () => request("/cuentas/resumen-total"),
 
+  // Pots (metas de ahorro)
+  getPotes: () => request("/potes"),
+  crearPote: (pote) =>
+    request("/potes", { method: "POST", body: JSON.stringify(pote) }),
+  actualizarPote: (id, cambios) =>
+    request(`/potes/${id}`, { method: "PUT", body: JSON.stringify(cambios) }),
+  eliminarPote: (id) => request(`/potes/${id}`, { method: "DELETE" }),
+  depositarPote: (id, datos) =>
+    request(`/potes/${id}/depositar`, { method: "POST", body: JSON.stringify(datos) }),
+  retirarPote: (id, datos) =>
+    request(`/potes/${id}/retirar`, { method: "POST", body: JSON.stringify(datos) }),
+  getMovimientosPote: (id) => request(`/potes/${id}/movimientos`),
+  getEmojisPote: () => request("/emojis-pote"),
+
   getTarjetas: () => request("/tarjetas"),
     getGastos: (anio, mes, categoria = null, tarjetaId = null) => {
     const params = [];

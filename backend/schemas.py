@@ -490,3 +490,73 @@ class Alerta(BaseModel):
     dias: int | None = None
     monto: Decimal | None = None
     mensaje: str
+
+EMOJIS_POTE_SUGERIDOS = [
+    "🏺", "🏖️", "🎓", "🎁", "🚗", "🏠", "💍", "🎉",
+    "🏥", "💻", "📱", "✈️", "🎮", "🛒", "🍔", "☕",
+]
+
+
+class PoteBase(BaseModel):
+    nombre: str = Field(min_length=1, max_length=80)
+    emoji: str = Field(default="🏺", max_length=10)
+    meta: Decimal = Field(gt=0, le=MONTO_MAXIMO, decimal_places=2)
+    cuenta_id: int
+
+    @field_validator("nombre")
+    @classmethod
+    def _nombre_valido(cls, v):
+        return _validar_texto_no_vacio(v)
+
+
+class PoteCreate(PoteBase):
+    pass
+
+
+class PoteUpdate(BaseModel):
+    nombre: str | None = Field(default=None, max_length=80)
+    emoji: str | None = Field(default=None, max_length=10)
+    meta: Decimal | None = Field(default=None, gt=0, le=MONTO_MAXIMO, decimal_places=2)
+
+    @field_validator("nombre")
+    @classmethod
+    def _nombre_valido(cls, v):
+        if v is None:
+            return v
+        return _validar_texto_no_vacio(v)
+
+
+class PoteOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    cuenta_id: int
+    nombre: str
+    emoji: str
+    meta: Decimal
+    saldo: Decimal
+    creado_en: datetime | None = None
+
+
+class MovimientoPoteCreate(BaseModel):
+    monto: Decimal = Field(gt=0, le=MONTO_MAXIMO, decimal_places=2)
+    descripcion: str | None = Field(default=None, max_length=150)
+    fecha: date
+
+    @field_validator("fecha")
+    @classmethod
+    def _fecha_valida(cls, v):
+        return _validar_fecha(v)
+
+
+class MovimientoPoteOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    pote_id: int
+    monto: Decimal
+    descripcion: str | None
+    fecha: date
+    creado_en: datetime | None = None
+
+
+class EmojisPoteDisponibles(BaseModel):
+    emojis: list[str]

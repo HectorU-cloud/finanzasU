@@ -18,6 +18,7 @@ import IngresosScreen from "./IngresosScreen.jsx";
 import PagarTarjetaModal from "./PagarTarjetaModal.jsx";
 import HistorialPagosScreen from "./HistorialPagosScreen.jsx";
 import TarjetaDetalleScreen from "./TarjetaDetalleScreen.jsx";
+import PotesScreen from "./PotesScreen.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -280,7 +281,7 @@ export default function App() {
     return <AuthScreen onAutenticado={setUsuario} />;
   }
 
-  const VISTAS_CON_NAV = ["home", "cuentas", "ingresos", "pagos", "grupos", "perfil"];
+  const VISTAS_CON_NAV = ["home", "cuentas", "ingresos", "potes", "pagos", "grupos", "perfil"];
 
   if (VISTAS_CON_NAV.includes(vista)) {
     return (
@@ -298,6 +299,7 @@ export default function App() {
         )}
         {vista === "cuentas" && <CuentasScreen onCambiarVista={setVista} />}
         {vista === "ingresos" && <IngresosScreen />}
+        {vista === "potes" && <PotesScreen />}
         {vista === "pagos" && <HistorialPagosScreen />}
         {vista === "grupos" && (
           <div className="max-w-md mx-auto p-6">

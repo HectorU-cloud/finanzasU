@@ -664,6 +664,221 @@ def resumen_ingresos(
 def listar_categorias_ingreso():
     return schemas.CategoriasDisponibles(categorias=schemas.CATEGORIAS_INGRESO)
 
+# ---------- Pots (metas de ahorro) ----------
+
+def _pote_del_usuario(db: Session, pote_id: int, usuario: models.Usuario) -> models.Pote:
+    pote = (
+        db.query(models.Pote)
+        .filter(models.Pote.id == pote_id, models.Pote.usuario_id == usuario.id)
+        .first()
+    )
+    if not pote:
+        raise HTTPException(status_code=404, detail="Pote no encontrado")
+    return pote
+
+
+def _calcular_saldo_cuenta(db: Session, cuenta: models.Cuenta) -> Decimal:
+    """Calcula el saldo actual de una cuenta considerando ingresos, pagos y pots."""
+    ingresos = (
+        db.query(func.coalesce(func.sum(models.Ingreso.monto), 0))
+        .filter(models.Ingreso.cuenta_id == cuenta.id)
+        .scalar()
+    )
+    pagos = (
+        db.query(func.coalesce(func.sum(models.PagoTarjeta.monto), 0))
+        .filter(models.PagoTarjeta.cuenta_id == cuenta.id)
+        .scalar()
+    )
+    return Decimal(cuenta.saldo_inicial) + Decimal(ingresos) - Decimal(pagos)
+
+
+@app.get("/api/emojis-pote", response_model=schemas.EmojisPoteDisponibles)
+def listar_emojis_pote():
+    return schemas.EmojisPoteDisponibles(emojis=schemas.EMOJIS_POTE_SUGERIDOS)
+
+
+@app.get("/api/potes", response_model=list[schemas.PoteOut])
+def listar_potes(
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    return (
+        db.query(models.Pote)
+        .filter(models.Pote.usuario_id == usuario.id)
+        .order_by(models.Pote.creado_en.desc())
+        .all()
+    )
+
+
+@app.post("/api/potes", response_model=schemas.PoteOut)
+def crear_pote(
+    datos: schemas.PoteCreate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    cuenta = (
+        db.query(models.Cuenta)
+        .filter(
+            models.Cuenta.id == datos.cuenta_id,
+            models.Cuenta.usuario_id == usuario.id,
+        )
+        .first()
+    )
+    if not cuenta:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+
+    nuevo = models.Pote(
+        usuario_id=usuario.id,
+        cuenta_id=datos.cuenta_id,
+        nombre=datos.nombre.strip(),
+        emoji=datos.emoji,
+        meta=datos.meta,
+        saldo=Decimal("0"),
+    )
+    db.add(nuevo)
+    db.commit()
+    db.refresh(nuevo)
+    return nuevo
+
+
+@app.put("/api/potes/{pote_id}", response_model=schemas.PoteOut)
+def actualizar_pote(
+    pote_id: int,
+    payload: schemas.PoteUpdate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    pote = _pote_del_usuario(db, pote_id, usuario)
+
+    if payload.nombre is not None:
+        pote.nombre = payload.nombre.strip()
+    if payload.emoji is not None:
+        pote.emoji = payload.emoji
+    if payload.meta is not None:
+        pote.meta = payload.meta
+
+    db.commit()
+    db.refresh(pote)
+    return pote
+
+
+@app.delete("/api/potes/{pote_id}", status_code=204)
+def eliminar_pote(
+    pote_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    pote = _pote_del_usuario(db, pote_id, usuario)
+
+    # Si tiene saldo, devolverlo a la cuenta antes de eliminar
+    if Decimal(pote.saldo) > 0:
+        cuenta = db.query(models.Cuenta).get(pote.cuenta_id)
+        if cuenta:
+            # No hay campo "saldo" persistido en cuentas; el saldo real es
+            # calculado con ingresos + saldo_inicial - pagos. Cuando
+            # eliminamos el pote, el dinero "vuelve" automáticamente porque
+            # el saldo del pote ya no se descuenta en las próximas consultas.
+            pass
+
+    db.delete(pote)
+    db.commit()
+
+
+@app.post("/api/potes/{pote_id}/depositar", response_model=schemas.PoteOut)
+def depositar_pote(
+    pote_id: int,
+    datos: schemas.MovimientoPoteCreate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    pote = _pote_del_usuario(db, pote_id, usuario)
+
+    cuenta = db.query(models.Cuenta).get(pote.cuenta_id)
+    if not cuenta:
+        raise HTTPException(status_code=404, detail="Cuenta asociada no encontrada")
+
+    # Validar saldo disponible en la cuenta (ingresos + saldo_inicial - pagos - pots)
+    saldo_cuenta = _calcular_saldo_cuenta(db, cuenta)
+
+    # Restar lo que ya está en otros potes de esa cuenta
+    total_en_potes = (
+        db.query(func.coalesce(func.sum(models.Pote.saldo), 0))
+        .filter(models.Pote.cuenta_id == cuenta.id)
+        .filter(models.Pote.id != pote.id)
+        .scalar()
+    )
+    saldo_disponible = saldo_cuenta - Decimal(total_en_potes)
+
+    if datos.monto > saldo_disponible:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Saldo insuficiente en '{cuenta.nombre}'. "
+                f"Disponible: ${saldo_disponible:.2f} · "
+                f"Intentas depositar: ${datos.monto:.2f}"
+            ),
+        )
+
+    pote.saldo = Decimal(pote.saldo) + datos.monto
+
+    mov = models.MovimientoPote(
+        pote_id=pote.id,
+        monto=datos.monto,
+        descripcion=datos.descripcion,
+        fecha=datos.fecha,
+    )
+    db.add(mov)
+    db.commit()
+    db.refresh(pote)
+    return pote
+
+
+@app.post("/api/potes/{pote_id}/retirar", response_model=schemas.PoteOut)
+def retirar_pote(
+    pote_id: int,
+    datos: schemas.MovimientoPoteCreate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    pote = _pote_del_usuario(db, pote_id, usuario)
+
+    if datos.monto > Decimal(pote.saldo):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"El pote solo tiene ${float(pote.saldo):.2f}. "
+                f"No puedes retirar ${datos.monto:.2f}"
+            ),
+        )
+
+    pote.saldo = Decimal(pote.saldo) - datos.monto
+
+    mov = models.MovimientoPote(
+        pote_id=pote.id,
+        monto=-datos.monto,  # negativo = retiro
+        descripcion=datos.descripcion,
+        fecha=datos.fecha,
+    )
+    db.add(mov)
+    db.commit()
+    db.refresh(pote)
+    return pote
+
+
+@app.get("/api/potes/{pote_id}/movimientos", response_model=list[schemas.MovimientoPoteOut])
+def listar_movimientos_pote(
+    pote_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    _pote_del_usuario(db, pote_id, usuario)
+    return (
+        db.query(models.MovimientoPote)
+        .filter(models.MovimientoPote.pote_id == pote_id)
+        .order_by(models.MovimientoPote.fecha.desc(), models.MovimientoPote.id.desc())
+        .all()
+    )
+
 # ---------- Tarjetas ----------
 
 @app.get("/api/tarjetas", response_model=list[schemas.Tarjeta])
