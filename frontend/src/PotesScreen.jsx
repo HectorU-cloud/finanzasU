@@ -40,8 +40,8 @@ export default function PotesScreen() {
     function cerrarSiEsFuera(e) {
       if (!e.target.closest(".acciones-menu-pote")) setMenuAbiertoId(null);
     }
-    document.addEventListener("click", cerrarSiFuera);
-    return () => document.removeEventListener("click", cerrarSiFuera);
+    document.addEventListener("click", cerrarSiEsFuera);
+    return () => document.removeEventListener("click", cerrarSiEsFuera);
   }, []);
 
   async function confirmarEliminar() {
