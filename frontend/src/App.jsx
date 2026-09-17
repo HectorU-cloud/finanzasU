@@ -337,7 +337,6 @@ const [tokenReset] = useState(() => leerTokenResetDeUrl());
             setOrigenDetalle("tarjetas");
             setTarjetaDetalle(t);
           }}
-          }}
         />
 
         {modalTarjetas && (
