@@ -3,7 +3,6 @@ import { Wallet, TrendingUp, Plus, MoreVertical, Pencil, Trash2 } from "lucide-r
 import { api } from "./api.js";
 import CuentaModal from "./CuentaModal.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
-import CuentaDetalleScreen from "./CuentaDetalleScreen.jsx";
 
 const TIPO_ICONOS = {
   efectivo: Wallet,
@@ -29,7 +28,6 @@ export default function CuentasScreen({ onCambiarVista }) {
   const [cuentaAEliminar, setCuentaAEliminar] = useState(null);
   const [menuAbiertoId, setMenuAbiertoId] = useState(null);
   const [error, setError] = useState("");
-  const [cuentaDetalle, setCuentaDetalle] = useState(null);
 
   async function cargar() {
     setCargando(true);
@@ -69,16 +67,6 @@ export default function CuentasScreen({ onCambiarVista }) {
       setError(err.message);
       setCuentaAEliminar(null);
     }
-  }
-
-  // Si hay una cuenta seleccionada, muestra el detalle
-  if (cuentaDetalle) {
-    return (
-      <CuentaDetalleScreen
-        cuenta={cuentaDetalle}
-        onVolver={() => setCuentaDetalle(null)}
-      />
-    );
   }
 
   return (
@@ -129,8 +117,7 @@ export default function CuentasScreen({ onCambiarVista }) {
             return (
               <div
                 key={c.id}
-                onClick={() => setCuentaDetalle(c)}
-                className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3 cursor-pointer active:scale-[0.99] transition-transform"
+                className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3"
               >
                 <div
                   className={`w-12 h-12 rounded-xl bg-gradient-to-br ${gradiente} flex items-center justify-center text-white shrink-0`}
@@ -144,7 +131,7 @@ export default function CuentasScreen({ onCambiarVista }) {
                   <p className="text-xs text-gray-500 capitalize">{c.tipo}</p>
                 </div>
                 <div className="text-right">
-                  <p className="font-bold text-carbon">
+                    <p className="font-bold text-carbon">
                     ${Number(c.saldo_actual ?? c.saldo_inicial).toFixed(2)}
                   </p>
                 </div>
@@ -162,8 +149,7 @@ export default function CuentasScreen({ onCambiarVista }) {
                     <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg min-w-[140px] overflow-hidden z-10">
                       <button
                         className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-sm text-carbon hover:bg-gray-50"
-                        onClick={(e) => {
-                          e.stopPropagation();
+                        onClick={() => {
                           setCuentaEditando(c);
                           setModalAbierto(true);
                           setMenuAbiertoId(null);
@@ -173,8 +159,7 @@ export default function CuentasScreen({ onCambiarVista }) {
                       </button>
                       <button
                         className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
-                        onClick={(e) => {
-                          e.stopPropagation();
+                        onClick={() => {
                           setCuentaAEliminar(c);
                           setMenuAbiertoId(null);
                         }}
@@ -190,7 +175,7 @@ export default function CuentasScreen({ onCambiarVista }) {
         </div>
       )}
 
-      {error && (
+        {error && (
         <div className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-3 mt-4">
           <p>{error}</p>
           {onCambiarVista && error.includes("pagos de tarjeta") && (

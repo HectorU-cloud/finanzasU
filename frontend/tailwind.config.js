@@ -7,34 +7,19 @@ export default {
   theme: {
     extend: {
       colors: {
-        // Paleta usando variables CSS
+        // Paleta "Monzo-inspired"
         coral: {
-          DEFAULT: "var(--brand)",
-          dark: "var(--brand-dark)",
-          soft: "var(--brand-soft)",
+          DEFAULT: "#FF4F40",
+          dark: "#E03D30",
+          soft: "#FFE5E2",
         },
         carbon: {
-          DEFAULT: "var(--ink)",
-          light: "var(--surface-alt)",
+          DEFAULT: "#1A1523",
+          light: "#2D2438",
         },
         cream: {
-          DEFAULT: "var(--bg)",
-          dark: "var(--surface-alt)",
-        },
-        // Sobrescribimos los colores nativos de Tailwind
-        white: "var(--surface)",
-        black: "var(--ink)",
-        gray: {
-          50: "var(--gray-50)",
-          100: "var(--gray-100)",
-          200: "var(--gray-200)",
-          300: "var(--gray-300)",
-          400: "var(--gray-400)",
-          500: "var(--gray-500)",
-          600: "var(--gray-600)",
-          700: "var(--gray-700)",
-          800: "var(--gray-800)",
-          900: "var(--gray-900)",
+          DEFAULT: "#FEFAF5",
+          dark: "#F5EFE6",
         },
       },
       borderRadius: {

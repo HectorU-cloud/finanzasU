@@ -18,9 +18,6 @@ import IngresosScreen from "./IngresosScreen.jsx";
 import PagarTarjetaModal from "./PagarTarjetaModal.jsx";
 import HistorialPagosScreen from "./HistorialPagosScreen.jsx";
 import TarjetaDetalleScreen from "./TarjetaDetalleScreen.jsx";
-import PotesScreen from "./PotesScreen.jsx";
-import SolicitarResetScreen from "./SolicitarResetScreen.jsx";
-import ResetPasswordScreen from "./ResetPasswordScreen.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -30,6 +27,7 @@ const NOMBRES_MES = [
   "enero", "febrero", "marzo", "abril", "mayo", "junio",
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ];
+
 
 const ULTIMA_TARJETA_KEY = "finanzas_ultima_tarjeta";
 const ULTIMA_CATEGORIA_KEY = "finanzas_ultima_categoria";
@@ -42,35 +40,17 @@ function leerUltima(key, fallback = "") {
   }
 }
 
-function leerTokenResetDeUrl() {
-  if (typeof window === "undefined") return null;
-  const params = new URLSearchParams(window.location.search);
-  const token = params.get("token");
-  if (window.location.pathname === "/reset" && token) {
-    return token;
+function guardarUltima(key, valor) {
+  try {
+    if (valor) localStorage.setItem(key, valor);
+  } catch {
+    // localStorage puede fallar en navegación privada; no es crítico
   }
-  return null;
 }
 
 export default function App() {
   const [usuario, setUsuario] = useState(null);
   const [verificandoSesion, setVerificandoSesion] = useState(true);
-  const [tema, setTema] = useState(() => {
-    try {
-      const guardado = localStorage.getItem("finanzas_tema");
-      if (guardado) return guardado;
-    } catch {}
-    if (window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches) {
-      return "dark";
-    }
-    return "light";
-  });
-
-  const [vistaAuth, setVistaAuth] = useState(() => {
-  if (leerTokenResetDeUrl()) return "reset-password";
-  return "login";
-});
-const [tokenReset] = useState(() => leerTokenResetDeUrl());
 
   const hoy = new Date();
   const [periodo, setPeriodo] = useState({ anio: hoy.getFullYear(), mes: hoy.getMonth() + 1 });
@@ -123,13 +103,6 @@ const [tokenReset] = useState(() => leerTokenResetDeUrl());
       .catch(() => setAuthToken(null))
       .finally(() => setVerificandoSesion(false));
   }, []);
-
-  useEffect(() => {
-    document.documentElement.setAttribute("data-theme", tema);
-    try {
-      localStorage.setItem("finanzas_tema", tema);
-    } catch {}
-  }, [tema]);
 
   function handleLogout() {
     setAuthToken(null);
@@ -287,42 +260,11 @@ const [tokenReset] = useState(() => leerTokenResetDeUrl());
     );
   }
 
-    if (vistaAuth === "reset-password" && tokenReset) {
-    return (
-      <ResetPasswordScreen
-        token={tokenReset}
-        onCompletado={() => {
-          window.history.replaceState({}, "", "/");
-          setVistaAuth("login");
-        }}
-      />
-    );
-  }
-
-  if (vistaAuth === "solicitar-reset") {
-    return (
-      <SolicitarResetScreen
-        onVolver={() => {
-          window.history.replaceState({}, "", "/");
-          setVistaAuth("login");
-        }}
-      />
-    );
-  }
-
   if (!usuario) {
-    return (
-      <AuthScreen
-        onAutenticado={setUsuario}
-        onSolicitarReset={() => {
-          window.history.replaceState({}, "", "/");
-          setVistaAuth("solicitar-reset");
-        }}
-      />
-    );
+    return <AuthScreen onAutenticado={setUsuario} />;
   }
 
-  const VISTAS_CON_NAV = ["home", "cuentas", "ingresos", "potes", "pagos", "grupos", "perfil"];
+    const VISTAS_CON_NAV = ["home", "cuentas", "ingresos", "pagos", "grupos", "perfil"];
 
   if (VISTAS_CON_NAV.includes(vista)) {
     return (
@@ -340,7 +282,6 @@ const [tokenReset] = useState(() => leerTokenResetDeUrl());
         )}
         {vista === "cuentas" && <CuentasScreen onCambiarVista={setVista} />}
         {vista === "ingresos" && <IngresosScreen />}
-        {vista === "potes" && <PotesScreen />}
         {vista === "pagos" && <HistorialPagosScreen />}
         {vista === "grupos" && (
           <div className="max-w-md mx-auto p-6">
@@ -357,35 +298,14 @@ const [tokenReset] = useState(() => leerTokenResetDeUrl());
               <p className="text-sm text-gray-500 mb-5">{usuario.email}</p>
               <div className="space-y-2">
                 <button
-                  onClick={() => setTema(tema === "dark" ? "light" : "dark")}
-                  className="w-full py-3 rounded-xl border border-gray-200 text-sm font-medium flex items-center justify-between px-4"
-                >
-                  <span className="text-carbon">
-                    {tema === "dark" ? "🌙 Modo oscuro" : "☀️ Modo claro"}
-                  </span>
-                  <div
-                    className={`w-11 h-6 rounded-full transition-colors relative ${
-                      tema === "dark" ? "bg-coral" : "bg-gray-300"
-                    }`}
-                  >
-                    <div
-                      className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow transition-transform ${
-                        tema === "dark" ? "translate-x-[22px]" : "translate-x-0.5"
-                      }`}
-                    />
-                  </div>
-                </button>
-
-                <button
                   onClick={() => setModalPassword(true)}
-                  className="w-full py-3 rounded-xl border border-gray-200 text-sm font-medium text-carbon"
+                  className="w-full py-3 rounded-xl border border-gray-200 text-sm font-medium hover:bg-gray-50"
                 >
                   Cambiar contraseña
                 </button>
-
                 <button
                   onClick={handleLogout}
-                  className="w-full py-3 rounded-xl bg-coral text-white text-sm font-semibold"
+                  className="w-full py-3 rounded-xl bg-coral text-white text-sm font-semibold hover:bg-coral-dark"
                 >
                   Cerrar sesión
                 </button>
@@ -393,7 +313,6 @@ const [tokenReset] = useState(() => leerTokenResetDeUrl());
             </div>
           </div>
         )}
-
         {tarjetaAPagar && (
           <PagarTarjetaModal
             tarjeta={tarjetaAPagar}
@@ -415,7 +334,7 @@ const [tokenReset] = useState(() => leerTokenResetDeUrl());
             onCambio={() => cargarDatos()}
           />
         )}
-
+        
         {modalTarjetas && (
           <div
             className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4"
@@ -445,7 +364,7 @@ const [tokenReset] = useState(() => leerTokenResetDeUrl());
             </div>
           </div>
         )}
-
+        
         <BottomNav
           vista={vista}
           onCambiar={(nuevaVista) => {

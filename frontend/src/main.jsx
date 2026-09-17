@@ -3,10 +3,12 @@ import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
 import "./index.css";
 
-// --- Limpieza de Service Workers viejos (PWA desactivada temporalmente) ---
-// Este bloque desinstala cualquier Service Worker que se haya quedado
-// pegado en el navegador de versiones anteriores de la app.
-if ("serviceWorker" in navigator) {
+// --- Limpieza única de Service Workers viejos ---
+// Cuando la PWA estuvo desactivada, algunos navegadores se quedaron con un
+// Service Worker o caché vieja pegada. Esto la limpia UNA sola vez por
+// navegador (marcado con localStorage) para no interferir con el Service
+// Worker nuevo que la PWA vuelve a registrar normalmente después.
+if ("serviceWorker" in navigator && !localStorage.getItem("sw_cleanup_v2")) {
   navigator.serviceWorker.getRegistrations().then((registros) => {
     registros.forEach((registro) => {
       registro.unregister().then((exito) => {
@@ -14,11 +16,15 @@ if ("serviceWorker" in navigator) {
       });
     });
   });
-  // También limpia las cachés guardadas por el SW.
   if ("caches" in window) {
     caches.keys().then((nombres) => {
       nombres.forEach((nombre) => caches.delete(nombre));
     });
+  }
+  try {
+    localStorage.setItem("sw_cleanup_v2", "1");
+  } catch {
+    // si localStorage falla, no es crítico: en el peor caso se reintenta la próxima carga
   }
 }
 

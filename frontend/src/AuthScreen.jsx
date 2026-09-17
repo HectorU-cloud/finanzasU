@@ -1,9 +1,8 @@
 import { useState } from "react";
-import { PiggyBank } from "lucide-react";
 import { api, setAuthToken } from "./api.js";
 
-export default function AuthScreen({ onAutenticado, onSolicitarReset }) {
-  const [modo, setModo] = useState("login");
+export default function AuthScreen({ onAutenticado }) {
+  const [modo, setModo] = useState("login"); // "login" | "registro"
   const [form, setForm] = useState({ nombre: "", email: "", password: "" });
   const [confirmar, setConfirmar] = useState("");
   const [error, setError] = useState("");
@@ -51,156 +50,94 @@ export default function AuthScreen({ onAutenticado, onSolicitarReset }) {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#FEFAF5] via-[#FFE5E2] to-[#FF4F40] flex items-center justify-center p-4">
-      <div className="w-full max-w-sm">
-        {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="w-20 h-20 mx-auto rounded-full bg-coral flex items-center justify-center shadow-2xl shadow-coral/40 mb-4">
-            <PiggyBank size={38} className="text-white" />
-          </div>
-          <h1 className="text-3xl font-bold text-carbon">Control de gastos</h1>
-          <p className="text-sm text-gray-600 mt-1">Tus finanzas, sin depender de nadie más.</p>
+    <div className="auth-wrap">
+      <div className="auth-card">
+        <div className="auth-brand">
+          <h1>Control de gastos</h1>
+          <p>Tus finanzas, sin depender de nadie más.</p>
         </div>
 
-        {/* Card */}
-        <div className="bg-white rounded-3xl shadow-xl p-6">
-          {/* Tabs */}
-          <div className="flex gap-4 mb-6 border-b border-gray-200">
-            <button
-              type="button"
-              onClick={() => cambiarModo("login")}
-              className={`pb-3 text-sm font-semibold transition-colors ${
-                modo === "login"
-                  ? "text-carbon border-b-2 border-coral"
-                  : "text-gray-400"
-              }`}
-            >
-              Iniciar sesión
-            </button>
-            <button
-              type="button"
-              onClick={() => cambiarModo("registro")}
-              className={`pb-3 text-sm font-semibold transition-colors ${
-                modo === "registro"
-                  ? "text-carbon border-b-2 border-coral"
-                  : "text-gray-400"
-              }`}
-            >
-              Crear cuenta
-            </button>
-          </div>
+        <div className="auth-tabs">
+          <button
+            type="button"
+            className={"auth-tab" + (modo === "login" ? " activo" : "")}
+            onClick={() => cambiarModo("login")}
+          >
+            Iniciar sesión
+          </button>
+          <button
+            type="button"
+            className={"auth-tab" + (modo === "registro" ? " activo" : "")}
+            onClick={() => cambiarModo("registro")}
+          >
+            Crear cuenta
+          </button>
+        </div>
 
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {modo === "registro" && (
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">
-                  Nombre
-                </label>
-                <input
-                  type="text"
-                  placeholder="Tu nombre"
-                  value={form.nombre}
-                  onChange={(e) => setForm({ ...form, nombre: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-coral focus:outline-none focus:ring-2 focus:ring-coral/20 text-sm transition-all"
-                />
-              </div>
-            )}
-
+        <form onSubmit={handleSubmit} className="auth-form">
+          {modo === "registro" && (
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">
-                Correo
-              </label>
+              <label>Nombre</label>
               <input
-                type="email"
-                placeholder="tu@correo.com"
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-coral focus:outline-none focus:ring-2 focus:ring-coral/20 text-sm transition-all"
+                type="text"
+                placeholder="Tu nombre"
+                value={form.nombre}
+                onChange={(e) => setForm({ ...form, nombre: e.target.value })}
               />
             </div>
-
+          )}
+          <div>
+            <label>Correo</label>
+            <input
+              type="email"
+              placeholder="tu@correo.com"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+            />
+          </div>
+          <div>
+            <label>Contraseña</label>
+            <input
+              type="password"
+              placeholder={modo === "registro" ? "Mínimo 6 caracteres" : "Tu contraseña"}
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+            />
+          </div>
+          {modo === "registro" && (
             <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">
-                Contraseña
-              </label>
+              <label>Confirmar contraseña</label>
               <input
                 type="password"
-                placeholder={modo === "registro" ? "Mínimo 6 caracteres" : "Tu contraseña"}
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-coral focus:outline-none focus:ring-2 focus:ring-coral/20 text-sm transition-all"
+                placeholder="Repite tu contraseña"
+                value={confirmar}
+                onChange={(e) => setConfirmar(e.target.value)}
               />
             </div>
-
-            {modo === "registro" && (
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">
-                  Confirmar contraseña
-                </label>
-                <input
-                  type="password"
-                  placeholder="Repite tu contraseña"
-                  value={confirmar}
-                  onChange={(e) => setConfirmar(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-coral focus:outline-none focus:ring-2 focus:ring-coral/20 text-sm transition-all"
-                />
-              </div>
-            )}
-
-            {error && (
-              <div className="bg-red-50 border border-red-200 text-red-600 rounded-xl px-4 py-3 text-sm">
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={cargando}
-              className="w-full bg-coral text-white font-semibold py-3.5 rounded-xl hover:bg-coral-dark transition-all shadow-lg shadow-coral/30 disabled:opacity-60 disabled:shadow-none"
-            >
-              {cargando ? "Un momento..." : modo === "registro" ? "Crear cuenta" : "Entrar"}
-            </button>
-
-            {modo === "login" && onSolicitarReset && (
-              <div className="text-center">
-                <button
-                  type="button"
-                  onClick={onSolicitarReset}
-                  className="text-xs text-gray-500 hover:text-coral font-medium transition-colors"
-                >
-                  ¿Olvidaste tu contraseña?
-                </button>
-              </div>
-            )}
-          </form>
-        </div>
-
-        {/* Footer */}
-        <p className="text-center text-sm text-gray-600 mt-6">
-          {modo === "login" ? (
-            <>
-              ¿No tienes cuenta?{" "}
-              <button
-                type="button"
-                onClick={() => cambiarModo("registro")}
-                className="text-coral font-semibold"
-              >
-                Regístrate
-              </button>
-            </>
-          ) : (
-            <>
-              ¿Ya tienes cuenta?{" "}
-              <button
-                type="button"
-                onClick={() => cambiarModo("login")}
-                className="text-coral font-semibold"
-              >
-                Inicia sesión
-              </button>
-            </>
           )}
-        </p>
+
+          {error && <p className="error">{error}</p>}
+
+          <button className="submit" type="submit" disabled={cargando} style={{ width: "100%", justifyContent: "center" }}>
+            {cargando ? "Un momento..." : modo === "registro" ? "Crear cuenta" : "Entrar"}
+          </button>
+        </form>
+
+        {modo === "login" ? (
+          <p className="auth-switch">
+            ¿No tienes cuenta?{" "}
+            <button type="button" onClick={() => cambiarModo("registro")}>
+              Regístrate
+            </button>
+          </p>
+        ) : (
+          <p className="auth-switch">
+            ¿Ya tienes cuenta?{" "}
+            <button type="button" onClick={() => cambiarModo("login")}>
+              Inicia sesión
+            </button>
+          </p>
+        )}
       </div>
     </div>
   );
