@@ -25,7 +25,7 @@ LIMITE_MENSUAL = Decimal("350")
 # --- Configuración de Resend (email) ---
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
-FROM_EMAIL = os.getenv("FROM_EMAIL", "onboarding@resend.dev")
+FROM_EMAIL = os.getenv("FROM_EMAIL", "noreply@vectoraec.app")
 
 if RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
