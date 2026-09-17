@@ -100,6 +100,7 @@ export const api = {
     request(`/ingresos/resumen?anio=${anio}&mes=${mes}`),
   getCategoriasIngreso: () => request("/categorias-ingreso"),
   getCuentas: () => request("/cuentas"),
+  getMovimientosCuenta: (cuentaId) => request(`/cuentas/${cuentaId}/movimientos`),
   crearCuenta: (cuenta) =>
     request("/cuentas", { method: "POST", body: JSON.stringify(cuenta) }),
   actualizarCuenta: (id, cambios) =>

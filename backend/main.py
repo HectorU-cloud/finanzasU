@@ -416,6 +416,83 @@ def resumen_total_cuentas(
         "cantidad_cuentas": len(cuentas),
     }
 
+@app.get("/api/cuentas/{cuenta_id}/movimientos", response_model=list[schemas.MovimientoCuenta])
+def movimientos_cuenta(
+    cuenta_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    cuenta = (
+        db.query(models.Cuenta)
+        .filter(models.Cuenta.id == cuenta_id, models.Cuenta.usuario_id == usuario.id)
+        .first()
+    )
+    if not cuenta:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+
+    movimientos = []
+
+    # 1. Ingresos a la cuenta
+    ingresos = (
+        db.query(models.Ingreso)
+        .filter(models.Ingreso.cuenta_id == cuenta_id)
+        .all()
+    )
+    for i in ingresos:
+        movimientos.append(schemas.MovimientoCuenta(
+            tipo="ingreso",
+            monto=Decimal(i.monto),
+            fecha=i.fecha,
+            descripcion=i.descripcion or i.categoria or "Ingreso",
+            referencia_id=i.id,
+        ))
+
+    # 2. Pagos de tarjeta desde esta cuenta
+    pagos = (
+        db.query(models.PagoTarjeta)
+        .filter(models.PagoTarjeta.cuenta_id == cuenta_id)
+        .all()
+    )
+    for p in pagos:
+        tarjeta = db.query(models.Tarjeta).get(p.tarjeta_id)
+        movimientos.append(schemas.MovimientoCuenta(
+            tipo="pago_tarjeta",
+            monto=-Decimal(p.monto),
+            fecha=p.fecha_pago,
+            descripcion=f"Pago a {tarjeta.nombre if tarjeta else 'tarjeta'}",
+            referencia_id=p.id,
+            referencia_nombre=tarjeta.nombre if tarjeta else None,
+        ))
+
+    # 3. Movimientos de potes asociados a esta cuenta
+    potes = (
+        db.query(models.Pote)
+        .filter(models.Pote.cuenta_id == cuenta_id)
+        .all()
+    )
+    pote_ids = [p.id for p in potes]
+    if pote_ids:
+        movs_pote = (
+            db.query(models.MovimientoPote)
+            .filter(models.MovimientoPote.pote_id.in_(pote_ids))
+            .all()
+        )
+        for mp in movs_pote:
+            pote = next((p for p in potes if p.id == mp.pote_id), None)
+            # Depósito al pote = RESTA a la cuenta (dinero sale)
+            # Retiro del pote = SUMA a la cuenta (dinero entra)
+            movimientos.append(schemas.MovimientoCuenta(
+                tipo="deposito_pote" if Decimal(mp.monto) > 0 else "retiro_pote",
+                monto=-Decimal(mp.monto),
+                fecha=mp.fecha,
+                descripcion=f"{'Depósito a' if Decimal(mp.monto) > 0 else 'Retiro de'} {pote.emoji} {pote.nombre}" if pote else "Movimiento de pote",
+                referencia_id=mp.pote_id,
+                referencia_nombre=pote.nombre if pote else None,
+            ))
+
+    movimientos.sort(key=lambda m: m.fecha, reverse=True)
+    return movimientos
+
 # ---------- Pagos de tarjetas ----------
 
 def _calcular_estado_pago(db: Session, tarjeta: models.Tarjeta, anio: int, mes: int):

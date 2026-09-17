@@ -1,9 +1,10 @@
 import { useEffect, useState } from "react";
-import { Target, Plus, MoreVertical, Pencil, Trash2, ArrowDownCircle, ArrowUpCircle, History } from "lucide-react";
+import { Target, Plus, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
 import { api } from "./api.js";
 import PoteModal from "./PoteModal.jsx";
 import MovimientoPoteModal from "./MovimientoPoteModal.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
+import VerMovimientosPoteModal from "./VerMovimientosPoteModal.jsx";
 
 export default function PotesScreen() {
   const [potes, setPotes] = useState([]);
@@ -14,7 +15,7 @@ export default function PotesScreen() {
   const [poteEditando, setPoteEditando] = useState(null);
   const [poteAEliminar, setPoteAEliminar] = useState(null);
   const [movimiento, setMovimiento] = useState(null); // {pote, tipo}
-  const [menuAbiertoId, setMenuAbiertoId] = useState(null);
+  const [verMovimientos, setVerMovimientos] = useState(null);
 
   async function cargar() {
     setCargando(true);
@@ -34,14 +35,6 @@ export default function PotesScreen() {
 
   useEffect(() => {
     cargar();
-  }, []);
-
-  useEffect(() => {
-    function cerrarSiEsFuera(e) {
-      if (!e.target.closest(".acciones-menu-pote")) setMenuAbiertoId(null);
-    }
-    document.addEventListener("click", cerrarSiEsFuera);
-    return () => document.removeEventListener("click", cerrarSiEsFuera);
   }, []);
 
   async function confirmarEliminar() {
@@ -114,44 +107,11 @@ export default function PotesScreen() {
             return (
               <div
                 key={p.id}
-                className="bg-white rounded-2xl p-4 shadow-sm flex flex-col relative"
+                onClick={() => setVerMovimientos(p)}
+                className="bg-white rounded-2xl p-4 shadow-sm flex flex-col relative cursor-pointer active:scale-[0.98] transition-transform"
               >
                 <div className="flex items-start justify-between mb-2">
                   <span className="text-3xl">{p.emoji}</span>
-                  <div className="relative acciones-menu-pote">
-                    <button
-                      className="w-6 h-6 rounded-full flex items-center justify-center text-gray-400 hover:bg-gray-100"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setMenuAbiertoId(menuAbiertoId === p.id ? null : p.id);
-                      }}
-                    >
-                      <MoreVertical size={14} />
-                    </button>
-                    {menuAbiertoId === p.id && (
-                      <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg min-w-[140px] overflow-hidden z-10">
-                        <button
-                          className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-sm text-carbon hover:bg-gray-50"
-                          onClick={() => {
-                            setPoteEditando(p);
-                            setModalAbierto(true);
-                            setMenuAbiertoId(null);
-                          }}
-                        >
-                          <Pencil size={14} /> Editar
-                        </button>
-                        <button
-                          className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
-                          onClick={() => {
-                            setPoteAEliminar(p);
-                            setMenuAbiertoId(null);
-                          }}
-                        >
-                          <Trash2 size={14} /> Eliminar
-                        </button>
-                      </div>
-                    )}
-                  </div>
                 </div>
 
                 <p className="font-semibold text-carbon text-sm mb-1 truncate">
@@ -172,13 +132,19 @@ export default function PotesScreen() {
 
                 <div className="flex gap-1.5 mt-auto">
                   <button
-                    onClick={() => setMovimiento({ pote: p, tipo: "deposito" })}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMovimiento({ pote: p, tipo: "deposito" });
+                    }}
                     className="flex-1 py-2 rounded-lg bg-emerald-50 text-emerald-600 text-xs font-semibold flex items-center justify-center gap-1"
                   >
                     <ArrowDownCircle size={12} /> Meter
                   </button>
                   <button
-                    onClick={() => setMovimiento({ pote: p, tipo: "retiro" })}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMovimiento({ pote: p, tipo: "retiro" });
+                    }}
                     disabled={Number(p.saldo) <= 0}
                     className="flex-1 py-2 rounded-lg bg-coral/10 text-coral text-xs font-semibold flex items-center justify-center gap-1 disabled:opacity-40"
                   >
@@ -232,6 +198,34 @@ export default function PotesScreen() {
           textoConfirmar="Sí, eliminar"
           onConfirmar={confirmarEliminar}
           onCancelar={() => setPoteAEliminar(null)}
+        />
+      )}
+
+      {verMovimientos && (
+        <VerMovimientosPoteModal
+          pote={verMovimientos}
+          onCerrar={() => setVerMovimientos(null)}
+          onMeter={() => {
+            const p = verMovimientos;
+            setVerMovimientos(null);
+            setMovimiento({ pote: p, tipo: "deposito" });
+          }}
+          onSacar={() => {
+            const p = verMovimientos;
+            setVerMovimientos(null);
+            setMovimiento({ pote: p, tipo: "retiro" });
+          }}
+          onEditar={() => {
+            const p = verMovimientos;
+            setVerMovimientos(null);
+            setPoteEditando(p);
+            setModalAbierto(true);
+          }}
+          onEliminar={() => {
+            const p = verMovimientos;
+            setVerMovimientos(null);
+            setPoteAEliminar(p);
+          }}
         />
       )}
     </div>

@@ -568,3 +568,11 @@ class SolicitarReset(BaseModel):
 class ResetPassword(BaseModel):
     token: str = Field(min_length=10, max_length=100)
     password_nueva: str = Field(min_length=6, max_length=72)
+
+class MovimientoCuenta(BaseModel):
+    tipo: str  # "ingreso" | "pago_tarjeta" | "deposito_pote" | "retiro_pote"
+    monto: Decimal  # positivo = entrada, negativo = salida
+    fecha: date
+    descripcion: str | None = None
+    referencia_id: int | None = None
+    referencia_nombre: str | None = None
