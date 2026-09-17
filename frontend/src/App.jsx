@@ -21,6 +21,7 @@ import TarjetaDetalleScreen from "./TarjetaDetalleScreen.jsx";
 import PotesScreen from "./PotesScreen.jsx";
 import SolicitarResetScreen from "./SolicitarResetScreen.jsx";
 import ResetPasswordScreen from "./ResetPasswordScreen.jsx";
+import TarjetasScreen from "./TarjetasScreen.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -84,6 +85,7 @@ const [tokenReset] = useState(() => leerTokenResetDeUrl());
   const [panelTarjetasAbierto, setPanelTarjetasAbierto] = useState(false);
   const [vista, setVista] = useState("home");
   const [modalTarjetas, setModalTarjetas] = useState(false);
+  const [vistaTarjetas, setVistaTarjetas] = useState(false);
 
   const [tarjetas, setTarjetas] = useState([]);
   const [gastos, setGastos] = useState([]);
@@ -319,6 +321,30 @@ const [tokenReset] = useState(() => leerTokenResetDeUrl());
           setVistaAuth("solicitar-reset");
         }}
       />
+    );
+  }
+
+  if (vistaTarjetas) {
+    return (
+      <div className="min-h-screen bg-cream pb-24">
+        <TarjetasScreen
+          tarjetas={resumen?.tarjetas}
+          onVolver={() => setVistaTarjetas(false)}
+          onAgregar={() => setModalTarjetas(true)}
+          onVerTarjeta={(t) => {
+            setVistaTarjetas(false);
+            setTarjetaDetalle(t);
+          }}
+        />
+        <BottomNav
+          vista={vista}
+          onCambiar={(nuevaVista) => {
+            setVistaTarjetas(false);
+            setVista(nuevaVista);
+            setTarjetaDetalle(null);
+          }}
+        />
+      </div>
     );
   }
 
