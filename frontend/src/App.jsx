@@ -335,6 +335,7 @@ const [tokenReset] = useState(() => leerTokenResetDeUrl());
             onIrACuentas={() => setVista("cuentas")}
             onPagarTarjeta={(t) => setTarjetaAPagar(t)}
             onVerTarjeta={(t) => setTarjetaDetalle(t)}
+            onVerTodasTarjetas={() => setVistaTarjetas(true)}
             onAgregarTarjeta={() => setModalTarjetas(true)}
           />
         )}
