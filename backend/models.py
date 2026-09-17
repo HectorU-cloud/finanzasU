@@ -176,3 +176,16 @@ class MovimientoPote(Base):
     creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     pote = relationship("Pote", back_populates="movimientos")
+
+class PasswordReset(Base):
+    __tablename__ = "password_resets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    token = Column(String(100), unique=True, nullable=False, index=True)
+    expira_en = Column(DateTime, nullable=False)
+    usado = Column(Integer, default=0)  # 0=no usado, 1=usado
+    creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    usuario = relationship("Usuario")
+

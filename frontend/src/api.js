@@ -80,6 +80,16 @@ export const api = {
     request("/pagos-tarjeta", { method: "POST", body: JSON.stringify(datos) }),
   getPagosTarjeta: () => request("/pagos-tarjeta"),
   eliminarPagoTarjeta: (id) => request(`/pagos-tarjeta/${id}`, { method: "DELETE" }),
+
+  // Recuperar contraseña
+  solicitarReset: (email) =>
+    request("/auth/solicitar-reset", { method: "POST", body: JSON.stringify({ email }) }),
+  resetPassword: (token, passwordNueva) =>
+    request("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, password_nueva: passwordNueva }),
+    }),
+
   // Cuentas
   crearIngreso: (ingreso) =>
     request("/ingresos", { method: "POST", body: JSON.stringify(ingreso) }),

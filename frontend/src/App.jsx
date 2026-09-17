@@ -19,6 +19,8 @@ import PagarTarjetaModal from "./PagarTarjetaModal.jsx";
 import HistorialPagosScreen from "./HistorialPagosScreen.jsx";
 import TarjetaDetalleScreen from "./TarjetaDetalleScreen.jsx";
 import PotesScreen from "./PotesScreen.jsx";
+import SolicitarResetScreen from "./SolicitarResetScreen.jsx";
+import ResetPasswordScreen from "./ResetPasswordScreen.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -40,12 +42,14 @@ function leerUltima(key, fallback = "") {
   }
 }
 
-function guardarUltima(key, valor) {
-  try {
-    if (valor) localStorage.setItem(key, valor);
-  } catch {
-    // localStorage puede fallar en navegación privada; no es crítico
+function leerTokenResetDeUrl() {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get("token");
+  if (window.location.pathname === "/reset" && token) {
+    return token;
   }
+  return null;
 }
 
 export default function App() {
@@ -61,6 +65,12 @@ export default function App() {
     }
     return "light";
   });
+
+  const [vistaAuth, setVistaAuth] = useState(() => {
+  if (leerTokenResetDeUrl()) return "reset-password";
+  return "login";
+});
+const [tokenReset] = useState(() => leerTokenResetDeUrl());
 
   const hoy = new Date();
   const [periodo, setPeriodo] = useState({ anio: hoy.getFullYear(), mes: hoy.getMonth() + 1 });
@@ -277,8 +287,39 @@ export default function App() {
     );
   }
 
+    if (vistaAuth === "reset-password" && tokenReset) {
+    return (
+      <ResetPasswordScreen
+        token={tokenReset}
+        onCompletado={() => {
+          window.history.replaceState({}, "", "/");
+          setVistaAuth("login");
+        }}
+      />
+    );
+  }
+
+  if (vistaAuth === "solicitar-reset") {
+    return (
+      <SolicitarResetScreen
+        onVolver={() => {
+          window.history.replaceState({}, "", "/");
+          setVistaAuth("login");
+        }}
+      />
+    );
+  }
+
   if (!usuario) {
-    return <AuthScreen onAutenticado={setUsuario} />;
+    return (
+      <AuthScreen
+        onAutenticado={setUsuario}
+        onSolicitarReset={() => {
+          window.history.replaceState({}, "", "/");
+          setVistaAuth("solicitar-reset");
+        }}
+      />
+    );
   }
 
   const VISTAS_CON_NAV = ["home", "cuentas", "ingresos", "potes", "pagos", "grupos", "perfil"];

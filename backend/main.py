@@ -2,7 +2,9 @@ import calendar
 import csv
 import io
 import os
-from datetime import date
+import secrets as secrets_module
+import resend
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 from fastapi import FastAPI, Depends, HTTPException, Request
@@ -17,8 +19,63 @@ import models
 import schemas
 from database import get_db
 
+
 LIMITE_MENSUAL = Decimal("350")
 
+# --- Configuración de Resend (email) ---
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+FROM_EMAIL = os.getenv("FROM_EMAIL", "onboarding@resend.dev")
+
+if RESEND_API_KEY:
+    resend.api_key = RESEND_API_KEY
+
+
+def enviar_email_reset(destinatario: str, nombre: str, token: str) -> bool:
+    """Envía el email de recuperación. Devuelve True si se envió."""
+    if not RESEND_API_KEY:
+        print("⚠️ RESEND_API_KEY no configurada. No se envía email.")
+        return False
+
+    enlace = f"{FRONTEND_URL}/reset?token={token}"
+    html = f"""
+    <div style="font-family: sans-serif; max-width: 500px; margin: auto; padding: 20px;">
+      <h2 style="color: #FF4F40;">Recupera tu contraseña</h2>
+      <p>Hola {nombre},</p>
+      <p>Recibimos una solicitud para restablecer tu contraseña en <strong>Control de gastos</strong>.</p>
+      <p>Haz clic en el siguiente botón para crear una nueva contraseña:</p>
+      <p style="text-align: center; margin: 30px 0;">
+        <a href="{enlace}" 
+           style="background: #FF4F40; color: white; padding: 12px 24px; 
+                  text-decoration: none; border-radius: 8px; font-weight: bold;">
+          Restablecer contraseña
+        </a>
+      </p>
+      <p style="font-size: 13px; color: #666;">
+        O copia este enlace en tu navegador:<br>
+        <a href="{enlace}">{enlace}</a>
+      </p>
+      <p style="font-size: 13px; color: #666;">
+        Este enlace expira en 1 hora. Si no solicitaste esto, ignora este correo.
+      </p>
+      <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+      <p style="font-size: 11px; color: #999; text-align: center;">
+        Control de gastos · Tus finanzas, sin depender de nadie más.
+      </p>
+    </div>
+    """
+
+    try:
+        resend.Emails.send({
+            "from": FROM_EMAIL,
+            "to": [destinatario],
+            "subject": "Recupera tu contraseña · Control de gastos",
+            "html": html,
+        })
+        return True
+    except Exception as e:
+        print(f"✗ Error enviando email: {e}")
+        return False
 
 app = FastAPI(title="API Finanzas Personales")
 
@@ -120,6 +177,79 @@ def cambiar_password(
         raise HTTPException(status_code=400, detail="La nueva contraseña debe ser diferente")
     usuario.password_hash = auth.hash_password(datos.password_nueva)
     db.commit()
+
+@app.post("/api/auth/solicitar-reset")
+def solicitar_reset(
+    datos: schemas.SolicitarReset,
+    db: Session = Depends(get_db),
+):
+    email = datos.email.lower()
+    usuario = db.query(models.Usuario).filter(models.Usuario.email == email).first()
+
+    if not usuario:
+        return {"ok": True, "mensaje": "Si el correo existe, te enviamos un enlace."}
+
+    db.query(models.PasswordReset).filter(
+        models.PasswordReset.usuario_id == usuario.id,
+        models.PasswordReset.usado == 0,
+    ).update({models.PasswordReset.usado: 1})
+
+    token = secrets_module.token_urlsafe(32)
+    expira = datetime.now(timezone.utc) + timedelta(hours=1)
+
+    nuevo = models.PasswordReset(
+        usuario_id=usuario.id,
+        token=token,
+        expira_en=expira,
+        usado=0,
+    )
+    db.add(nuevo)
+    db.commit()
+
+    enviado = enviar_email_reset(usuario.email, usuario.nombre, token)
+
+    return {
+        "ok": True,
+        "mensaje": "Si el correo existe, te enviamos un enlace.",
+        "email_enviado": enviado,
+    }
+
+
+@app.post("/api/auth/reset-password", status_code=204)
+def reset_password(
+    datos: schemas.ResetPassword,
+    db: Session = Depends(get_db),
+):
+    reset = (
+        db.query(models.PasswordReset)
+        .filter(models.PasswordReset.token == datos.token)
+        .filter(models.PasswordReset.usado == 0)
+        .first()
+    )
+    if not reset:
+        raise HTTPException(
+            status_code=400,
+            detail="Enlace inválido o ya utilizado. Solicita uno nuevo."
+        )
+
+    ahora = datetime.now(timezone.utc)
+    expira = reset.expira_en
+    if expira.tzinfo is None:
+        expira = expira.replace(tzinfo=timezone.utc)
+    if expira < ahora:
+        raise HTTPException(
+            status_code=400,
+            detail="El enlace expiró. Solicita uno nuevo."
+        )
+
+    usuario = db.query(models.Usuario).get(reset.usuario_id)
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    usuario.password_hash = auth.hash_password(datos.password_nueva)
+    reset.usado = 1
+    db.commit()
+
 
 
 @app.get("/api/auth/yo", response_model=schemas.UsuarioOut)
@@ -1161,8 +1291,6 @@ def resumen_mensual(
 
 # ---------- Grupos ----------
 
-import secrets
-
 
 @app.post("/api/grupos", response_model=schemas.GrupoOut)
 def crear_grupo(
@@ -1170,9 +1298,9 @@ def crear_grupo(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
-    codigo = secrets.token_urlsafe(6)
+    codigo = secrets_module.token_urlsafe(6)
     while db.query(models.Grupo).filter(models.Grupo.codigo_invitacion == codigo).first():
-        codigo = secrets.token_urlsafe(6)
+        codigo = secrets_module.token_urlsafe(6)
 
     nuevo_grupo = models.Grupo(
         nombre=datos.nombre,

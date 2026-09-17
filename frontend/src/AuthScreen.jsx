@@ -2,7 +2,7 @@ import { useState } from "react";
 import { PiggyBank } from "lucide-react";
 import { api, setAuthToken } from "./api.js";
 
-export default function AuthScreen({ onAutenticado }) {
+export default function AuthScreen({ onAutenticado, onSolicitarReset }) {
   const [modo, setModo] = useState("login");
   const [form, setForm] = useState({ nombre: "", email: "", password: "" });
   const [confirmar, setConfirmar] = useState("");
@@ -160,6 +160,18 @@ export default function AuthScreen({ onAutenticado }) {
             >
               {cargando ? "Un momento..." : modo === "registro" ? "Crear cuenta" : "Entrar"}
             </button>
+
+            {modo === "login" && onSolicitarReset && (
+              <div className="text-center">
+                <button
+                  type="button"
+                  onClick={onSolicitarReset}
+                  className="text-xs text-gray-500 hover:text-coral font-medium transition-colors"
+                >
+                  ¿Olvidaste tu contraseña?
+                </button>
+              </div>
+            )}
           </form>
         </div>
 

@@ -560,3 +560,11 @@ class MovimientoPoteOut(BaseModel):
 
 class EmojisPoteDisponibles(BaseModel):
     emojis: list[str]
+
+class SolicitarReset(BaseModel):
+    email: EmailStr
+
+
+class ResetPassword(BaseModel):
+    token: str = Field(min_length=10, max_length=100)
+    password_nueva: str = Field(min_length=6, max_length=72)
