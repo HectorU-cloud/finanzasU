@@ -86,6 +86,7 @@ const [tokenReset] = useState(() => leerTokenResetDeUrl());
   const [vista, setVista] = useState("home");
   const [modalTarjetas, setModalTarjetas] = useState(false);
   const [vistaTarjetas, setVistaTarjetas] = useState(false);
+  const [origenDetalle, setOrigenDetalle] = useState(null); // "tarjetas" | null
 
   const [tarjetas, setTarjetas] = useState([]);
   const [gastos, setGastos] = useState([]);
@@ -333,7 +334,9 @@ const [tokenReset] = useState(() => leerTokenResetDeUrl());
           onAgregar={() => setModalTarjetas(true)}
           onVerTarjeta={(t) => {
             setVistaTarjetas(false);
+            setOrigenDetalle("tarjetas");
             setTarjetaDetalle(t);
+          }}
           }}
         />
 
@@ -391,7 +394,7 @@ const [tokenReset] = useState(() => leerTokenResetDeUrl());
             tarjetas={resumen?.tarjetas}
             onIrACuentas={() => setVista("cuentas")}
             onPagarTarjeta={(t) => setTarjetaAPagar(t)}
-            onVerTarjeta={(t) => setTarjetaDetalle(t)}
+            onVerTarjeta={(t) => {setOrigenDetalle(null);setTarjetaDetalle(t);}}
             onVerTodasTarjetas={() => setVistaTarjetas(true)}
             onAgregarTarjeta={() => setModalTarjetas(true)}
           />
@@ -469,7 +472,13 @@ const [tokenReset] = useState(() => leerTokenResetDeUrl());
         {tarjetaDetalle && (
           <TarjetaDetalleScreen
             tarjeta={tarjetaDetalle}
-            onVolver={() => setTarjetaDetalle(null)}
+            onVolver={() => {
+              setTarjetaDetalle(null);
+              if (origenDetalle === "tarjetas") {
+                setOrigenDetalle(null);
+                setVistaTarjetas(true);
+              }
+            }}
             onCambio={() => cargarDatos()}
           />
         )}
