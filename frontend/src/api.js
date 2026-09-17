@@ -80,6 +80,16 @@ export const api = {
     request("/pagos-tarjeta", { method: "POST", body: JSON.stringify(datos) }),
   getPagosTarjeta: () => request("/pagos-tarjeta"),
   eliminarPagoTarjeta: (id) => request(`/pagos-tarjeta/${id}`, { method: "DELETE" }),
+
+  // Recuperar contraseña
+  solicitarReset: (email) =>
+    request("/auth/solicitar-reset", { method: "POST", body: JSON.stringify({ email }) }),
+  resetPassword: (token, passwordNueva) =>
+    request("/auth/reset-password", {
+      method: "POST",
+      body: JSON.stringify({ token, password_nueva: passwordNueva }),
+    }),
+
   // Cuentas
   crearIngreso: (ingreso) =>
     request("/ingresos", { method: "POST", body: JSON.stringify(ingreso) }),
@@ -90,12 +100,27 @@ export const api = {
     request(`/ingresos/resumen?anio=${anio}&mes=${mes}`),
   getCategoriasIngreso: () => request("/categorias-ingreso"),
   getCuentas: () => request("/cuentas"),
+  getMovimientosCuenta: (cuentaId) => request(`/cuentas/${cuentaId}/movimientos`),
   crearCuenta: (cuenta) =>
     request("/cuentas", { method: "POST", body: JSON.stringify(cuenta) }),
   actualizarCuenta: (id, cambios) =>
     request(`/cuentas/${id}`, { method: "PUT", body: JSON.stringify(cambios) }),
   eliminarCuenta: (id) => request(`/cuentas/${id}`, { method: "DELETE" }),
   getResumenTotalCuentas: () => request("/cuentas/resumen-total"),
+
+  // Pots (metas de ahorro)
+  getPotes: () => request("/potes"),
+  crearPote: (pote) =>
+    request("/potes", { method: "POST", body: JSON.stringify(pote) }),
+  actualizarPote: (id, cambios) =>
+    request(`/potes/${id}`, { method: "PUT", body: JSON.stringify(cambios) }),
+  eliminarPote: (id) => request(`/potes/${id}`, { method: "DELETE" }),
+  depositarPote: (id, datos) =>
+    request(`/potes/${id}/depositar`, { method: "POST", body: JSON.stringify(datos) }),
+  retirarPote: (id, datos) =>
+    request(`/potes/${id}/retirar`, { method: "POST", body: JSON.stringify(datos) }),
+  getMovimientosPote: (id) => request(`/potes/${id}/movimientos`),
+  getEmojisPote: () => request("/emojis-pote"),
 
   getTarjetas: () => request("/tarjetas"),
     getGastos: (anio, mes, categoria = null, tarjetaId = null) => {

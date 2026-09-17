@@ -147,3 +147,45 @@ class PagoTarjeta(Base):
     usuario = relationship("Usuario")
     tarjeta = relationship("Tarjeta")
     cuenta = relationship("Cuenta")
+
+class Pote(Base):
+    __tablename__ = "potes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    cuenta_id = Column(Integer, ForeignKey("cuentas.id"), nullable=False)
+    nombre = Column(String(80), nullable=False)
+    emoji = Column(String(10), nullable=False, default="🏺")
+    meta = Column(Numeric(12, 2), nullable=False)
+    saldo = Column(Numeric(12, 2), nullable=False, default=0)
+    creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    usuario = relationship("Usuario")
+    cuenta = relationship("Cuenta")
+    movimientos = relationship("MovimientoPote", back_populates="pote", cascade="all, delete-orphan")
+
+
+class MovimientoPote(Base):
+    __tablename__ = "movimientos_pote"
+
+    id = Column(Integer, primary_key=True, index=True)
+    pote_id = Column(Integer, ForeignKey("potes.id"), nullable=False)
+    monto = Column(Numeric(12, 2), nullable=False)  # positivo = depósito, negativo = retiro
+    descripcion = Column(String(150), nullable=True)
+    fecha = Column(Date, nullable=False)
+    creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    pote = relationship("Pote", back_populates="movimientos")
+
+class PasswordReset(Base):
+    __tablename__ = "password_resets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    token = Column(String(100), unique=True, nullable=False, index=True)
+    expira_en = Column(DateTime, nullable=False)
+    usado = Column(Integer, default=0)  # 0=no usado, 1=usado
+    creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    usuario = relationship("Usuario")
+

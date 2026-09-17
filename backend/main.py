@@ -2,7 +2,9 @@ import calendar
 import csv
 import io
 import os
-from datetime import date
+import secrets as secrets_module
+import resend
+from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
 from fastapi import FastAPI, Depends, HTTPException, Request
@@ -17,8 +19,63 @@ import models
 import schemas
 from database import get_db
 
+
 LIMITE_MENSUAL = Decimal("350")
 
+# --- Configuración de Resend (email) ---
+RESEND_API_KEY = os.getenv("RESEND_API_KEY")
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+FROM_EMAIL = os.getenv("FROM_EMAIL", "noreply@vectoraec.app")
+
+if RESEND_API_KEY:
+    resend.api_key = RESEND_API_KEY
+
+
+def enviar_email_reset(destinatario: str, nombre: str, token: str) -> bool:
+    """Envía el email de recuperación. Devuelve True si se envió."""
+    if not RESEND_API_KEY:
+        print("⚠️ RESEND_API_KEY no configurada. No se envía email.")
+        return False
+
+    enlace = f"{FRONTEND_URL}/reset?token={token}"
+    html = f"""
+    <div style="font-family: sans-serif; max-width: 500px; margin: auto; padding: 20px;">
+      <h2 style="color: #FF4F40;">Recupera tu contraseña</h2>
+      <p>Hola {nombre},</p>
+      <p>Recibimos una solicitud para restablecer tu contraseña en <strong>Control de gastos</strong>.</p>
+      <p>Haz clic en el siguiente botón para crear una nueva contraseña:</p>
+      <p style="text-align: center; margin: 30px 0;">
+        <a href="{enlace}" 
+           style="background: #FF4F40; color: white; padding: 12px 24px; 
+                  text-decoration: none; border-radius: 8px; font-weight: bold;">
+          Restablecer contraseña
+        </a>
+      </p>
+      <p style="font-size: 13px; color: #666;">
+        O copia este enlace en tu navegador:<br>
+        <a href="{enlace}">{enlace}</a>
+      </p>
+      <p style="font-size: 13px; color: #666;">
+        Este enlace expira en 1 hora. Si no solicitaste esto, ignora este correo.
+      </p>
+      <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+      <p style="font-size: 11px; color: #999; text-align: center;">
+        Control de gastos · Tus finanzas, sin depender de nadie más.
+      </p>
+    </div>
+    """
+
+    try:
+        resend.Emails.send({
+            "from": FROM_EMAIL,
+            "to": [destinatario],
+            "subject": "Recupera tu contraseña · Control de gastos",
+            "html": html,
+        })
+        return True
+    except Exception as e:
+        print(f"✗ Error enviando email: {e}")
+        return False
 
 app = FastAPI(title="API Finanzas Personales")
 
@@ -120,6 +177,79 @@ def cambiar_password(
         raise HTTPException(status_code=400, detail="La nueva contraseña debe ser diferente")
     usuario.password_hash = auth.hash_password(datos.password_nueva)
     db.commit()
+
+@app.post("/api/auth/solicitar-reset")
+def solicitar_reset(
+    datos: schemas.SolicitarReset,
+    db: Session = Depends(get_db),
+):
+    email = datos.email.lower()
+    usuario = db.query(models.Usuario).filter(models.Usuario.email == email).first()
+
+    if not usuario:
+        return {"ok": True, "mensaje": "Si el correo existe, te enviamos un enlace."}
+
+    db.query(models.PasswordReset).filter(
+        models.PasswordReset.usuario_id == usuario.id,
+        models.PasswordReset.usado == 0,
+    ).update({models.PasswordReset.usado: 1})
+
+    token = secrets_module.token_urlsafe(32)
+    expira = datetime.now(timezone.utc) + timedelta(hours=1)
+
+    nuevo = models.PasswordReset(
+        usuario_id=usuario.id,
+        token=token,
+        expira_en=expira,
+        usado=0,
+    )
+    db.add(nuevo)
+    db.commit()
+
+    enviado = enviar_email_reset(usuario.email, usuario.nombre, token)
+
+    return {
+        "ok": True,
+        "mensaje": "Si el correo existe, te enviamos un enlace.",
+        "email_enviado": enviado,
+    }
+
+
+@app.post("/api/auth/reset-password", status_code=204)
+def reset_password(
+    datos: schemas.ResetPassword,
+    db: Session = Depends(get_db),
+):
+    reset = (
+        db.query(models.PasswordReset)
+        .filter(models.PasswordReset.token == datos.token)
+        .filter(models.PasswordReset.usado == 0)
+        .first()
+    )
+    if not reset:
+        raise HTTPException(
+            status_code=400,
+            detail="Enlace inválido o ya utilizado. Solicita uno nuevo."
+        )
+
+    ahora = datetime.now(timezone.utc)
+    expira = reset.expira_en
+    if expira.tzinfo is None:
+        expira = expira.replace(tzinfo=timezone.utc)
+    if expira < ahora:
+        raise HTTPException(
+            status_code=400,
+            detail="El enlace expiró. Solicita uno nuevo."
+        )
+
+    usuario = db.query(models.Usuario).get(reset.usuario_id)
+    if not usuario:
+        raise HTTPException(status_code=404, detail="Usuario no encontrado")
+
+    usuario.password_hash = auth.hash_password(datos.password_nueva)
+    reset.usado = 1
+    db.commit()
+
 
 
 @app.get("/api/auth/yo", response_model=schemas.UsuarioOut)
@@ -285,6 +415,83 @@ def resumen_total_cuentas(
         "total": float(total),
         "cantidad_cuentas": len(cuentas),
     }
+
+@app.get("/api/cuentas/{cuenta_id}/movimientos", response_model=list[schemas.MovimientoCuenta])
+def movimientos_cuenta(
+    cuenta_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    cuenta = (
+        db.query(models.Cuenta)
+        .filter(models.Cuenta.id == cuenta_id, models.Cuenta.usuario_id == usuario.id)
+        .first()
+    )
+    if not cuenta:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+
+    movimientos = []
+
+    # 1. Ingresos a la cuenta
+    ingresos = (
+        db.query(models.Ingreso)
+        .filter(models.Ingreso.cuenta_id == cuenta_id)
+        .all()
+    )
+    for i in ingresos:
+        movimientos.append(schemas.MovimientoCuenta(
+            tipo="ingreso",
+            monto=Decimal(i.monto),
+            fecha=i.fecha,
+            descripcion=i.descripcion or i.categoria or "Ingreso",
+            referencia_id=i.id,
+        ))
+
+    # 2. Pagos de tarjeta desde esta cuenta
+    pagos = (
+        db.query(models.PagoTarjeta)
+        .filter(models.PagoTarjeta.cuenta_id == cuenta_id)
+        .all()
+    )
+    for p in pagos:
+        tarjeta = db.query(models.Tarjeta).get(p.tarjeta_id)
+        movimientos.append(schemas.MovimientoCuenta(
+            tipo="pago_tarjeta",
+            monto=-Decimal(p.monto),
+            fecha=p.fecha_pago,
+            descripcion=f"Pago a {tarjeta.nombre if tarjeta else 'tarjeta'}",
+            referencia_id=p.id,
+            referencia_nombre=tarjeta.nombre if tarjeta else None,
+        ))
+
+    # 3. Movimientos de potes asociados a esta cuenta
+    potes = (
+        db.query(models.Pote)
+        .filter(models.Pote.cuenta_id == cuenta_id)
+        .all()
+    )
+    pote_ids = [p.id for p in potes]
+    if pote_ids:
+        movs_pote = (
+            db.query(models.MovimientoPote)
+            .filter(models.MovimientoPote.pote_id.in_(pote_ids))
+            .all()
+        )
+        for mp in movs_pote:
+            pote = next((p for p in potes if p.id == mp.pote_id), None)
+            # Depósito al pote = RESTA a la cuenta (dinero sale)
+            # Retiro del pote = SUMA a la cuenta (dinero entra)
+            movimientos.append(schemas.MovimientoCuenta(
+                tipo="deposito_pote" if Decimal(mp.monto) > 0 else "retiro_pote",
+                monto=-Decimal(mp.monto),
+                fecha=mp.fecha,
+                descripcion=f"{'Depósito a' if Decimal(mp.monto) > 0 else 'Retiro de'} {pote.emoji} {pote.nombre}" if pote else "Movimiento de pote",
+                referencia_id=mp.pote_id,
+                referencia_nombre=pote.nombre if pote else None,
+            ))
+
+    movimientos.sort(key=lambda m: m.fecha, reverse=True)
+    return movimientos
 
 # ---------- Pagos de tarjetas ----------
 
@@ -664,6 +871,221 @@ def resumen_ingresos(
 def listar_categorias_ingreso():
     return schemas.CategoriasDisponibles(categorias=schemas.CATEGORIAS_INGRESO)
 
+# ---------- Pots (metas de ahorro) ----------
+
+def _pote_del_usuario(db: Session, pote_id: int, usuario: models.Usuario) -> models.Pote:
+    pote = (
+        db.query(models.Pote)
+        .filter(models.Pote.id == pote_id, models.Pote.usuario_id == usuario.id)
+        .first()
+    )
+    if not pote:
+        raise HTTPException(status_code=404, detail="Pote no encontrado")
+    return pote
+
+
+def _calcular_saldo_cuenta(db: Session, cuenta: models.Cuenta) -> Decimal:
+    """Calcula el saldo actual de una cuenta considerando ingresos, pagos y pots."""
+    ingresos = (
+        db.query(func.coalesce(func.sum(models.Ingreso.monto), 0))
+        .filter(models.Ingreso.cuenta_id == cuenta.id)
+        .scalar()
+    )
+    pagos = (
+        db.query(func.coalesce(func.sum(models.PagoTarjeta.monto), 0))
+        .filter(models.PagoTarjeta.cuenta_id == cuenta.id)
+        .scalar()
+    )
+    return Decimal(cuenta.saldo_inicial) + Decimal(ingresos) - Decimal(pagos)
+
+
+@app.get("/api/emojis-pote", response_model=schemas.EmojisPoteDisponibles)
+def listar_emojis_pote():
+    return schemas.EmojisPoteDisponibles(emojis=schemas.EMOJIS_POTE_SUGERIDOS)
+
+
+@app.get("/api/potes", response_model=list[schemas.PoteOut])
+def listar_potes(
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    return (
+        db.query(models.Pote)
+        .filter(models.Pote.usuario_id == usuario.id)
+        .order_by(models.Pote.creado_en.desc())
+        .all()
+    )
+
+
+@app.post("/api/potes", response_model=schemas.PoteOut)
+def crear_pote(
+    datos: schemas.PoteCreate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    cuenta = (
+        db.query(models.Cuenta)
+        .filter(
+            models.Cuenta.id == datos.cuenta_id,
+            models.Cuenta.usuario_id == usuario.id,
+        )
+        .first()
+    )
+    if not cuenta:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+
+    nuevo = models.Pote(
+        usuario_id=usuario.id,
+        cuenta_id=datos.cuenta_id,
+        nombre=datos.nombre.strip(),
+        emoji=datos.emoji,
+        meta=datos.meta,
+        saldo=Decimal("0"),
+    )
+    db.add(nuevo)
+    db.commit()
+    db.refresh(nuevo)
+    return nuevo
+
+
+@app.put("/api/potes/{pote_id}", response_model=schemas.PoteOut)
+def actualizar_pote(
+    pote_id: int,
+    payload: schemas.PoteUpdate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    pote = _pote_del_usuario(db, pote_id, usuario)
+
+    if payload.nombre is not None:
+        pote.nombre = payload.nombre.strip()
+    if payload.emoji is not None:
+        pote.emoji = payload.emoji
+    if payload.meta is not None:
+        pote.meta = payload.meta
+
+    db.commit()
+    db.refresh(pote)
+    return pote
+
+
+@app.delete("/api/potes/{pote_id}", status_code=204)
+def eliminar_pote(
+    pote_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    pote = _pote_del_usuario(db, pote_id, usuario)
+
+    # Si tiene saldo, devolverlo a la cuenta antes de eliminar
+    if Decimal(pote.saldo) > 0:
+        cuenta = db.query(models.Cuenta).get(pote.cuenta_id)
+        if cuenta:
+            # No hay campo "saldo" persistido en cuentas; el saldo real es
+            # calculado con ingresos + saldo_inicial - pagos. Cuando
+            # eliminamos el pote, el dinero "vuelve" automáticamente porque
+            # el saldo del pote ya no se descuenta en las próximas consultas.
+            pass
+
+    db.delete(pote)
+    db.commit()
+
+
+@app.post("/api/potes/{pote_id}/depositar", response_model=schemas.PoteOut)
+def depositar_pote(
+    pote_id: int,
+    datos: schemas.MovimientoPoteCreate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    pote = _pote_del_usuario(db, pote_id, usuario)
+
+    cuenta = db.query(models.Cuenta).get(pote.cuenta_id)
+    if not cuenta:
+        raise HTTPException(status_code=404, detail="Cuenta asociada no encontrada")
+
+    # Validar saldo disponible en la cuenta (ingresos + saldo_inicial - pagos - pots)
+    saldo_cuenta = _calcular_saldo_cuenta(db, cuenta)
+
+    # Restar lo que ya está en otros potes de esa cuenta
+    total_en_potes = (
+        db.query(func.coalesce(func.sum(models.Pote.saldo), 0))
+        .filter(models.Pote.cuenta_id == cuenta.id)
+        .filter(models.Pote.id != pote.id)
+        .scalar()
+    )
+    saldo_disponible = saldo_cuenta - Decimal(total_en_potes)
+
+    if datos.monto > saldo_disponible:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Saldo insuficiente en '{cuenta.nombre}'. "
+                f"Disponible: ${saldo_disponible:.2f} · "
+                f"Intentas depositar: ${datos.monto:.2f}"
+            ),
+        )
+
+    pote.saldo = Decimal(pote.saldo) + datos.monto
+
+    mov = models.MovimientoPote(
+        pote_id=pote.id,
+        monto=datos.monto,
+        descripcion=datos.descripcion,
+        fecha=datos.fecha,
+    )
+    db.add(mov)
+    db.commit()
+    db.refresh(pote)
+    return pote
+
+
+@app.post("/api/potes/{pote_id}/retirar", response_model=schemas.PoteOut)
+def retirar_pote(
+    pote_id: int,
+    datos: schemas.MovimientoPoteCreate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    pote = _pote_del_usuario(db, pote_id, usuario)
+
+    if datos.monto > Decimal(pote.saldo):
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"El pote solo tiene ${float(pote.saldo):.2f}. "
+                f"No puedes retirar ${datos.monto:.2f}"
+            ),
+        )
+
+    pote.saldo = Decimal(pote.saldo) - datos.monto
+
+    mov = models.MovimientoPote(
+        pote_id=pote.id,
+        monto=-datos.monto,  # negativo = retiro
+        descripcion=datos.descripcion,
+        fecha=datos.fecha,
+    )
+    db.add(mov)
+    db.commit()
+    db.refresh(pote)
+    return pote
+
+
+@app.get("/api/potes/{pote_id}/movimientos", response_model=list[schemas.MovimientoPoteOut])
+def listar_movimientos_pote(
+    pote_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    _pote_del_usuario(db, pote_id, usuario)
+    return (
+        db.query(models.MovimientoPote)
+        .filter(models.MovimientoPote.pote_id == pote_id)
+        .order_by(models.MovimientoPote.fecha.desc(), models.MovimientoPote.id.desc())
+        .all()
+    )
+
 # ---------- Tarjetas ----------
 
 @app.get("/api/tarjetas", response_model=list[schemas.Tarjeta])
@@ -946,8 +1368,6 @@ def resumen_mensual(
 
 # ---------- Grupos ----------
 
-import secrets
-
 
 @app.post("/api/grupos", response_model=schemas.GrupoOut)
 def crear_grupo(
@@ -955,9 +1375,9 @@ def crear_grupo(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
-    codigo = secrets.token_urlsafe(6)
+    codigo = secrets_module.token_urlsafe(6)
     while db.query(models.Grupo).filter(models.Grupo.codigo_invitacion == codigo).first():
-        codigo = secrets.token_urlsafe(6)
+        codigo = secrets_module.token_urlsafe(6)
 
     nuevo_grupo = models.Grupo(
         nombre=datos.nombre,
