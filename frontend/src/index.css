@@ -1770,3 +1770,12 @@ button,
   -webkit-user-select: none;
   -webkit-touch-callout: none;
 }
+
+/* Ocultar barra de scroll en el carrusel horizontal */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

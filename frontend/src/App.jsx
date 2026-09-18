@@ -339,6 +339,7 @@ export default function App() {
           tarjetas={resumen?.tarjetas}
           onVolver={() => setVistaTarjetas(false)}
           onAgregar={() => setModalTarjetas(true)}
+          onPagar={(t) => setTarjetaAPagar(t)}   // <-- NUEVO
           onVerTarjeta={(t) => {
             setVistaTarjetas(false);
             setOrigenDetalle("tarjetas");
