@@ -22,7 +22,7 @@ function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
-export default function GruposPanel({ usuarioId, tarjetas = [] }) {
+export default function GruposPanel({ usuarioId, tarjetas = [], onVolver }) {
   const [abierto, setAbierto] = useState(false);
   const [grupos, setGrupos] = useState([]);
   const [grupoActivo, setGrupoActivo] = useState(null); // objeto grupo o null
@@ -75,77 +75,85 @@ export default function GruposPanel({ usuarioId, tarjetas = [] }) {
     }
   }
 
-  return (
-    <div className="panel">
-      <div className="panel-header" onClick={() => setAbierto((a) => !a)}>
-        <span className="titulo">
-          <Users size={16} />
-          Grupos compartidos
-        </span>
-        <ChevronDown size={18} className={"chevron" + (abierto ? " abierto" : "")} />
-      </div>
-
-      {abierto && (
-        <div className="panel-body">
-          {grupoActivo ? (
-            <DetalleGrupo
-              grupo={grupoActivo}
-              usuarioId={usuarioId}
-              tarjetas={tarjetas}
-              onVolver={() => setGrupoActivo(null)}
-              onSalioOEliminado={() => {
-                setGrupoActivo(null);
-                cargarGrupos();
-              }}
-              onError={setError}
-            />
-          ) : (
-            <>
-              {grupos.length === 0 ? (
-                <p className="vacio" style={{ padding: "8px 0" }}>
-                  Todavía no perteneces a ningún grupo.
-                </p>
-              ) : (
-                <div className="grupos-lista">
-                  {grupos.map((g) => (
-                    <button key={g.id} className="grupo-item" onClick={() => setGrupoActivo(g)}>
-                      <span>{g.nombre}</span>
-                      <span className="grupo-item-meta">{g.miembros.length} miembro(s)</span>
-                    </button>
-                  ))}
-                </div>
-              )}
-
-              <div className="grupos-formularios">
-                <form onSubmit={crearGrupo} className="agregar-tarjeta">
-                  <input
-                    type="text"
-                    placeholder="Nombre del nuevo grupo"
-                    value={nombreNuevo}
-                    onChange={(e) => setNombreNuevo(e.target.value)}
-                  />
-                  <button type="submit" className="mini-btn" disabled={cargando} title="Crear grupo">
-                    <Plus size={18} />
-                  </button>
-                </form>
-                <form onSubmit={unirseGrupo} className="agregar-tarjeta">
-                  <input
-                    type="text"
-                    placeholder="Código de invitación"
-                    value={codigoUnirse}
-                    onChange={(e) => setCodigoUnirse(e.target.value)}
-                  />
-                  <button type="submit" className="mini-btn" disabled={cargando} title="Unirme">
-                    <Check size={18} />
-                  </button>
-                </form>
-              </div>
-            </>
-          )}
-          {error && <p className="error">{error}</p>}
-        </div>
+    return (
+    <div>
+      {onVolver && (
+        <button onClick={onVolver} className="volver-grupos" style={{ marginBottom: 12 }}>
+          <ArrowLeft size={14} /> Volver a Planificar
+        </button>
       )}
-    </div>
+      
+      <div className="panel">
+        <div className="panel-header" onClick={() => setAbierto((a) => !a)}>
+          <span className="titulo">
+            <Users size={16} />
+            Grupos compartidos
+          </span>
+          <ChevronDown size={18} className={"chevron" + (abierto ? " abierto" : "")} />
+        </div>
+        
+        {abierto && (
+          <div className="panel-body">
+            {grupoActivo ? (
+              <DetalleGrupo
+                grupo={grupoActivo}
+                usuarioId={usuarioId}
+                tarjetas={tarjetas}
+                onVolver={() => setGrupoActivo(null)}
+                onSalioOEliminado={() => {
+                  setGrupoActivo(null);
+                  cargarGrupos();
+                }}
+                onError={setError}
+              />
+            ) : (
+              <>
+                {grupos.length === 0 ? (
+                  <p className="vacio" style={{ padding: "8px 0" }}>
+                    Todavía no perteneces a ningún grupo.
+                  </p>
+                ) : (
+                  <div className="grupos-lista">
+                    {grupos.map((g) => (
+                      <button key={g.id} className="grupo-item" onClick={() => setGrupoActivo(g)}>
+                        <span>{g.nombre}</span>
+                        <span className="grupo-item-meta">{g.miembros.length} miembro(s)</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="grupos-formularios">
+                  <form onSubmit={crearGrupo} className="agregar-tarjeta">
+                    <input
+                      type="text"
+                      placeholder="Nombre del nuevo grupo"
+                      value={nombreNuevo}
+                      onChange={(e) => setNombreNuevo(e.target.value)}
+                    />
+                    <button type="submit" className="mini-btn" disabled={cargando} title="Crear grupo">
+                      <Plus size={18} />
+                    </button>
+                  </form>
+                  <form onSubmit={unirseGrupo} className="agregar-tarjeta">
+                    <input
+                      type="text"
+                      placeholder="Código de invitación"
+                      value={codigoUnirse}
+                      onChange={(e) => setCodigoUnirse(e.target.value)}
+                    />
+                    <button type="submit" className="mini-btn" disabled={cargando} title="Unirme">
+                      <Check size={18} />
+                    </button>
+                  </form>
+                </div>
+              </>
+            )}
+            {error && <p className="error">{error}</p>}
+          </div>
+        )}
+      </div>
+    </div> // <--- ¡Este era el que faltaba!
   );
 }
 

@@ -8,7 +8,7 @@ const NOMBRES_MES = [
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ];
 
-export default function HistorialPagosScreen({ onVolver }) {
+export default function HistorialPagosScreen({ onVolver, ocultarHeader = false }) {
   const [pagos, setPagos] = useState([]);
   const [tarjetas, setTarjetas] = useState([]);
   const [cuentas, setCuentas] = useState([]);
@@ -61,8 +61,9 @@ export default function HistorialPagosScreen({ onVolver }) {
   const totalPagado = pagos.reduce((acc, p) => acc + Number(p.monto || 0), 0);
 
   return (
-    <div className="max-w-md mx-auto px-4 pb-28 pt-6">
-      <header className="flex items-center gap-3 mb-5">
+    <div className={ocultarHeader ? "" : "max-w-md mx-auto px-4 pb-28 pt-6"}>
+      {!ocultarHeader && (
+        <header className="flex items-center gap-3 mb-5">
         {onVolver && (
           <button
             onClick={onVolver}
@@ -78,7 +79,7 @@ export default function HistorialPagosScreen({ onVolver }) {
           </p>
         </div>
       </header>
-
+      )}
       {cargando ? (
         <p className="text-sm text-gray-400 text-center py-8">Cargando...</p>
       ) : pagos.length === 0 ? (

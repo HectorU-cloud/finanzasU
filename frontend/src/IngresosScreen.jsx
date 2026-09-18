@@ -9,7 +9,7 @@ const NOMBRES_MES = [
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ];
 
-export default function IngresosScreen() {
+export default function IngresosScreen({ ocultarHeader = false }) {
   const hoy = new Date();
   const [periodo, setPeriodo] = useState({
     anio: hoy.getFullYear(),
@@ -83,10 +83,11 @@ export default function IngresosScreen() {
   }
 
   return (
-    <div className="max-w-md mx-auto px-4 pb-28 pt-6">
-      <header className="flex items-center justify-between mb-4">
-        <div>
-          <h1 className="text-2xl font-bold text-carbon">Ingresos</h1>
+    <div className={ocultarHeader ? "" : "max-w-md mx-auto px-4 pb-28 pt-6"}>
+      {!ocultarHeader && (
+        <header className="flex items-center justify-between mb-4">
+          <div>
+            <h1 className="text-2xl font-bold text-carbon">Ingresos</h1>
           <p className="text-sm text-gray-500 capitalize">
             {NOMBRES_MES[periodo.mes - 1]} {periodo.anio}
           </p>
@@ -102,7 +103,7 @@ export default function IngresosScreen() {
           <Plus size={20} />
         </button>
       </header>
-
+      )}
       <div className="flex items-center justify-between mb-4">
         <button
           onClick={() => cambiarMes(-1)}

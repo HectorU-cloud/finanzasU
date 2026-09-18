@@ -1,12 +1,12 @@
 import { useEffect, useState } from "react";
-import { Target, Plus, ArrowDownCircle, ArrowUpCircle } from "lucide-react";
+import { Target, Plus, ArrowDownCircle, ArrowUpCircle, ArrowLeft } from "lucide-react";
 import { api } from "./api.js";
 import PoteModal from "./PoteModal.jsx";
 import MovimientoPoteModal from "./MovimientoPoteModal.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
 import VerMovimientosPoteModal from "./VerMovimientosPoteModal.jsx";
 
-export default function PotesScreen() {
+export default function PotesScreen({ onVolver }) {
   const [potes, setPotes] = useState([]);
   const [cuentas, setCuentas] = useState([]);
   const [cargando, setCargando] = useState(true);
@@ -51,14 +51,24 @@ export default function PotesScreen() {
 
   const totalAhorrado = potes.reduce((acc, p) => acc + Number(p.saldo || 0), 0);
 
-  return (
+    return (
     <div className="max-w-md mx-auto px-4 pb-28 pt-6">
       <header className="flex items-center justify-between mb-5">
-        <div>
-          <h1 className="text-2xl font-bold text-carbon">Mis Pot</h1>
-          <p className="text-sm text-gray-500">
-            Ahorrado: ${totalAhorrado.toFixed(2)}
-          </p>
+        <div className="flex items-center gap-3">
+          {onVolver && (
+            <button
+              onClick={() => onVolver()}
+              className="w-9 h-9 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500"
+            >
+              <ArrowLeft size={18} />
+            </button>
+          )}
+          <div>
+            <h1 className="text-2xl font-bold text-carbon">Mis Pot</h1>
+            <p className="text-sm text-gray-500">
+              Ahorrado: ${totalAhorrado.toFixed(2)}
+            </p>
+          </div>
         </div>
         <button
           onClick={() => {
@@ -71,6 +81,7 @@ export default function PotesScreen() {
           <Plus size={20} />
         </button>
       </header>
+      {/* ... aquí sigue todo el resto del contenido que ya tenías ... */}
 
       {cargando ? (
         <p className="text-sm text-gray-400 text-center py-8">Cargando...</p>

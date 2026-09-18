@@ -22,6 +22,7 @@ import PotesScreen from "./PotesScreen.jsx";
 import SolicitarResetScreen from "./SolicitarResetScreen.jsx";
 import ResetPasswordScreen from "./ResetPasswordScreen.jsx";
 import TarjetasScreen from "./TarjetasScreen.jsx";
+import MovimientosScreen from "./MovimientosScreen.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -41,6 +42,12 @@ function leerUltima(key, fallback = "") {
   } catch {
     return fallback;
   }
+}
+
+function guardarUltima(key, valor) {
+  try {
+    if (valor) localStorage.setItem(key, valor);
+  } catch {}
 }
 
 function leerTokenResetDeUrl() {
@@ -68,10 +75,10 @@ export default function App() {
   });
 
   const [vistaAuth, setVistaAuth] = useState(() => {
-  if (leerTokenResetDeUrl()) return "reset-password";
-  return "login";
-});
-const [tokenReset] = useState(() => leerTokenResetDeUrl());
+    if (leerTokenResetDeUrl()) return "reset-password";
+    return "login";
+  });
+  const [tokenReset] = useState(() => leerTokenResetDeUrl());
 
   const hoy = new Date();
   const [periodo, setPeriodo] = useState({ anio: hoy.getFullYear(), mes: hoy.getMonth() + 1 });
@@ -86,7 +93,7 @@ const [tokenReset] = useState(() => leerTokenResetDeUrl());
   const [vista, setVista] = useState("home");
   const [modalTarjetas, setModalTarjetas] = useState(false);
   const [vistaTarjetas, setVistaTarjetas] = useState(false);
-  const [origenDetalle, setOrigenDetalle] = useState(null); // "tarjetas" | null
+  const [origenDetalle, setOrigenDetalle] = useState(null);
 
   const [tarjetas, setTarjetas] = useState([]);
   const [gastos, setGastos] = useState([]);
@@ -290,7 +297,7 @@ const [tokenReset] = useState(() => leerTokenResetDeUrl());
     );
   }
 
-    if (vistaAuth === "reset-password" && tokenReset) {
+  if (vistaAuth === "reset-password" && tokenReset) {
     return (
       <ResetPasswordScreen
         token={tokenReset}
@@ -381,7 +388,7 @@ const [tokenReset] = useState(() => leerTokenResetDeUrl());
     );
   }
 
-  const VISTAS_CON_NAV = ["home", "cuentas", "ingresos", "potes", "pagos", "grupos", "perfil"];
+  const VISTAS_CON_NAV = ["home", "cuentas", "movimientos", "planificar", "perfil", "potes", "grupos"];
 
   if (VISTAS_CON_NAV.includes(vista)) {
     return (
@@ -399,14 +406,46 @@ const [tokenReset] = useState(() => leerTokenResetDeUrl());
           />
         )}
         {vista === "cuentas" && <CuentasScreen onCambiarVista={setVista} />}
-        {vista === "ingresos" && <IngresosScreen />}
-        {vista === "potes" && <PotesScreen />}
-        {vista === "pagos" && <HistorialPagosScreen />}
-        {vista === "grupos" && (
-          <div className="max-w-md mx-auto p-6">
-            <GruposPanel usuarioId={usuario.id} tarjetas={tarjetas} />
+        
+        {/* NUEVO: Pantalla que unifica Ingresos y Pagos */}
+        {vista === "movimientos" && <MovimientosScreen />}
+        
+        {/* TEMPORAL: Puente hacia Pot y Grupos hasta que armemos Planificar */}
+        {vista === "planificar" && (
+          <div className="max-w-md mx-auto p-6 pt-10">
+            <h1 className="text-2xl font-bold text-carbon mb-6">Planificar</h1>
+            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-3">
+              <p className="text-sm text-gray-500 mb-4">
+                Aquí vivirán tus metas de ahorro (Pot), tus Grupos y Alertas.
+                Mientras tanto, puedes acceder a ellos desde aquí:
+              </p>
+              <button
+                onClick={() => setVista("potes")}
+                className="w-full py-3 rounded-xl bg-coral text-white font-semibold text-sm"
+              >
+                Ir a mis Pot
+              </button>
+              <button
+                onClick={() => setVista("grupos")}
+                className="w-full py-3 rounded-xl border border-gray-200 text-carbon font-semibold text-sm"
+              >
+                Ir a mis Grupos
+              </button>
+            </div>
           </div>
         )}
+
+        {vista === "potes" && <PotesScreen onVolver={() => setVista("planificar")} />}
+        {vista === "grupos" && (
+          <div className="max-w-md mx-auto p-6">
+            <GruposPanel 
+              usuarioId={usuario.id} 
+              tarjetas={tarjetas} 
+              onVolver={() => setVista("planificar")} 
+            />
+          </div>
+        )}
+        
         {vista === "perfil" && (
           <div className="max-w-md mx-auto p-6">
             <div className="bg-white rounded-2xl p-6 text-center">
@@ -464,7 +503,7 @@ const [tokenReset] = useState(() => leerTokenResetDeUrl());
             }}
             onIrAHistorial={() => {
               setTarjetaAPagar(null);
-              setVista("pagos");
+              setVista("movimientos");
             }}
           />
         )}
