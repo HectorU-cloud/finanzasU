@@ -1,10 +1,12 @@
 import { useState } from "react";
-import { KeyRound, CheckCircle2, AlertTriangle } from "lucide-react";
+import { KeyRound, CheckCircle2, AlertTriangle, Eye, EyeOff } from "lucide-react";
 import { api } from "./api.js";
 
 export default function ResetPasswordScreen({ token, onCompletado }) {
   const [form, setForm] = useState({ nueva: "", confirmar: "" });
   const [error, setError] = useState("");
+  const [mostrarNueva, setMostrarNueva] = useState(false);
+  const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [exito, setExito] = useState(false);
 
@@ -72,27 +74,47 @@ export default function ResetPasswordScreen({ token, onCompletado }) {
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">
                   Nueva contraseña
                 </label>
-                <input
-                  type="password"
-                  placeholder="Mínimo 6 caracteres"
-                  value={form.nueva}
-                  onChange={(e) => setForm({ ...form, nueva: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-coral focus:outline-none focus:ring-2 focus:ring-coral/20 text-sm transition-all"
-                  autoFocus
-                />
+                <div className="relative">
+                  <input
+                    type={mostrarNueva ? "text" : "password"}
+                    placeholder="Mínimo 6 caracteres"
+                    value={form.nueva}
+                    onChange={(e) => setForm({ ...form, nueva: e.target.value })}
+                    className="w-full px-4 py-3 pr-11 rounded-xl border border-gray-200 focus:border-coral focus:outline-none focus:ring-2 focus:ring-coral/20 text-sm transition-all"
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMostrarNueva(!mostrarNueva)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-coral transition-colors"
+                    tabIndex={-1}
+                  >
+                    {mostrarNueva ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
 
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">
                   Confirmar contraseña
                 </label>
-                <input
-                  type="password"
-                  placeholder="Repite tu contraseña"
-                  value={form.confirmar}
-                  onChange={(e) => setForm({ ...form, confirmar: e.target.value })}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-coral focus:outline-none focus:ring-2 focus:ring-coral/20 text-sm transition-all"
-                />
+                <div className="relative">
+                  <input
+                    type={mostrarConfirmar ? "text" : "password"}
+                    placeholder="Repite tu contraseña"
+                    value={form.confirmar}
+                    onChange={(e) => setForm({ ...form, confirmar: e.target.value })}
+                    className="w-full px-4 py-3 pr-11 rounded-xl border border-gray-200 focus:border-coral focus:outline-none focus:ring-2 focus:ring-coral/20 text-sm transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMostrarConfirmar(!mostrarConfirmar)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-coral transition-colors"
+                    tabIndex={-1}
+                  >
+                    {mostrarConfirmar ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
 
               {error && (

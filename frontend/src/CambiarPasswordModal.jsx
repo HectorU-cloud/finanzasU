@@ -1,10 +1,13 @@
 import { useState } from "react";
-import { KeyRound, X } from "lucide-react";
+import { KeyRound, X, Eye, EyeOff } from "lucide-react";
 import { api } from "./api.js";
 
 export default function CambiarPasswordModal({ onCerrar, onExito }) {
   const [form, setForm] = useState({ actual: "", nueva: "", confirmar: "" });
   const [error, setError] = useState("");
+  const [mostrarActual, setMostrarActual] = useState(false);
+  const [mostrarNueva, setMostrarNueva] = useState(false);
+  const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
   const [cargando, setCargando] = useState(false);
   const [exito, setExito] = useState(false);
 
@@ -63,27 +66,60 @@ export default function CambiarPasswordModal({ onCerrar, onExito }) {
           >
             <div>
               <label>Contraseña actual</label>
-              <input
-                type="password"
-                value={form.actual}
-                onChange={(e) => setForm({ ...form, actual: e.target.value })}
-              />
+              <div className="relative">
+                <input
+                  type={mostrarActual ? "text" : "password"}
+                  value={form.actual}
+                  onChange={(e) => setForm({ ...form, actual: e.target.value })}
+                  className="w-full px-3 py-2.5 pr-10 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarActual(!mostrarActual)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-coral transition-colors"
+                  tabIndex={-1}
+                >
+                  {mostrarActual ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
             <div>
               <label>Nueva contraseña</label>
-              <input
-                type="password"
-                value={form.nueva}
-                onChange={(e) => setForm({ ...form, nueva: e.target.value })}
-              />
+              <div className="relative">
+                <input
+                  type={mostrarNueva ? "text" : "password"}
+                  value={form.nueva}
+                  onChange={(e) => setForm({ ...form, nueva: e.target.value })}
+                  className="w-full px-3 py-2.5 pr-10 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarNueva(!mostrarNueva)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-coral transition-colors"
+                  tabIndex={-1}
+                >
+                  {mostrarNueva ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
             <div>
               <label>Confirmar nueva contraseña</label>
-              <input
-                type="password"
-                value={form.confirmar}
-                onChange={(e) => setForm({ ...form, confirmar: e.target.value })}
-              />
+              <div className="relative">
+                <input
+                  type={mostrarConfirmar ? "text" : "password"}
+                  value={form.confirmar}
+                  onChange={(e) => setForm({ ...form, confirmar: e.target.value })}
+                  className="w-full px-3 py-2.5 pr-10 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm"
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarConfirmar(!mostrarConfirmar)}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-coral transition-colors"
+                  tabIndex={-1}
+                >
+                  {mostrarConfirmar ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
             </div>
             {error && <p className="error">{error}</p>}
             <button

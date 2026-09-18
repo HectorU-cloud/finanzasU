@@ -1779,3 +1779,34 @@ button,
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ============================================================
+   Fix de estilos de inputs en focus y autofill
+   ============================================================ */
+
+/* Quitar el outline azul por defecto del navegador */
+input:focus,
+select:focus,
+textarea:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(255, 79, 64, 0.2);
+  border-color: var(--brand);
+}
+
+/* Corregir el fondo del autofill en Chrome/Edge */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-box-shadow: 0 0 0 30px var(--surface) inset !important;
+  -webkit-text-fill-color: var(--ink) !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+/* También para modo oscuro */
+[data-theme="dark"] input:-webkit-autofill,
+[data-theme="dark"] input:-webkit-autofill:hover,
+[data-theme="dark"] input:-webkit-autofill:focus {
+  -webkit-box-shadow: 0 0 0 30px var(--surface) inset !important;
+  -webkit-text-fill-color: var(--ink) !important;
+}

@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { PiggyBank } from "lucide-react";
 import { api, setAuthToken } from "./api.js";
+import { PiggyBank, Eye, EyeOff } from "lucide-react";
 
 export default function AuthScreen({ onAutenticado, onSolicitarReset }) {
   const [modo, setModo] = useState("login");
@@ -8,6 +9,8 @@ export default function AuthScreen({ onAutenticado, onSolicitarReset }) {
   const [confirmar, setConfirmar] = useState("");
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
+  const [mostrarPassword, setMostrarPassword] = useState(false);
+  const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
 
   function validar() {
     if (!form.email.trim() || !form.password) {
@@ -123,13 +126,22 @@ export default function AuthScreen({ onAutenticado, onSolicitarReset }) {
               <label className="block text-xs font-medium text-gray-500 mb-1.5">
                 Contraseña
               </label>
-              <input
-                type="password"
-                placeholder={modo === "registro" ? "Mínimo 6 caracteres" : "Tu contraseña"}
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-coral focus:outline-none focus:ring-2 focus:ring-coral/20 text-sm transition-all"
-              />
+              <div className="relative">
+                <input
+                  type={mostrarPassword ? "text" : "password"}
+                  placeholder={modo === "registro" ? "Mínimo 6 caracteres" : "Tu contraseña"}
+                  value={form.password}
+                  onChange={(e) => setForm({ ...form, password: e.target.value })}
+                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-coral focus:outline-none focus:ring-2 focus:ring-coral/20 text-sm transition-all"
+                />
+                <button
+                  type="button"
+                  onClick={() => setMostrarPassword(!mostrarPassword)}
+                  className="absolute right-3 top-3 text-gray-400 hover:text-coral"
+                >
+                  {mostrarPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </div>
 
             {modo === "registro" && (
@@ -137,13 +149,22 @@ export default function AuthScreen({ onAutenticado, onSolicitarReset }) {
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">
                   Confirmar contraseña
                 </label>
-                <input
-                  type="password"
-                  placeholder="Repite tu contraseña"
-                  value={confirmar}
-                  onChange={(e) => setConfirmar(e.target.value)}
-                  className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-coral focus:outline-none focus:ring-2 focus:ring-coral/20 text-sm transition-all"
-                />
+                <div className="relative">
+                  <input
+                    type={mostrarConfirmar ? "text" : "password"}
+                    placeholder="Repite tu contraseña"
+                    value={confirmar}
+                    onChange={(e) => setConfirmar(e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-coral focus:outline-none focus:ring-2 focus:ring-coral/20 text-sm transition-all"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setMostrarConfirmar(!mostrarConfirmar)}
+                    className="absolute right-3 top-3 text-gray-400 hover:text-coral"
+                  >
+                    {mostrarConfirmar ? <EyeOff size={18} /> : <Eye size={18} />}
+                  </button>
+                </div>
               </div>
             )}
 
