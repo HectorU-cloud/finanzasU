@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { PiggyBank } from "lucide-react";
 import { api, setAuthToken } from "./api.js";
 import { PiggyBank, Eye, EyeOff } from "lucide-react";
 
