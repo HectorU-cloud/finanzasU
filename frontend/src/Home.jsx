@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { Plus, TrendingUp, Wallet, Eye, EyeOff, ArrowRightLeft, PiggyBank, CreditCard, StickyNote, Trash2 } from "lucide-react";
 import { api } from "./api.js";
 import AlertasBanner from "./AlertasBanner.jsx";
+import TarjetasScreen from "./TarjetasScreen.jsx";
 
 const TIPO_ICONOS = {
   efectivo: Wallet,
@@ -264,70 +265,55 @@ export default function Home({
         </>
       )}
 
-      {tabActiva === "productos" && (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between mb-3">
-            <h2 className="text-base font-semibold text-carbon">Mis tarjetas</h2>
-            <button onClick={onVerTodasTarjetas} className="text-xs text-coral font-medium">
-              Ver todas
-            </button>
-          </div>
-          {tarjetas && tarjetas.length > 0 ? (
-            tarjetas.map((t) => (
-              <div
-                key={t.id}
-                onClick={() => onVerTarjeta?.(t)}
-                className="rounded-2xl p-4 text-white shadow-lg cursor-pointer"
-                style={{
-                  background:
-                    t.tema === "amex-verde"
-                      ? "linear-gradient(135deg, #0d5f4f 0%, #1a8a73 100%)"
-                      : t.tema === "visa-gold"
-                      ? "linear-gradient(135deg, #8c6b1f 0%, #d4ad4a 100%)"
-                      : "linear-gradient(135deg, #1a1523 0%, #2d2438 100%)",
-                }}
+            {tabActiva === "productos" && (
+        <>
+          {/* Carrusel de tarjetas + resumen + adicionales */}
+          <TarjetasScreen
+            tarjetas={tarjetas}
+            embedded={true}
+            onAgregar={onAgregarTarjeta}
+            onPagar={onPagarTarjeta}
+            onVerTarjeta={onVerTarjeta}
+            onVolver={() => {}}
+          />
+
+          {/* Lista de cuentas debajo */}
+          <div className="space-y-3 mt-6">
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold text-carbon">Mis cuentas</h2>
+              <button
+                onClick={onIrACuentas}
+                className="w-7 h-7 rounded-full bg-coral text-white flex items-center justify-center"
               >
-                <p className="text-xs opacity-80">Gastado este ciclo</p>
-                <p className="text-2xl font-bold">${Number(t.gastado_mes).toFixed(2)}</p>
-                <p className="text-sm mt-2">{t.nombre}</p>
-              </div>
-            ))
-          ) : (
-            <p className="text-sm text-gray-500">No tienes tarjetas</p>
-          )}
-
-          <div className="flex items-center justify-between mb-3 mt-6">
-            <h2 className="text-base font-semibold text-carbon">Mis cuentas</h2>
-            <button
-              onClick={onIrACuentas}
-              className="w-7 h-7 rounded-full bg-coral text-white flex items-center justify-center"
-            >
-              <Plus size={16} />
-            </button>
-          </div>
-          {cuentas.map((c) => {
-            const Icono = TIPO_ICONOS[c.tipo] || Wallet;
-            const gradiente = COLORES_CUENTA[c.tipo] || COLORES_CUENTA.otra;
-            return (
-              <div key={c.id} className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-sm">
+                <Plus size={16} />
+              </button>
+            </div>
+            {cuentas.map((c) => {
+              const Icono = TIPO_ICONOS[c.tipo] || Wallet;
+              const gradiente = COLORES_CUENTA[c.tipo] || COLORES_CUENTA.otra;
+              return (
                 <div
-                  className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradiente} flex items-center justify-center text-white`}
+                  key={c.id}
+                  className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-sm"
                 >
-                  <Icono size={18} />
+                  <div
+                    className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradiente} flex items-center justify-center text-white`}
+                  >
+                    <Icono size={18} />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-carbon text-sm">{c.nombre}</p>
+                    <p className="text-xs text-gray-500 capitalize">{c.tipo}</p>
+                  </div>
+                  <p className="font-semibold text-carbon">
+                    ${Number(c.saldo_actual ?? c.saldo_inicial).toFixed(2)}
+                  </p>
                 </div>
-                <div className="flex-1">
-                  <p className="font-medium text-carbon text-sm">{c.nombre}</p>
-                  <p className="text-xs text-gray-500 capitalize">{c.tipo}</p>
-                </div>
-                <p className="font-semibold text-carbon">
-                  ${Number(c.saldo_actual ?? c.saldo_inicial).toFixed(2)}
-                </p>
-              </div>
-            );
-          })}
-        </div>
+              );
+            })}
+          </div>
+        </>
       )}
-
       {tabActiva === "parati" && (
         <div className="text-center py-12">
           <p className="text-4xl mb-3">✨</p>
