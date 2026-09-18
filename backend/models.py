@@ -111,7 +111,8 @@ class Cuenta(Base):
     nombre = Column(String(80), nullable=False)
     tipo = Column(String(30), nullable=False, default="ahorros")
     saldo_inicial = Column(Numeric(12, 2), nullable=False, default=0)
-    fijada = Column(Integer, default=0)  # 0=no, 1=sí (destacada en Home)
+    fijada = Column(Integer, default=0)
+    numero_cuenta = Column(String(10), nullable=True)  # <-- NUEVO
     creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     usuario = relationship("Usuario")
@@ -189,3 +190,13 @@ class PasswordReset(Base):
 
     usuario = relationship("Usuario")
 
+class Nota(Base):
+    __tablename__ = "notas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    contenido = Column(String(500), nullable=False, default="")
+    creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+    actualizado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
+
+    usuario = relationship("Usuario")

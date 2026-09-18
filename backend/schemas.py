@@ -330,6 +330,7 @@ class CuentaBase(BaseModel):
     tipo: str = Field(default="ahorros", max_length=30)
     saldo_inicial: Decimal = Field(default=Decimal("0"), ge=0)
     fijada: bool = False
+    numero_cuenta: str | None = Field(default=None, max_length=10) # <-- NUEVO
 
     @field_validator("nombre")
     @classmethod
@@ -343,6 +344,18 @@ class CuentaBase(BaseModel):
             raise ValueError("tipo inválido")
         return v
 
+    @field_validator("numero_cuenta") # <-- NUEVA VALIDACIÓN
+    @classmethod
+    def _numero_cuenta_valido(cls, v):
+        if v is not None and v.strip():
+            v = v.strip()
+            if not v.isdigit():
+                raise ValueError("El número de cuenta solo debe contener números")
+            if len(v) != 10:
+                raise ValueError("El número de cuenta debe tener exactamente 10 dígitos")
+            return v
+        return None
+
 
 class CuentaCreate(CuentaBase):
     pass
@@ -353,6 +366,7 @@ class CuentaUpdate(BaseModel):
     tipo: str | None = Field(default=None, max_length=30)
     saldo_inicial: Decimal | None = Field(default=None, ge=0)
     fijada: bool | None = None
+    numero_cuenta: str | None = Field(default=None, max_length=10)
 
     @field_validator("nombre")
     @classmethod
@@ -368,6 +382,17 @@ class CuentaUpdate(BaseModel):
             raise ValueError("tipo inválido")
         return v
 
+    @field_validator("numero_cuenta")
+    @classmethod
+    def _numero_cuenta_valido(cls, v):
+        if v is not None and v.strip():
+            v = v.strip()
+            if not v.isdigit():
+                raise ValueError("El número de cuenta solo debe contener números")
+            if len(v) != 10:
+                raise ValueError("El número de cuenta debe tener exactamente 10 dígitos")
+            return v
+        return None
 
 class Cuenta(CuentaBase):
     model_config = ConfigDict(from_attributes=True)
@@ -576,3 +601,18 @@ class MovimientoCuenta(BaseModel):
     descripcion: str | None = None
     referencia_id: int | None = None
     referencia_nombre: str | None = None
+
+class NotaCreate(BaseModel):
+    contenido: str = Field(default="", max_length=500)
+
+
+class NotaUpdate(BaseModel):
+    contenido: str | None = Field(default=None, max_length=500)
+
+
+class NotaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    contenido: str
+    creado_en: datetime | None = None
+    actualizado_en: datetime | None = None

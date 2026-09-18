@@ -17,6 +17,7 @@ export default function CuentaModal({ cuenta, onCerrar, onGuardado }) {
     tipo: cuenta?.tipo || "ahorros",
     saldo_inicial: cuenta?.saldo_inicial ?? "",
     fijada: cuenta?.fijada === 1 || cuenta?.fijada === true,
+    numero_cuenta: cuenta?.numero_cuenta || "",
   });
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
@@ -29,6 +30,12 @@ export default function CuentaModal({ cuenta, onCerrar, onGuardado }) {
       return;
     }
     const saldoNum = Number(form.saldo_inicial);
+
+    if (form.numero_cuenta && form.numero_cuenta.length !== 10) {
+      setError("El número de cuenta debe tener exactamente 10 dígitos.");
+      return;
+    }
+
     if (isNaN(saldoNum) || saldoNum < 0) {
       setError("El saldo debe ser un número mayor o igual a 0.");
       return;
@@ -40,6 +47,7 @@ export default function CuentaModal({ cuenta, onCerrar, onGuardado }) {
         tipo: form.tipo,
         saldo_inicial: saldoNum,
         fijada: form.fijada,
+        numero_cuenta: form.numero_cuenta || null,
       };
       if (editando) {
         await api.actualizarCuenta(cuenta.id, datos);
@@ -57,7 +65,7 @@ export default function CuentaModal({ cuenta, onCerrar, onGuardado }) {
   return (
     <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4" onClick={onCerrar}>
       <div
-        className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl"
+        className="bg-white rounded-3xl p-6 w-full max-w-sm shadow-2xl max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
@@ -85,6 +93,28 @@ export default function CuentaModal({ cuenta, onCerrar, onGuardado }) {
               onChange={(e) => setForm({ ...form, nombre: e.target.value })}
               className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm"
             />
+          </div>
+
+          {/* NUEVO: Número de cuenta */}
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              Número de cuenta (10 dígitos)
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              maxLength={10}
+              placeholder="ej. 2001536970"
+              value={form.numero_cuenta}
+              onChange={(e) => {
+                const soloNumeros = e.target.value.replace(/\D/g, "");
+                setForm({ ...form, numero_cuenta: soloNumeros });
+              }}
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm font-mono tracking-widest"
+            />
+            <p className="text-[10px] text-gray-400 mt-1">
+              Opcional. Solo números, exactamente 10 dígitos.
+            </p>
           </div>
 
           <div>

@@ -122,6 +122,14 @@ export const api = {
   getMovimientosPote: (id) => request(`/potes/${id}/movimientos`),
   getEmojisPote: () => request("/emojis-pote"),
 
+    // Notas
+  getNotas: () => request("/notas"),
+  crearNota: (contenido) =>
+    request("/notas", { method: "POST", body: JSON.stringify({ contenido }) }),
+  actualizarNota: (id, contenido) =>
+    request(`/notas/${id}`, { method: "PUT", body: JSON.stringify({ contenido }) }),
+  eliminarNota: (id) => request(`/notas/${id}`, { method: "DELETE" }),
+
   getTarjetas: () => request("/tarjetas"),
     getGastos: (anio, mes, categoria = null, tarjetaId = null) => {
     const params = [];

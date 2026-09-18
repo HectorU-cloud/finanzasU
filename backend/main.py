@@ -334,6 +334,8 @@ def actualizar_cuenta(
         cuenta.saldo_inicial = payload.saldo_inicial
     if payload.fijada is not None:
         cuenta.fijada = 1 if payload.fijada else 0
+    if payload.numero_cuenta is not None:
+        cuenta.numero_cuenta = payload.numero_cuenta
 
     db.commit()
     db.refresh(cuenta)
@@ -1829,6 +1831,75 @@ def eliminar_grupo(
         raise HTTPException(status_code=403, detail="Solo quien creó el grupo puede eliminarlo")
 
     db.delete(grupo)
+    db.commit()
+
+
+# ---------- Notas ----------
+
+@app.get("/api/notas", response_model=list[schemas.NotaOut])
+def listar_notas(
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    return (
+        db.query(models.Nota)
+        .filter(models.Nota.usuario_id == usuario.id)
+        .order_by(models.Nota.actualizado_en.desc())
+        .all()
+    )
+
+
+@app.post("/api/notas", response_model=schemas.NotaOut)
+def crear_nota(
+    datos: schemas.NotaCreate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    nueva = models.Nota(usuario_id=usuario.id, contenido=datos.contenido)
+    db.add(nueva)
+    db.commit()
+    db.refresh(nueva)
+    return nueva
+
+
+@app.put("/api/notas/{nota_id}", response_model=schemas.NotaOut)
+def actualizar_nota(
+    nota_id: int,
+    datos: schemas.NotaUpdate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    nota = (
+        db.query(models.Nota)
+        .filter(models.Nota.id == nota_id, models.Nota.usuario_id == usuario.id)
+        .first()
+    )
+    if not nota:
+        raise HTTPException(status_code=404, detail="Nota no encontrada")
+
+    if datos.contenido is not None:
+        nota.contenido = datos.contenido
+
+    db.commit()
+    db.refresh(nota)
+    return nota
+
+
+@app.delete("/api/notas/{nota_id}", status_code=204)
+def eliminar_nota(
+    nota_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    nota = (
+        db.query(models.Nota)
+        .filter(models.Nota.id == nota_id, models.Nota.usuario_id == usuario.id)
+        .first()
+    )
+    if not nota:
+        raise HTTPException(status_code=404, detail="Nota no encontrada")
+
+    db.delete(nota)
     db.commit()
 
 

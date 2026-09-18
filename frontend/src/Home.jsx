@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, TrendingUp, Users, Wallet } from "lucide-react";
+import { Plus, TrendingUp, Wallet, Eye, EyeOff, ArrowRightLeft, PiggyBank, CreditCard, StickyNote, Trash2 } from "lucide-react";
 import { api } from "./api.js";
 import AlertasBanner from "./AlertasBanner.jsx";
 
@@ -19,10 +19,33 @@ const COLORES_CUENTA = {
   otra: "from-gray-500 to-gray-700",
 };
 
-export default function Home({ usuario, resumen, tarjetas, onIrACuentas, onPagarTarjeta, onVerTarjeta, onVerTodasTarjetas, onAgregarTarjeta }) {
+function formatearFecha() {
+  const hoy = new Date();
+  const opciones = { weekday: 'long', day: 'numeric' };
+  const texto = hoy.toLocaleDateString('es-ES', opciones);
+  return texto.charAt(0).toUpperCase() + texto.slice(1);
+}
+
+export default function Home({ 
+  usuario, 
+  resumen, 
+  tarjetas, 
+  onIrACuentas, 
+  onPagarTarjeta, 
+  onVerTarjeta, 
+  onVerTodasTarjetas, 
+  onAgregarTarjeta,
+  onIrAPotes,        // <-- NUEVO
+  onIrAMovimientos,  // <-- NUEVO
+}) {
   const [cuentas, setCuentas] = useState([]);
   const [cargandoCuentas, setCargandoCuentas] = useState(true);
-  const [totalCuentasReal, setTotalCuentasReal] = useState(0);
+  const [tabActiva, setTabActiva] = useState("destacado");
+  const [saldoVisible, setSaldoVisible] = useState(true);
+
+  // Estado de las notas (backend)
+  const [notas, setNotas] = useState([]);
+  const [cargandoNotas, setCargandoNotas] = useState(true);
 
   useEffect(() => {
     api.getCuentas()
@@ -32,172 +55,332 @@ export default function Home({ usuario, resumen, tarjetas, onIrACuentas, onPagar
   }, []);
 
   useEffect(() => {
-    api.getResumenTotalCuentas()
-      .then((d) => setTotalCuentasReal(d.total || 0))
-      .catch(() => {});
+    api.getNotas()
+      .then((d) => setNotas(d || []))
+      .catch(() => setNotas([]))
+      .finally(() => setCargandoNotas(false));
   }, []);
 
-  const totalCuentas = totalCuentasReal;
-  const totalTarjetas = Number(resumen?.total_mes ?? 0);
-  const saldoNeto = totalCuentas - totalTarjetas;
+  async function crearNota() {
+    try {
+      const nueva = await api.crearNota("");
+      setNotas((prev) => [nueva, ...prev]);
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function actualizarNota(id, contenido) {
+    try {
+      const actualizada = await api.actualizarNota(id, contenido);
+      setNotas((prev) => prev.map((n) => (n.id === id ? actualizada : n)));
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  async function eliminarNota(id) {
+    try {
+      await api.eliminarNota(id);
+      setNotas((prev) => prev.filter((n) => n.id !== id));
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
+  const cuentaDestacada = cuentas.find((c) => c.fijada === 1 || c.fijada === true) || cuentas[0];
+
+  const tarjetaWidget = (resumen?.tarjetas || [])
+    .filter((t) => Number(t.gastado_mes) > 0)
+    .sort((a, b) => Number(b.gastado_mes) - Number(a.gastado_mes))[0]
+    || (resumen?.tarjetas || [])[0];
 
   return (
     <div className="max-w-md mx-auto px-4 pb-24 pt-6">
-      {/* Header */}
-      <header className="flex items-center justify-between mb-6">
-        <div>
-          <p className="text-sm text-gray-500">Buen día,</p>
-          <h1 className="text-2xl font-bold text-carbon">{usuario?.nombre || "Hola"}</h1>
-        </div>
-        <div className="w-11 h-11 rounded-full bg-coral text-white flex items-center justify-center font-semibold text-lg">
-          {usuario?.nombre?.[0]?.toUpperCase() || "?"}
+      {/* Header con fecha y avatar */}
+      <header className="flex items-center justify-between mb-5">
+        <h1 className="text-3xl font-bold text-carbon">{formatearFecha()}</h1>
+        <div className="flex items-center gap-3">
+          <button className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+            <TrendingUp size={18} />
+          </button>
+          <div className="w-10 h-10 rounded-full bg-coral text-white flex items-center justify-center font-semibold text-sm">
+            {usuario?.nombre?.[0]?.toUpperCase() || "?"}
+          </div>
         </div>
       </header>
 
-      <AlertasBanner />
-
-      {/* Saldo total */}
-      <div className="mb-6">
-        <p className="text-sm text-gray-500 mb-1">Saldo neto</p>
-        <p className={`text-4xl font-bold ${saldoNeto < 0 ? "text-coral" : "text-carbon"}`}>
-          ${saldoNeto.toFixed(2)}
-        </p>
-        <div className="flex gap-4 mt-2 text-sm">
-          <span className="text-emerald-600">
-            Cuentas: +${totalCuentas.toFixed(2)}
-          </span>
-          <span className="text-coral">
-            Tarjetas: -${totalTarjetas.toFixed(2)}
-          </span>
-        </div>
+      {/* Tabs superiores */}
+      <div className="flex bg-gray-100 p-1 rounded-2xl mb-5">
+        {["destacado", "productos", "parati"].map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setTabActiva(tab)}
+            className={`flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all capitalize ${
+              tabActiva === tab
+                ? "bg-white text-coral shadow-sm"
+                : "text-gray-500 hover:text-carbon"
+            }`}
+          >
+            {tab === "destacado" ? "Destacado" : tab === "productos" ? "Mis Productos" : "Para ti"}
+          </button>
+        ))}
       </div>
 
-      {/* Stack de tarjetas y cuentas */}
-      <section className="mb-8">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-semibold text-carbon">Mis tarjetas</h2>
-          <button
-            onClick={onVerTodasTarjetas}
-            className="text-xs text-coral font-medium"
-          >
-            Ver todas
-          </button>
-        </div>
+      <AlertasBanner />
+
+      {tabActiva === "destacado" && (
+        <>
+          {/* Tarjeta Hero - Cuenta Destacada */}
+          {cuentaDestacada ? (
+            <div
+              className="rounded-3xl p-6 text-white shadow-xl mb-5 relative overflow-hidden"
+              style={{ background: "linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%)" }}
+            >
+              <div className="flex justify-between items-start mb-8">
+                <div>
+                  <p className="text-xs opacity-75 uppercase tracking-wider mb-1">
+                    Cuenta de {cuentaDestacada.tipo}
+                  </p>
+                  <p className="text-sm font-mono opacity-90">
+                    {cuentaDestacada.numero_cuenta || cuentaDestacada.id.toString().padStart(10, "0")}
+                  </p>
+                </div>
+                <span className="text-4xl">🐷⚽</span>
+              </div>
+
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <p className="text-xs opacity-75 uppercase tracking-wider">Disponible</p>
+                  <button
+                    onClick={() => setSaldoVisible(!saldoVisible)}
+                    className="opacity-75 hover:opacity-100"
+                  >
+                    {saldoVisible ? <Eye size={14} /> : <EyeOff size={14} />}
+                  </button>
+                </div>
+                <p className="text-4xl font-bold">
+                  {saldoVisible
+                    ? `$${Number(cuentaDestacada.saldo_actual ?? cuentaDestacada.saldo_inicial).toFixed(2)}`
+                    : "••••••"}
+                </p>
+              </div>
+
+              <div className="flex justify-end gap-3">
+                <button
+                  onClick={onIrAMovimientos}
+                  className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm hover:bg-white/30 transition-colors"
+                  title="Ver movimientos"
+                >
+                  <ArrowRightLeft size={18} />
+                </button>
+                <button
+                  onClick={onIrAPotes}
+                  className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm hover:bg-white/30 transition-colors"
+                  title="Ir a mis Pot"
+                >
+                  <PiggyBank size={18} />
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-3xl border-2 border-dashed border-gray-300 p-8 text-center mb-5">
+              <p className="text-sm text-gray-500 mb-3">No tienes cuentas destacadas</p>
+              <button onClick={onIrACuentas} className="text-coral font-semibold text-sm">
+                + Crear cuenta
+              </button>
+            </div>
+          )}
+
+          {/* Widget de Tarjeta de Crédito */}
+          {tarjetaWidget && (
+            <div
+              className="rounded-2xl p-4 mb-5 flex items-center gap-3"
+              style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
+            >
+              <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-white shrink-0">
+                <CreditCard size={22} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="font-semibold text-carbon text-sm truncate">
+                  {tarjetaWidget.nombre} Crédito ·•• {tarjetaWidget.id.toString().slice(-4)}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Por pagar: ${Number(tarjetaWidget.gastado_mes).toFixed(2)}
+                </p>
+                <p className="text-xs text-blue-600 font-medium">
+                  Pagar hasta: 1 de{" "}
+                  {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toLocaleDateString(
+                    "es-ES",
+                    { month: "long" }
+                  )}
+                </p>
+              </div>
+              <button
+                onClick={() => onPagarTarjeta?.(tarjetaWidget)}
+                className="px-4 py-2 rounded-full bg-gray-100 text-carbon text-xs font-semibold hover:bg-gray-200 transition-colors"
+              >
+                Pagar
+              </button>
+            </div>
+          )}
+
+          {/* Widget de Notas */}
+          <div className="rounded-2xl overflow-hidden mb-5 shadow-sm">
+            <div className="bg-gradient-to-r from-pink-600 to-rose-600 px-4 py-2 flex items-center justify-between">
+              <p className="text-white text-xs font-semibold flex items-center gap-1.5">
+                <StickyNote size={12} /> Notas
+              </p>
+              <button
+                onClick={crearNota}
+                className="text-white/80 hover:text-white transition-colors"
+                title="Nueva nota"
+              >
+                <Plus size={16} />
+              </button>
+            </div>
+              <div className="p-3 grid grid-cols-2 gap-2" style={{ background: "var(--surface)" }}>
+              {cargandoNotas ? (
+                <p className="text-xs text-gray-400 text-center py-2">Cargando...</p>
+              ) : notas.length === 0 ? (
+                <button
+                  onClick={crearNota}
+                  className="w-full text-left text-sm text-gray-400 py-3 hover:text-coral transition-colors flex items-center gap-2"
+                >
+                  <Plus size={16} /> Agregar nota
+                </button>
+              ) : (
+                notas.map((n) => (
+                  <NotaItem
+                    key={n.id}
+                    nota={n}
+                    onGuardar={(contenido) => actualizarNota(n.id, contenido)}
+                    onEliminar={() => eliminarNota(n.id)}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {tabActiva === "productos" && (
         <div className="space-y-3">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-semibold text-carbon">Mis tarjetas</h2>
+            <button onClick={onVerTodasTarjetas} className="text-xs text-coral font-medium">
+              Ver todas
+            </button>
+          </div>
           {tarjetas && tarjetas.length > 0 ? (
-            tarjetas.slice(0, 2).map((t) => (
-                <div
+            tarjetas.map((t) => (
+              <div
                 key={t.id}
                 onClick={() => onVerTarjeta?.(t)}
-                className="rounded-2xl p-5 text-white shadow-lg cursor-pointer active:scale-[0.98] transition-transform"
+                className="rounded-2xl p-4 text-white shadow-lg cursor-pointer"
                 style={{
                   background:
                     t.tema === "amex-verde"
                       ? "linear-gradient(135deg, #0d5f4f 0%, #1a8a73 100%)"
                       : t.tema === "visa-gold"
                       ? "linear-gradient(135deg, #8c6b1f 0%, #d4ad4a 100%)"
-                      : t.tema === "mastercard-azul"
-                      ? "linear-gradient(135deg, #0f2a5c 0%, #1e4a8a 100%)"
-                      : t.tema === "diners-marron"
-                      ? "linear-gradient(135deg, #4a2a1a 0%, #7a4a2a 100%)"
-                      : t.tema === "negro-premium"
-                      ? "linear-gradient(135deg, #000 0%, #2a2a2a 100%)"
-                      : t.tema === "morado-moderno"
-                      ? "linear-gradient(135deg, #4a1d7a 0%, #7c3aed 100%)"
                       : "linear-gradient(135deg, #1a1523 0%, #2d2438 100%)",
                 }}
               >
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <p className="text-xs opacity-80">Gastado este ciclo</p>
-                    <p className="text-2xl font-bold">${Number(t.gastado_mes).toFixed(2)}</p>
-                  </div>
-                  <span className="text-[10px] px-2 py-1 rounded-full bg-white/20">
-                    {t.en_rojo ? "Excedido" : "Al día"}
-                  </span>
-                </div>
-                <div className="flex justify-between items-end mb-3">
-                  <span className="text-sm font-medium">{t.nombre}</span>
-                  <span className="text-xs opacity-75">Corte día {t.dia_corte}</span>
-                </div>
-                                {Number(t.gastado_mes) > 0 && onPagarTarjeta && (
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      onPagarTarjeta(t);
-                    }}
-                    className="w-full py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white text-xs font-semibold transition-colors"
-                  >
-                    Pagar esta tarjeta
-                  </button>
-                )}
+                <p className="text-xs opacity-80">Gastado este ciclo</p>
+                <p className="text-2xl font-bold">${Number(t.gastado_mes).toFixed(2)}</p>
+                <p className="text-sm mt-2">{t.nombre}</p>
               </div>
             ))
           ) : (
-            <div className="rounded-2xl border-2 border-dashed border-gray-300 p-6 text-center">
-              <p className="text-sm text-gray-500 mb-3">Aún no tienes tarjetas</p>
-              <button
-                onClick={onAgregarTarjeta}
-                className="bg-coral text-white font-semibold text-sm px-5 py-2.5 rounded-full hover:bg-coral-dark transition-colors"
-              >
-                + Agregar tarjeta
-              </button>
-            </div>
+            <p className="text-sm text-gray-500">No tienes tarjetas</p>
           )}
-        </div>
-      </section>
 
-      {/* Cuentas */}
-      <section className="mb-8">
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-semibold text-carbon">Mis cuentas</h2>
-          <button
-            onClick={onIrACuentas}
-            className="w-7 h-7 rounded-full bg-coral text-white flex items-center justify-center"
-            title="Agregar cuenta"
-          >
-            <Plus size={16} />
-          </button>
-        </div>
-        {cargandoCuentas ? (
-          <p className="text-sm text-gray-400">Cargando...</p>
-        ) : cuentas.length === 0 ? (
-          <div className="rounded-2xl border-2 border-dashed border-gray-300 p-6 text-center">
-            <p className="text-sm text-gray-500 mb-2">Todavía no tienes cuentas</p>
+          <div className="flex items-center justify-between mb-3 mt-6">
+            <h2 className="text-base font-semibold text-carbon">Mis cuentas</h2>
             <button
               onClick={onIrACuentas}
-              className="text-coral font-medium text-sm"
+              className="w-7 h-7 rounded-full bg-coral text-white flex items-center justify-center"
             >
-              + Crear primera cuenta
+              <Plus size={16} />
             </button>
           </div>
-        ) : (
-          <div className="space-y-2">
-            {cuentas.map((c) => {
-              const Icono = TIPO_ICONOS[c.tipo] || Wallet;
-              const gradiente = COLORES_CUENTA[c.tipo] || COLORES_CUENTA.otra;
-              return (
+          {cuentas.map((c) => {
+            const Icono = TIPO_ICONOS[c.tipo] || Wallet;
+            const gradiente = COLORES_CUENTA[c.tipo] || COLORES_CUENTA.otra;
+            return (
+              <div key={c.id} className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-sm">
                 <div
-                  key={c.id}
-                  className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-sm"
+                  className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradiente} flex items-center justify-center text-white`}
                 >
-                  <div
-                    className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradiente} flex items-center justify-center text-white`}
-                  >
-                    <Icono size={18} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-carbon text-sm">{c.nombre}</p>
-                    <p className="text-xs text-gray-500 capitalize">{c.tipo}</p>
-                  </div>
-                    <p className="font-semibold text-carbon">
-                    ${Number(c.saldo_actual ?? c.saldo_inicial).toFixed(2)}</p>
+                  <Icono size={18} />
                 </div>
-              );
-            })}
-          </div>
-        )}
-      </section>
+                <div className="flex-1">
+                  <p className="font-medium text-carbon text-sm">{c.nombre}</p>
+                  <p className="text-xs text-gray-500 capitalize">{c.tipo}</p>
+                </div>
+                <p className="font-semibold text-carbon">
+                  ${Number(c.saldo_actual ?? c.saldo_inicial).toFixed(2)}
+                </p>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {tabActiva === "parati" && (
+        <div className="text-center py-12">
+          <p className="text-4xl mb-3">✨</p>
+          <p className="text-carbon font-semibold">Próximamente</p>
+          <p className="text-sm text-gray-500 mt-1">Aquí verás recomendaciones personalizadas</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function NotaItem({ nota, onGuardar, onEliminar }) {
+  const [contenido, setContenido] = useState(nota.contenido);
+  const [guardando, setGuardando] = useState(false);
+
+  useEffect(() => {
+    setContenido(nota.contenido);
+  }, [nota.contenido]);
+
+  async function handleBlur() {
+    if (contenido === nota.contenido) return;
+    setGuardando(true);
+    await onGuardar(contenido);
+    setGuardando(false);
+  }
+
+    return (
+    <div className="rounded-xl p-3 border flex flex-col h-full" style={{ borderColor: "var(--border)" }}>
+      <textarea
+        value={contenido}
+        onChange={(e) => setContenido(e.target.value)}
+        onBlur={handleBlur}
+        placeholder="Escribe una nota..."
+        className="w-full text-sm font-serif italic text-carbon bg-transparent resize-none focus:outline-none flex-1"
+        rows={2}
+        maxLength={500}
+      />
+      <div className="flex items-center justify-between mt-1">
+        <p className="text-[9px] text-gray-400">
+          {new Date(nota.actualizado_en || nota.creado_en).toLocaleDateString("es-ES", {
+            day: "numeric",
+            month: "short",
+          })}
+          {guardando && " · g..."}
+        </p>
+        <button
+          onClick={onEliminar}
+          className="text-gray-400 hover:text-coral transition-colors"
+          title="Eliminar nota"
+        >
+          <Trash2 size={14} />
+        </button>
+      </div>
     </div>
   );
 }

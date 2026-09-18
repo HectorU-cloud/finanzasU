@@ -403,6 +403,8 @@ export default function App() {
             onVerTarjeta={(t) => {setOrigenDetalle(null);setTarjetaDetalle(t);}}
             onVerTodasTarjetas={() => setVistaTarjetas(true)}
             onAgregarTarjeta={() => setModalTarjetas(true)}
+            onIrAPotes={() => setVista("potes")}           // <-- NUEVO
+            onIrAMovimientos={() => setVista("movimientos")} // <-- NUEVO
           />
         )}
         {vista === "cuentas" && <CuentasScreen onCambiarVista={setVista} />}
@@ -411,31 +413,23 @@ export default function App() {
         {vista === "movimientos" && <MovimientosScreen />}
         
         {/* TEMPORAL: Puente hacia Pot y Grupos hasta que armemos Planificar */}
-        {vista === "planificar" && (
+                {vista === "planificar" && (
           <div className="max-w-md mx-auto p-6 pt-10">
             <h1 className="text-2xl font-bold text-carbon mb-6">Planificar</h1>
-            <div className="bg-white rounded-2xl p-5 shadow-sm space-y-3">
+            <div className="bg-white rounded-2xl p-5 shadow-sm">
               <p className="text-sm text-gray-500 mb-4">
-                Aquí vivirán tus metas de ahorro (Pot), tus Grupos y Alertas.
-                Mientras tanto, puedes acceder a ellos desde aquí:
+                Organiza tus gastos compartidos y coordina con tu grupo.
               </p>
               <button
-                onClick={() => setVista("potes")}
-                className="w-full py-3 rounded-xl bg-coral text-white font-semibold text-sm"
-              >
-                Ir a mis Pot
-              </button>
-              <button
                 onClick={() => setVista("grupos")}
-                className="w-full py-3 rounded-xl border border-gray-200 text-carbon font-semibold text-sm"
+                className="w-full py-3 rounded-xl bg-coral text-white font-semibold text-sm flex items-center justify-center gap-2"
               >
-                Ir a mis Grupos
+                Ver mis Grupos
               </button>
             </div>
           </div>
         )}
-
-        {vista === "potes" && <PotesScreen onVolver={() => setVista("planificar")} />}
+        {vista === "potes" && <PotesScreen onVolver={() => setVista("home")} />}
         {vista === "grupos" && (
           <div className="max-w-md mx-auto p-6">
             <GruposPanel 
