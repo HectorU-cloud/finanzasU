@@ -38,8 +38,9 @@ export default function Home({
   onVerTarjeta, 
   onVerTodasTarjetas, 
   onAgregarTarjeta,
-  onIrAPotes,        // <-- NUEVO
-  onIrAMovimientos,  // <-- NUEVO
+  onIrAPotes,
+  onIrAMovimientos,
+  onVerCuenta,        // <-- NUEVA
 }) {
   const [cuentas, setCuentas] = useState([]);
   const [cargandoCuentas, setCargandoCuentas] = useState(true);
@@ -140,7 +141,8 @@ export default function Home({
           {/* Tarjeta Hero - Cuenta Destacada */}
           {cuentaDestacada ? (
             <div
-              className="rounded-3xl p-6 text-white shadow-xl mb-5 relative overflow-hidden"
+              onClick={() => onVerCuenta?.(cuentaDestacada)}
+              className="rounded-3xl p-6 text-white shadow-xl mb-5 relative overflow-hidden cursor-pointer active:scale-[0.99] transition-transform"
               style={{ background: "linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%)" }}
             >
               <div className="flex justify-between items-start mb-8">
@@ -186,20 +188,24 @@ export default function Home({
                   )}
                 </div>
                 <div className="flex gap-3 shrink-0">
-                  <button
-                    onClick={onIrAMovimientos}
-                    className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm hover:bg-white/30 transition-colors"
-                    title="Ver movimientos"
-                  >
-                    <ArrowRightLeft size={18} />
-                  </button>
-                  <button
-                    onClick={onIrAPotes}
-                    className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm hover:bg-white/30 transition-colors"
-                    title="Ir a mis Pot"
-                  >
-                    <PiggyBank size={18} />
-                  </button>
+                                  <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onIrAMovimientos();
+                  }}
+                  className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm hover:bg-white/30 transition-colors"
+                >
+                  <ArrowRightLeft size={18} />
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onIrAPotes();
+                  }}
+                  className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm hover:bg-white/30 transition-colors"
+                >
+                  <PiggyBank size={18} />
+                </button>
                 </div>
               </div>
             </div>
@@ -314,53 +320,14 @@ export default function Home({
       )}
 
             {tabActiva === "productos" && (
-        <>
-          {/* Carrusel de tarjetas + resumen + adicionales */}
-          <TarjetasScreen
-            tarjetas={tarjetas}
-            embedded={true}
-            onAgregar={onAgregarTarjeta}
-            onPagar={onPagarTarjeta}
-            onVerTarjeta={onVerTarjeta}
-            onVolver={() => {}}
-          />
-
-          {/* Lista de cuentas debajo */}
-          <div className="space-y-3 mt-6">
-            <div className="flex items-center justify-between mb-3">
-              <h2 className="text-base font-semibold text-carbon">Mis cuentas</h2>
-              <button
-                onClick={onIrACuentas}
-                className="w-7 h-7 rounded-full bg-coral text-white flex items-center justify-center"
-              >
-                <Plus size={16} />
-              </button>
-            </div>
-            {cuentas.map((c) => {
-              const Icono = TIPO_ICONOS[c.tipo] || Wallet;
-              const gradiente = COLORES_CUENTA[c.tipo] || COLORES_CUENTA.otra;
-              return (
-                <div
-                  key={c.id}
-                  className="flex items-center gap-3 bg-white rounded-2xl p-4 shadow-sm"
-                >
-                  <div
-                    className={`w-10 h-10 rounded-xl bg-gradient-to-br ${gradiente} flex items-center justify-center text-white`}
-                  >
-                    <Icono size={18} />
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-carbon text-sm">{c.nombre}</p>
-                    <p className="text-xs text-gray-500 capitalize">{c.tipo}</p>
-                  </div>
-                  <p className="font-semibold text-carbon">
-                    ${Number(c.saldo_actual ?? c.saldo_inicial).toFixed(2)}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
-        </>
+        <TarjetasScreen
+          tarjetas={tarjetas}
+          embedded={true}
+          onAgregar={onAgregarTarjeta}
+          onPagar={onPagarTarjeta}
+          onVerTarjeta={onVerTarjeta}
+          onVolver={() => {}}
+        />
       )}
       {tabActiva === "parati" && (
         <div className="text-center py-12">

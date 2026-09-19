@@ -24,6 +24,8 @@ import ResetPasswordScreen from "./ResetPasswordScreen.jsx";
 import TarjetasScreen from "./TarjetasScreen.jsx";
 import MovimientosScreen from "./MovimientosScreen.jsx";
 import PlanificarScreen from "./PlanificarScreen.jsx";
+import CuentaDetalleScreen from "./CuentaDetalleScreen.jsx";
+
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -104,6 +106,7 @@ export default function App() {
   const [menuAbiertoId, setMenuAbiertoId] = useState(null);
   const [tarjetaAPagar, setTarjetaAPagar] = useState(null);
   const [tarjetaDetalle, setTarjetaDetalle] = useState(null);
+  const [cuentaDetalle, setCuentaDetalle] = useState(null);
 
   const [form, setForm] = useState({
     fecha: todayISO(),
@@ -407,6 +410,7 @@ export default function App() {
             onAgregarTarjeta={() => setModalTarjetas(true)}
             onIrAPotes={() => setVista("planificar")}          // <-- NUEVO
             onIrAMovimientos={() => setVista("movimientos")} // <-- NUEVO
+            onVerCuenta={(c) => setCuentaDetalle(c)}   // <-- NUEVA
           />
         )}
         {vista === "cuentas" && <CuentasScreen onCambiarVista={setVista} />}
@@ -503,6 +507,16 @@ export default function App() {
               }
             }}
             onCambio={() => cargarDatos()}
+          />
+        )}
+
+        {cuentaDetalle && (
+          <CuentaDetalleScreen
+            cuenta={cuentaDetalle}
+            onVolver={() => {
+              setCuentaDetalle(null);
+              setVista("cuentas");
+            }}
           />
         )}
 

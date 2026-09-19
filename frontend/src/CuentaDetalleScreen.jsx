@@ -28,8 +28,9 @@ export default function CuentaDetalleScreen({ cuenta, onVolver }) {
       .finally(() => setCargando(false));
   }, [cuenta.id]);
 
-  return (
-    <div className="max-w-md mx-auto px-4 pb-28 pt-6">
+    return (
+    <div className="fixed inset-0 z-40 bg-cream overflow-y-auto">
+      <div className="max-w-md mx-auto px-4 pb-28 pt-6">
       <button
         onClick={onVolver}
         className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-carbon mb-4"
@@ -99,5 +100,6 @@ export default function CuentaDetalleScreen({ cuenta, onVolver }) {
         </p>
       )}
     </div>
+  </div>
   );
 }
