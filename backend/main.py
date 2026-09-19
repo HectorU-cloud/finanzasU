@@ -328,6 +328,8 @@ def actualizar_cuenta(
 
     if payload.nombre is not None:
         cuenta.nombre = payload.nombre
+    if payload.titular is not None:              # <-- NUEVA
+        cuenta.titular = payload.titular
     if payload.tipo is not None:
         cuenta.tipo = payload.tipo
     if payload.saldo_inicial is not None:
@@ -1145,6 +1147,8 @@ def actualizar_tarjeta(
         tarjeta.nombre = payload.nombre
     if payload.dia_corte is not None:
         tarjeta.dia_corte = payload.dia_corte
+    if payload.dia_pago is not None:        # <-- NUEVA
+        tarjeta.dia_pago = payload.dia_pago
     if payload.red is not None:
         tarjeta.red = payload.red
     if payload.tema is not None:
@@ -1351,6 +1355,7 @@ def resumen_mensual(
             id=t.id,
             nombre=t.nombre,
             dia_corte=t.dia_corte,
+            dia_pago=t.dia_pago,      # <-- NUEVO
             red=t.red,
             tema=t.tema,
             dias_para_corte=dias_para_corte(t.dia_corte, hoy),

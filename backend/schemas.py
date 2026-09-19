@@ -73,6 +73,7 @@ REDES_VALIDAS = {"Visa", "Mastercard", "American Express", "Diners Club", "Otra"
 class TarjetaBase(BaseModel):
     nombre: str = Field(min_length=1, max_length=50)
     dia_corte: int = Field(ge=1, le=31)
+    dia_pago: int | None = Field(default=None, ge=1, le=31)  # <-- NUEVO
     red: str | None = Field(default=None, max_length=20)
     tema: str | None = Field(default="clasico", max_length=30)
 
@@ -96,6 +97,7 @@ class TarjetaCreate(TarjetaBase):
 class TarjetaUpdate(BaseModel):
     nombre: str | None = Field(default=None, max_length=50)
     dia_corte: int | None = Field(default=None, ge=1, le=31)
+    dia_pago: int | None = Field(default=None, ge=1, le=31)  # <-- NUEVO
     red: str | None = Field(default=None, max_length=20)
     tema: str | None = Field(default=None, max_length=30)
 
@@ -174,6 +176,7 @@ class ResumenTarjeta(BaseModel):
     id: int
     nombre: str
     dia_corte: int
+    dia_pago: int | None = None
     red: str | None = None
     tema: str | None = None
     dias_para_corte: int
@@ -327,6 +330,7 @@ TIPOS_CUENTA_VALIDOS = {"efectivo", "ahorros", "corriente", "inversion", "otra"}
 
 class CuentaBase(BaseModel):
     nombre: str = Field(min_length=1, max_length=80)
+    titular: str | None = Field(default=None, max_length=100)   # <-- NUEVO
     tipo: str = Field(default="ahorros", max_length=30)
     saldo_inicial: Decimal = Field(default=Decimal("0"), ge=0)
     fijada: bool = False
@@ -363,6 +367,7 @@ class CuentaCreate(CuentaBase):
 
 class CuentaUpdate(BaseModel):
     nombre: str | None = Field(default=None, max_length=80)
+    titular: str | None = Field(default=None, max_length=100)   # <-- NUEVO
     tipo: str | None = Field(default=None, max_length=30)
     saldo_inicial: Decimal | None = Field(default=None, ge=0)
     fijada: bool | None = None

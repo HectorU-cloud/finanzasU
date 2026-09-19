@@ -26,6 +26,7 @@ class Tarjeta(Base):
     dia_corte = Column(Integer, nullable=False)
     red = Column(String(20), nullable=True)
     tema = Column(String(30), nullable=False, default="clasico")
+    dia_pago = Column(Integer, nullable=True)
 
     usuario = relationship("Usuario", back_populates="tarjetas")
     gastos = relationship("Gasto", back_populates="tarjeta", cascade="all, delete-orphan")
@@ -109,6 +110,7 @@ class Cuenta(Base):
     id = Column(Integer, primary_key=True, index=True)
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
     nombre = Column(String(80), nullable=False)
+    titular = Column(String(100), nullable=True)
     tipo = Column(String(30), nullable=False, default="ahorros")
     saldo_inicial = Column(Numeric(12, 2), nullable=False, default=0)
     fijada = Column(Integer, default=0)
