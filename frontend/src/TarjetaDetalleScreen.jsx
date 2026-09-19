@@ -8,6 +8,7 @@ import CardNetworkLogo from "./CardNetworkLogo.jsx";
 import EditarGastoModal from "./EditarGastoModal.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
 import PagarTarjetaModal from "./PagarTarjetaModal.jsx";
+import { calcularVencimiento } from "./utils/fechas.js";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -153,6 +154,11 @@ export default function TarjetaDetalleScreen({ tarjeta, onVolver, onCambio }) {
 
   const gradiente = GRADIENTES[tarjeta.tema || "clasico"];
   const totalMes = gastos.reduce((acc, g) => acc + Number(g.monto || 0), 0);
+  // Calcular la fecha límite de pago para el ciclo actual
+  const { fechaLimite, diasRestantes, urgente } = calcularVencimiento(
+    tarjeta.dia_corte,
+    tarjeta.dia_pago || 15
+  );
 
   return (
     <div className="fixed inset-0 z-40 bg-cream overflow-y-auto">
@@ -201,7 +207,7 @@ export default function TarjetaDetalleScreen({ tarjeta, onVolver, onCambio }) {
             )}
           </div>
 
-          <div className="flex justify-between text-xs mb-3">
+                    <div className="flex justify-between text-xs mb-3">
             <div>
               <p className="text-gray-400">Pagado</p>
               <p className="font-semibold text-emerald-600">
@@ -215,6 +221,31 @@ export default function TarjetaDetalleScreen({ tarjeta, onVolver, onCambio }) {
               </p>
             </div>
           </div>
+
+          {/* Fecha límite de pago */}
+          {estado.pendiente > 0 && (
+            <div
+              className={`rounded-xl px-3 py-2 mb-3 flex items-center justify-between text-xs font-medium ${
+                urgente
+                  ? "bg-red-50 text-red-600 border border-red-200"
+                  : "bg-blue-50 text-blue-600 border border-blue-200"
+              }`}
+            >
+              <span>
+                {diasRestantes < 0
+                  ? `Venció hace ${Math.abs(diasRestantes)} día${Math.abs(diasRestantes) !== 1 ? "s" : ""}`
+                  : diasRestantes === 0
+                  ? "Vence hoy"
+                  : `Pagar hasta el ${fechaLimite.toLocaleDateString("es-ES", {
+                      day: "numeric",
+                      month: "long",
+                    })}`}
+              </span>
+              <span className="font-bold">
+                {diasRestantes >= 0 && `${diasRestantes}d`}
+              </span>
+            </div>
+          )}
 
           <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-3">
             <div

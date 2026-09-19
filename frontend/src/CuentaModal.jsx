@@ -14,6 +14,7 @@ export default function CuentaModal({ cuenta, onCerrar, onGuardado }) {
   const editando = Boolean(cuenta);
   const [form, setForm] = useState({
     nombre: cuenta?.nombre || "",
+    titular: cuenta?.titular || "",
     tipo: cuenta?.tipo || "ahorros",
     saldo_inicial: cuenta?.saldo_inicial ?? "",
     fijada: cuenta?.fijada === 1 || cuenta?.fijada === true,
@@ -49,6 +50,7 @@ export default function CuentaModal({ cuenta, onCerrar, onGuardado }) {
     try {
       const datos = {
         nombre: form.nombre.trim(),
+        titular: form.titular.trim() || null,
         tipo: form.tipo,
         saldo_inicial: saldoNum,
         fijada: form.fijada,
@@ -87,20 +89,48 @@ export default function CuentaModal({ cuenta, onCerrar, onGuardado }) {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
+                    <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">
-              Nombre
+              Nombre de la cuenta
             </label>
             <input
               type="text"
               placeholder="ej. Ahorros Guayaquil"
               value={form.nombre}
               onChange={(e) => {
-              const soloLetrasYNumeros = e.target.value.replace(/[^a-zA-Z0-9 áéíóúÁÉÍÓÚñÑ]/g, "");
-              setForm({ ...form, nombre: soloLetrasYNumeros });
+                const soloLetrasYNumeros = e.target.value.replace(
+                  /[^a-zA-Z0-9 áéíóúÁÉÍÓÚñÑ]/g,
+                  ""
+                );
+                setForm({ ...form, nombre: soloLetrasYNumeros });
               }}
               className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm"
             />
+            <p className="text-[10px] text-gray-400 mt-1">
+              Es solo un apodo para identificar la cuenta.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              Titular de la cuenta
+            </label>
+            <input
+              type="text"
+              placeholder="ej. Nahomi Gilces"
+              value={form.titular}
+              onChange={(e) => {
+                const soloLetras = e.target.value.replace(
+                  /[^a-zA-Z áéíóúÁÉÍÓÚñÑ]/g,
+                  ""
+                );
+                setForm({ ...form, titular: soloLetras });
+              }}
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm"
+            />
+            <p className="text-[10px] text-gray-400 mt-1">
+              El nombre de quien es dueño de la cuenta.
+            </p>
           </div>
 
           {/* NUEVO: Número de cuenta */}

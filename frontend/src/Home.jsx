@@ -3,6 +3,7 @@ import { Plus, TrendingUp, Wallet, Eye, EyeOff, ArrowRightLeft, PiggyBank, Credi
 import { api } from "./api.js";
 import AlertasBanner from "./AlertasBanner.jsx";
 import TarjetasScreen from "./TarjetasScreen.jsx";
+import { calcularVencimiento } from "./utils/fechas.js";
 
 const TIPO_ICONOS = {
   efectivo: Wallet,
@@ -26,6 +27,7 @@ function formatearFecha() {
   const texto = hoy.toLocaleDateString('es-ES', opciones);
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
+
 
 export default function Home({ 
   usuario, 
@@ -91,10 +93,13 @@ export default function Home({
 
   const cuentaDestacada = cuentas.find((c) => c.fijada === 1 || c.fijada === true) || cuentas[0];
 
-  const tarjetaWidget = (resumen?.tarjetas || [])
-    .filter((t) => Number(t.gastado_mes) > 0)
-    .sort((a, b) => Number(b.gastado_mes) - Number(a.gastado_mes))[0]
-    || (resumen?.tarjetas || [])[0];
+  
+  // Tarjetas con algo pendiente de pago
+  const tarjetasPagar = (resumen?.tarjetas || []).filter(
+    (t) => Number(t.gastado_mes) > 0
+  );
+
+  
 
   return (
     <div className="max-w-md mx-auto px-4 pb-24 pt-6">
@@ -167,21 +172,35 @@ export default function Home({
                 </p>
               </div>
 
-              <div className="flex justify-end gap-3">
-                <button
-                  onClick={onIrAMovimientos}
-                  className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm hover:bg-white/30 transition-colors"
-                  title="Ver movimientos"
-                >
-                  <ArrowRightLeft size={18} />
-                </button>
-                <button
-                  onClick={onIrAPotes}
-                  className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm hover:bg-white/30 transition-colors"
-                  title="Ir a mis Pot"
-                >
-                  <PiggyBank size={18} />
-                </button>
+              <div className="flex justify-between items-end">
+                <div className="min-w-0 flex-1">
+                  {cuentaDestacada.titular && (
+                    <>
+                      <p className="text-[10px] opacity-60 uppercase tracking-wider">
+                        Titular
+                      </p>
+                      <p className="text-sm font-medium truncate">
+                        {cuentaDestacada.titular}
+                      </p>
+                    </>
+                  )}
+                </div>
+                <div className="flex gap-3 shrink-0">
+                  <button
+                    onClick={onIrAMovimientos}
+                    className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm hover:bg-white/30 transition-colors"
+                    title="Ver movimientos"
+                  >
+                    <ArrowRightLeft size={18} />
+                  </button>
+                  <button
+                    onClick={onIrAPotes}
+                    className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm hover:bg-white/30 transition-colors"
+                    title="Ir a mis Pot"
+                  >
+                    <PiggyBank size={18} />
+                  </button>
+                </div>
               </div>
             </div>
           ) : (
@@ -193,36 +212,65 @@ export default function Home({
             </div>
           )}
 
-          {/* Widget de Tarjeta de Crédito */}
-          {tarjetaWidget && (
-            <div
-              className="rounded-2xl p-4 mb-5 flex items-center gap-3"
-              style={{ background: "var(--surface)", border: "1px solid var(--border)" }}
-            >
-              <div className="w-12 h-12 rounded-full bg-blue-600 flex items-center justify-center text-white shrink-0">
-                <CreditCard size={22} />
+          {/* Widget de Tarjetas por pagar */}
+          {tarjetasPagar.length > 0 && (
+            <div className="mb-5">
+              <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider mb-2 px-1">
+                Por pagar
+              </p>
+              <div className="flex gap-3 overflow-x-auto pb-2 snap-x snap-mandatory scrollbar-hide -mx-4 px-4">
+                {tarjetasPagar.map((t) => {
+                  const { fechaLimite, diasRestantes, urgente } =
+                    calcularVencimiento(t.dia_corte, t.dia_pago || 15);
+                  return (
+                    <div
+                      key={t.id}
+                      className="shrink-0 w-[300px] snap-center rounded-2xl p-4 flex items-center gap-3 shadow-sm"
+                      style={{
+                        background: "var(--surface)",
+                        border: `1.5px solid ${urgente ? "#ef4444" : "var(--border)"}`,
+                      }}
+                    >
+                      <div
+                        className={`w-12 h-12 rounded-full flex items-center justify-center text-white shrink-0 ${
+                          urgente ? "bg-red-500" : "bg-blue-600"
+                        }`}
+                      >
+                        <CreditCard size={22} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-semibold text-carbon text-sm truncate">
+                          {t.nombre}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          Por pagar: ${Number(t.gastado_mes).toFixed(2)}
+                        </p>
+                        <p
+                          className={`text-xs font-medium mt-0.5 ${
+                            urgente ? "text-red-500" : "text-blue-600"
+                          }`}
+                        >
+                          {diasRestantes < 0
+                            ? `Venció hace ${Math.abs(diasRestantes)} día${Math.abs(diasRestantes) !== 1 ? "s" : ""}`
+                            : diasRestantes === 0
+                            ? "Vence hoy"
+                            : `Pagar hasta: ${fechaLimite.toLocaleDateString("es-ES", { day: "numeric", month: "long" })} · ${diasRestantes}d`}
+                        </p>
+                      </div>
+                      <button
+                        onClick={() => onPagarTarjeta?.(t)}
+                        className={`px-3.5 py-2 rounded-full text-xs font-semibold transition-colors ${
+                          urgente
+                            ? "bg-red-500 text-white hover:bg-red-600"
+                            : "bg-coral text-white hover:bg-coral-dark"
+                        }`}
+                      >
+                        Pagar
+                      </button>
+                    </div>
+                  );
+                })}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-carbon text-sm truncate">
-                  {tarjetaWidget.nombre} Crédito ·•• {tarjetaWidget.id.toString().slice(-4)}
-                </p>
-                <p className="text-xs text-gray-500">
-                  Por pagar: ${Number(tarjetaWidget.gastado_mes).toFixed(2)}
-                </p>
-                <p className="text-xs text-blue-600 font-medium">
-                  Pagar hasta: 1 de{" "}
-                  {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toLocaleDateString(
-                    "es-ES",
-                    { month: "long" }
-                  )}
-                </p>
-              </div>
-              <button
-                onClick={() => onPagarTarjeta?.(tarjetaWidget)}
-                className="px-4 py-2 rounded-full bg-gray-100 text-carbon text-xs font-semibold hover:bg-gray-200 transition-colors"
-              >
-                Pagar
-              </button>
             </div>
           )}
 

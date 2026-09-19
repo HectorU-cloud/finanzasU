@@ -18,8 +18,20 @@ const REDES = ["Visa", "Mastercard", "American Express", "Diners Club", "Otra"];
 
 export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onToggle }) {
   const [editandoId, setEditandoId] = useState(null);
-  const [borrador, setBorrador] = useState({ nombre: "", dia_corte: "", red: REDES[0], tema: "clasico" });
-  const [nueva, setNueva] = useState({ nombre: "", dia_corte: "", red: REDES[0], tema: "clasico" });
+  const [borrador, setBorrador] = useState({
+    nombre: "",
+    dia_corte: "",
+    dia_pago: "",
+    red: REDES[0],
+    tema: "clasico",
+  });
+  const [nueva, setNueva] = useState({
+    nombre: "",
+    dia_corte: "",
+    dia_pago: "",
+    red: REDES[0],
+    tema: "clasico",
+  });
   const [error, setError] = useState("");
   const [menuAbiertoId, setMenuAbiertoId] = useState(null);
   const [tarjetaAEliminar, setTarjetaAEliminar] = useState(null);
@@ -41,6 +53,7 @@ export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onTogg
     setBorrador({
       nombre: t.nombre,
       dia_corte: t.dia_corte,
+      dia_pago: t.dia_pago || "",
       red: t.red || REDES[0],
       tema: t.tema || "clasico",
     });
@@ -54,11 +67,17 @@ export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onTogg
       setError("Nombre y día de corte (1-31) son obligatorios.");
       return;
     }
+    const diaPagoNum = Number(borrador.dia_pago);
+    if (borrador.dia_pago && (isNaN(diaPagoNum) || diaPagoNum < 1 || diaPagoNum > 31)) {
+      setError("El día de pago debe estar entre 1 y 31.");
+      return;
+    }
     setError("");
     try {
       await api.actualizarTarjeta(id, {
         nombre: borrador.nombre.trim(),
         dia_corte: dia,
+        dia_pago: diaPagoNum || null,
         red: borrador.red,
         tema: borrador.tema,
       });
@@ -89,16 +108,22 @@ export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onTogg
       setError("Nombre y día de corte (1-31) son obligatorios.");
       return;
     }
+    const diaPagoNum = Number(nueva.dia_pago);
+    if (nueva.dia_pago && (isNaN(diaPagoNum) || diaPagoNum < 1 || diaPagoNum > 31)) {
+      setError("El día de pago debe estar entre 1 y 31.");
+      return;
+    }
     setError("");
     setEnviando(true);
     try {
       await api.crearTarjeta({
         nombre: nueva.nombre.trim(),
         dia_corte: dia,
+        dia_pago: diaPagoNum || null,
         red: nueva.red,
         tema: nueva.tema,
       });
-      setNueva({ nombre: "", dia_corte: "", red: REDES[0], tema: "clasico" });
+      setNueva({ nombre: "", dia_corte: "", dia_pago: "", red: REDES[0], tema: "clasico" });
       onChange();
     } catch (err) {
       setError(err.message);
@@ -136,6 +161,15 @@ export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onTogg
                     value={borrador.dia_corte}
                     onChange={(e) => setBorrador({ ...borrador, dia_corte: e.target.value })}
                   />
+                  <span className="corte-label">Pago día</span>
+                  <input
+                    type="number"
+                    min="1"
+                    max="31"
+                    placeholder="—"
+                    value={borrador.dia_pago}
+                    onChange={(e) => setBorrador({ ...borrador, dia_pago: e.target.value })}
+                  />
                   <select
                     value={borrador.red}
                     onChange={(e) => setBorrador({ ...borrador, red: e.target.value })}
@@ -169,7 +203,10 @@ export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onTogg
                   <span style={{ flex: 1, fontSize: 14 }}>{t.nombre}</span>
                   <span className="corte-label" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                     {t.red && <CardNetworkLogo red={t.red} size={18} color="var(--ink-soft)" />}
-                    <span>corte día {t.dia_corte}</span>
+                    <span>
+                      corte {t.dia_corte}
+                      {t.dia_pago ? ` · pago ${t.dia_pago}` : ""}
+                    </span>
                   </span>
                   <div className="acciones-menu">
                     <button
@@ -218,6 +255,14 @@ export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onTogg
               placeholder="Corte"
               value={nueva.dia_corte}
               onChange={(e) => setNueva({ ...nueva, dia_corte: e.target.value })}
+            />
+            <input
+              type="number"
+              min="1"
+              max="31"
+              placeholder="Pago"
+              value={nueva.dia_pago}
+              onChange={(e) => setNueva({ ...nueva, dia_pago: e.target.value })}
             />
             <select
               value={nueva.red}
