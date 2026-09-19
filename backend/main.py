@@ -69,7 +69,7 @@ def enviar_email_reset(destinatario: str, nombre: str, token: str) -> bool:
         resend.Emails.send({
             "from": FROM_EMAIL,
             "to": [destinatario],
-            "subject": "Recupera tu contraseña · Control de gastos",
+            "subject": "Restablece tu contraseña - Control de gastos",
             "html": html,
         })
         return True

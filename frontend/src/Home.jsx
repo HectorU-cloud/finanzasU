@@ -147,7 +147,7 @@ export default function Home({
                     {cuentaDestacada.numero_cuenta || cuentaDestacada.id.toString().padStart(10, "0")}
                   </p>
                 </div>
-                <span className="text-4xl">🐷⚽</span>
+                <span className="text-3xl">🏦</span>
               </div>
 
               <div className="mb-4">

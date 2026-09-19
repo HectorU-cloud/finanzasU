@@ -31,6 +31,11 @@ export default function CuentaModal({ cuenta, onCerrar, onGuardado }) {
     }
     const saldoNum = Number(form.saldo_inicial);
 
+    if (saldoNum > 1000000) {
+      setError("El saldo no puede ser mayor a 1,000,000");
+      return;
+    }
+
     if (form.numero_cuenta && form.numero_cuenta.length !== 10) {
       setError("El número de cuenta debe tener exactamente 10 dígitos.");
       return;
@@ -90,7 +95,10 @@ export default function CuentaModal({ cuenta, onCerrar, onGuardado }) {
               type="text"
               placeholder="ej. Ahorros Guayaquil"
               value={form.nombre}
-              onChange={(e) => setForm({ ...form, nombre: e.target.value })}
+              onChange={(e) => {
+              const soloLetrasYNumeros = e.target.value.replace(/[^a-zA-Z0-9 áéíóúÁÉÍÓÚñÑ]/g, "");
+              setForm({ ...form, nombre: soloLetrasYNumeros });
+              }}
               className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm"
             />
           </div>
@@ -130,6 +138,9 @@ export default function CuentaModal({ cuenta, onCerrar, onGuardado }) {
                 <option key={t.valor} value={t.valor}>{t.nombre}</option>
               ))}
             </select>
+            <p className="text-[10px] text-gray-400 mt-1">
+              "Efectivo" para dinero físico. "Otra" para plataformas digitales (PayPal, Binance, etc).
+            </p>
           </div>
 
           <div>
