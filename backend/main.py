@@ -40,7 +40,7 @@ def enviar_email_reset(destinatario: str, nombre: str, token: str) -> bool:
     enlace = f"{FRONTEND_URL}/reset?token={token}"
     html = f"""
     <div style="font-family: sans-serif; max-width: 500px; margin: auto; padding: 20px;">
-      <h2 style="color: #FF4F40;">Recupera tu contraseña</h2>
+      <h2 style="color: #FF4F40;">Restablece tu contraseña</h2>
       <p>Hola {nombre},</p>
       <p>Recibimos una solicitud para restablecer tu contraseña en <strong>Control de gastos</strong>.</p>
       <p>Haz clic en el siguiente botón para crear una nueva contraseña:</p>

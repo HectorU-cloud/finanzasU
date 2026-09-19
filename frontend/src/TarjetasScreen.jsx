@@ -66,6 +66,20 @@ export default function TarjetasScreen({
         </>
       )}
 
+      {/* Botón agregar cuando está embebido */}
+      {embedded && (
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-carbon">Mis tarjetas</h2>
+          <button
+            onClick={onAgregar}
+            className="w-9 h-9 rounded-full bg-coral text-white flex items-center justify-center shadow-md hover:bg-coral-dark transition-colors"
+            title="Agregar tarjeta"
+          >
+            <Plus size={18} />
+          </button>
+        </div>
+      )}
+
       {/* Segmented Control */}
       <div className="flex bg-gray-100 p-1 rounded-2xl mb-6">
         <button
