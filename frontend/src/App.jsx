@@ -23,6 +23,7 @@ import SolicitarResetScreen from "./SolicitarResetScreen.jsx";
 import ResetPasswordScreen from "./ResetPasswordScreen.jsx";
 import TarjetasScreen from "./TarjetasScreen.jsx";
 import MovimientosScreen from "./MovimientosScreen.jsx";
+import PlanificarScreen from "./PlanificarScreen.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -404,7 +405,7 @@ export default function App() {
             onVerTarjeta={(t) => {setOrigenDetalle(null);setTarjetaDetalle(t);}}
             onVerTodasTarjetas={() => setVistaTarjetas(true)}
             onAgregarTarjeta={() => setModalTarjetas(true)}
-            onIrAPotes={() => setVista("potes")}           // <-- NUEVO
+            onIrAPotes={() => setVista("planificar")}          // <-- NUEVO
             onIrAMovimientos={() => setVista("movimientos")} // <-- NUEVO
           />
         )}
@@ -413,24 +414,13 @@ export default function App() {
         {/* NUEVO: Pantalla que unifica Ingresos y Pagos */}
         {vista === "movimientos" && <MovimientosScreen />}
         
-        {/* TEMPORAL: Puente hacia Pot y Grupos hasta que armemos Planificar */}
                 {vista === "planificar" && (
-          <div className="max-w-md mx-auto p-6 pt-10">
-            <h1 className="text-2xl font-bold text-carbon mb-6">Planificar</h1>
-            <div className="bg-white rounded-2xl p-5 shadow-sm">
-              <p className="text-sm text-gray-500 mb-4">
-                Organiza tus gastos compartidos y coordina con tu grupo.
-              </p>
-              <button
-                onClick={() => setVista("grupos")}
-                className="w-full py-3 rounded-xl bg-coral text-white font-semibold text-sm flex items-center justify-center gap-2"
-              >
-                Ver mis Grupos
-              </button>
-            </div>
-          </div>
+          <PlanificarScreen
+            onIrAPotes={() => setVista("potes")}
+            onIrAGrupos={() => setVista("grupos")}
+          />
         )}
-        {vista === "potes" && <PotesScreen onVolver={() => setVista("home")} />}
+        {vista === "potes" && <PotesScreen onVolver={() => setVista("planificar")} />}
         {vista === "grupos" && (
           <div className="max-w-md mx-auto p-6">
             <GruposPanel 
