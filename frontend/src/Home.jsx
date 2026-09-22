@@ -81,7 +81,10 @@ export default function Home({
 
   useEffect(() => {
     api.getInsights()
-      .then((d) => setInsights(d || []))
+      .then((d) => {
+        const lista = Array.isArray(d?.insights) ? d.insights : [];
+        setInsights(lista);
+      })
       .catch(() => setInsights([]))
       .finally(() => setCargandoInsights(false));
   }, []);
@@ -414,7 +417,7 @@ export default function Home({
 
           {cargandoInsights ? (
             <p className="text-sm text-gray-400 text-center py-8">Cargando...</p>
-          ) : insights.length === 0 ? (
+          ) : !Array.isArray(insights) || insights.length === 0 ? (
             <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center">
               <Sparkles size={32} className="text-gray-300 mx-auto mb-3" />
               <p className="text-sm text-gray-500">
