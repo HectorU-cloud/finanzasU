@@ -108,6 +108,8 @@ export default function App() {
   const [tarjetaAPagar, setTarjetaAPagar] = useState(null);
   const [tarjetaDetalle, setTarjetaDetalle] = useState(null);
   const [cuentaDetalle, setCuentaDetalle] = useState(null);
+  const [rangoExportTodo, setRangoExportTodo] = useState("mes");
+  const [exportandoTodo, setExportandoTodo] = useState(false);
 
   const [form, setForm] = useState({
     fecha: todayISO(),
@@ -242,6 +244,47 @@ export default function App() {
       manejarError(err);
     } finally {
       setExportando(false);
+    }
+  }
+
+  async function handleExportTodo() {
+    let desde, hasta;
+    const ahora = new Date();
+    if (rangoExportTodo === "mes") {
+      // Último mes
+      const inicio = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1);
+      const fin = new Date(ahora.getFullYear(), ahora.getMonth(), 0);
+      desde = inicio.toISOString().slice(0, 10);
+      hasta = fin.toISOString().slice(0, 10);
+    } else if (rangoExportTodo === "3meses") {
+      const inicio = new Date(ahora.getFullYear(), ahora.getMonth() - 3, 1);
+      desde = inicio.toISOString().slice(0, 10);
+      hasta = ahora.toISOString().slice(0, 10);
+    } else if (rangoExportTodo === "anio") {
+      const inicio = new Date(ahora.getFullYear(), 0, 1);
+      desde = inicio.toISOString().slice(0, 10);
+      hasta = ahora.toISOString().slice(0, 10);
+    } else {
+      // Todo (desde 2000)
+      desde = "2000-01-01";
+      hasta = ahora.toISOString().slice(0, 10);
+    }
+
+    setExportandoTodo(true);
+    try {
+      const { blob, filename } = await api.exportarTodo(desde, hasta);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setExportandoTodo(false);
     }
   }
 
@@ -474,6 +517,35 @@ export default function App() {
                 >
                   Cambiar contraseña
                 </button>
+
+                {/* Exportar todo */}
+                <div className="border border-gray-200 rounded-xl p-4 text-left">
+                  <p className="text-xs font-semibold text-carbon mb-2">
+                    📦 Exportar mis finanzas
+                  </p>
+                  <p className="text-[11px] text-gray-500 mb-3">
+                    Descarga un ZIP con todos tus movimientos en CSV.
+                  </p>
+                  <div className="flex gap-2">
+                    <select
+                      value={rangoExportTodo}
+                      onChange={(e) => setRangoExportTodo(e.target.value)}
+                      className="flex-1 px-3 py-2 rounded-lg border border-gray-200 focus:border-coral focus:outline-none text-xs bg-white"
+                    >
+                      <option value="mes">Último mes</option>
+                      <option value="3meses">Últimos 3 meses</option>
+                      <option value="anio">Este año</option>
+                      <option value="todo">Todo</option>
+                    </select>
+                    <button
+                      onClick={handleExportTodo}
+                      disabled={exportandoTodo}
+                      className="px-4 py-2 rounded-lg bg-coral text-white text-xs font-semibold hover:bg-coral-dark transition-colors disabled:opacity-60"
+                    >
+                      {exportandoTodo ? "..." : "Descargar"}
+                    </button>
+                  </div>
+                </div>
 
                 <button
                   onClick={handleLogout}

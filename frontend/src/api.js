@@ -240,4 +240,23 @@ export const api = {
     const match = disposition.match(/filename="?([^"]+)"?/);
     return { blob, filename: match?.[1] || "gastos.csv" };
   },
+  exportarTodo: async (desde, hasta) => {
+    const headers = {};
+    if (authToken) headers.Authorization = `Bearer ${authToken}`;
+    const url = `${BASE}/export/todo?desde=${desde}&hasta=${hasta}`;
+    const res = await fetch(url, { headers });
+    if (res.status === 401) {
+      setAuthToken(null);
+      const err = new Error("Tu sesión expiró. Inicia sesión de nuevo.");
+      err.unauthorized = true;
+      throw err;
+    }
+    if (!res.ok) throw new Error("No se pudo generar el archivo.");
+    const blob = await res.blob();
+    const disposition = res.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    return { blob, filename: match?.[1] || "finanzas.zip" };
+  },
 };
+
+
