@@ -134,15 +134,17 @@ export default function IngresosScreen({ ocultarHeader = false }) {
         >
           <ChevronRight size={16} />
         </button>
-        <button
-          onClick={exportar}
-          disabled={exportando}
-          className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 disabled:opacity-50"
-          title="Descargar CSV"
-        >
-          <Download size={16} />
-        </button>
       </div>
+
+      {/* Botón Descargar CSV */}
+      <button
+        onClick={exportar}
+        disabled={exportando}
+        className="w-full mb-4 py-2.5 rounded-xl border border-coral/30 bg-coral/5 text-coral font-semibold text-xs flex items-center justify-center gap-2 hover:bg-coral/10 transition-colors disabled:opacity-50"
+      >
+        <Download size={14} />
+        {exportando ? "Generando CSV..." : "Descargar CSV de este mes"}
+      </button>
 
       {cargando ? (
         <p className="text-sm text-gray-400 text-center py-8">Cargando...</p>
