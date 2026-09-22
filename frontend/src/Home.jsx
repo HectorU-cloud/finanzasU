@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, TrendingUp, Wallet, Eye, EyeOff, ArrowRightLeft, PiggyBank, CreditCard, StickyNote, Trash2 } from "lucide-react";
+import { Plus, TrendingUp, Wallet, Eye, EyeOff, ArrowRightLeft, PiggyBank, CreditCard, StickyNote, Trash2, HandCoins } from "lucide-react";
 import { api } from "./api.js";
 import AlertasBanner from "./AlertasBanner.jsx";
 import TarjetasScreen from "./TarjetasScreen.jsx";
@@ -40,7 +40,8 @@ export default function Home({
   onAgregarTarjeta,
   onIrAPotes,
   onIrAMovimientos,
-  onVerCuenta,        // <-- NUEVA
+  onVerCuenta,
+  onIrADeudas,   // <-- NUEVA
 }) {
   const [cuentas, setCuentas] = useState([]);
   const [cargandoCuentas, setCargandoCuentas] = useState(true);
@@ -50,12 +51,21 @@ export default function Home({
   // Estado de las notas (backend)
   const [notas, setNotas] = useState([]);
   const [cargandoNotas, setCargandoNotas] = useState(true);
+  const [deudas, setDeudas] = useState([]);
+  const [cargandoDeudas, setCargandoDeudas] = useState(true);
 
   useEffect(() => {
     api.getCuentas()
       .then((d) => setCuentas(d || []))
       .catch(() => setCuentas([]))
       .finally(() => setCargandoCuentas(false));
+  }, []);
+
+    useEffect(() => {
+    api.getDeudas()
+      .then((d) => setDeudas(d || []))
+      .catch(() => setDeudas([]))
+      .finally(() => setCargandoDeudas(false));
   }, []);
 
   useEffect(() => {
@@ -99,6 +109,15 @@ export default function Home({
   const tarjetasPagar = (resumen?.tarjetas || []).filter(
     (t) => Number(t.gastado_mes) > 0
   );
+
+  // Resumen de deudas (solo activas)
+  const deudasActivas = deudas.filter((d) => !d.pagada);
+  const totalDebo = deudasActivas
+    .filter((d) => d.tipo === "debo")
+    .reduce((acc, d) => acc + Number(d.saldo_pendiente), 0);
+  const totalMeDeben = deudasActivas
+    .filter((d) => d.tipo === "me_deben")
+    .reduce((acc, d) => acc + Number(d.saldo_pendiente), 0);
 
   
 
@@ -278,6 +297,38 @@ export default function Home({
                 })}
               </div>
             </div>
+          )}
+
+                    {/* Widget de Deudas */}
+          {deudasActivas.length > 0 && (
+            <button
+              onClick={onIrADeudas}
+              className="w-full rounded-2xl p-4 mb-5 text-left shadow-sm hover:shadow-md transition-shadow"
+              style={{
+                background: "linear-gradient(135deg, #7c2d12 0%, #c2410c 100%)",
+              }}
+            >
+              <div className="flex items-center justify-between mb-3">
+                <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center text-white">
+                  <HandCoins size={20} />
+                </div>
+                <span className="text-white text-2xl font-bold">
+                  {deudasActivas.length}
+                </span>
+              </div>
+              <p className="text-white/80 text-[10px] uppercase tracking-wider mb-1">
+                Deudas activas
+              </p>
+              <div className="flex gap-3 text-white text-xs">
+                {totalDebo > 0 && (
+                  <span>Debes ${totalDebo.toFixed(2)}</span>
+                )}
+                {totalDebo > 0 && totalMeDeben > 0 && <span className="opacity-50">·</span>}
+                {totalMeDeben > 0 && (
+                  <span>Te deben ${totalMeDeben.toFixed(2)}</span>
+                )}
+              </div>
+            </button>
           )}
 
           {/* Widget de Notas */}

@@ -215,12 +215,14 @@ class AbonoDeuda(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     deuda_id = Column(Integer, ForeignKey("deudas.id"), nullable=False)
+    cuenta_id = Column(Integer, ForeignKey("cuentas.id"), nullable=True)  # <-- ESTA LÍNEA
     monto = Column(Numeric(12, 2), nullable=False)
     fecha = Column(Date, nullable=False)
     nota = Column(String(150), nullable=True)
     creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     deuda = relationship("Deuda", back_populates="abonos")
+    cuenta = relationship("Cuenta")  # <-- Y ESTA
 
 class Nota(Base):
     __tablename__ = "notas"

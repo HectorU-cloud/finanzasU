@@ -394,7 +394,7 @@ export default function App() {
     );
   }
 
-  const VISTAS_CON_NAV = ["home", "cuentas", "movimientos", "planificar", "perfil", "potes", "grupos"];
+  const VISTAS_CON_NAV = ["home", "cuentas", "movimientos", "planificar", "perfil", "potes", "grupos", "deudas"];
 
   if (VISTAS_CON_NAV.includes(vista)) {
     return (
@@ -411,7 +411,8 @@ export default function App() {
             onAgregarTarjeta={() => setModalTarjetas(true)}
             onIrAPotes={() => setVista("planificar")}          // <-- NUEVO
             onIrAMovimientos={() => setVista("movimientos")} // <-- NUEVO
-            onVerCuenta={(c) => setCuentaDetalle(c)}   // <-- NUEVA
+            onVerCuenta={(c) => setCuentaDetalle(c)}
+            onIrADeudas={() => { setVista("planificar"); }}   // <-- NUEVA
           />
         )}
         {vista === "cuentas" && <CuentasScreen onCambiarVista={setVista} />}

@@ -281,7 +281,12 @@ def listar_cuentas(
             .filter(models.PagoTarjeta.cuenta_id == c.id)
             .scalar()
         )
-        saldo_actual = Decimal(c.saldo_inicial) + Decimal(ingresos) - Decimal(pagos)
+        saldo_actual = (
+            Decimal(c.saldo_inicial)
+            + Decimal(ingresos)
+            - Decimal(pagos)
+            + _abonos_netos_cuenta(db, c.id)
+        )
         c.total_ingresos = Decimal(ingresos)
         c.saldo_actual = saldo_actual
         resultado.append(c)
@@ -414,7 +419,7 @@ def resumen_total_cuentas(
             .filter(models.PagoTarjeta.cuenta_id == c.id)
             .scalar()
         )
-        total += Decimal(c.saldo_inicial) + Decimal(ingresos) - Decimal(pagos)
+        total += Decimal(c.saldo_inicial) + Decimal(ingresos) - Decimal(pagos) + _abonos_netos_cuenta(db, c.id)
     return {
         "total": float(total),
         "cantidad_cuentas": len(cuentas),
@@ -493,6 +498,27 @@ def movimientos_cuenta(
                 referencia_id=mp.pote_id,
                 referencia_nombre=pote.nombre if pote else None,
             ))
+
+        # 4. Abonos de deudas ligados a esta cuenta
+    abonos = (
+        db.query(models.AbonoDeuda, models.Deuda)
+        .join(models.Deuda, models.AbonoDeuda.deuda_id == models.Deuda.id)
+        .filter(models.AbonoDeuda.cuenta_id == cuenta_id)
+        .all()
+    )
+    for abono, deuda in abonos:
+        es_salida = deuda.tipo == "debo"
+        movimientos.append(schemas.MovimientoCuenta(
+            tipo="abono_deuda",
+            monto=-Decimal(abono.monto) if es_salida else Decimal(abono.monto),
+            fecha=abono.fecha,
+            descripcion=(
+                f"Abono a {deuda.persona}" if es_salida
+                else f"Cobro de {deuda.persona}"
+            ),
+            referencia_id=abono.id,
+            referencia_nombre=deuda.persona,
+        ))
 
     movimientos.sort(key=lambda m: m.fecha, reverse=True)
     return movimientos
@@ -921,7 +947,6 @@ def _pote_del_usuario(db: Session, pote_id: int, usuario: models.Usuario) -> mod
 
 
 def _calcular_saldo_cuenta(db: Session, cuenta: models.Cuenta) -> Decimal:
-    """Calcula el saldo actual de una cuenta considerando ingresos, pagos y pots."""
     ingresos = (
         db.query(func.coalesce(func.sum(models.Ingreso.monto), 0))
         .filter(models.Ingreso.cuenta_id == cuenta.id)
@@ -932,7 +957,12 @@ def _calcular_saldo_cuenta(db: Session, cuenta: models.Cuenta) -> Decimal:
         .filter(models.PagoTarjeta.cuenta_id == cuenta.id)
         .scalar()
     )
-    return Decimal(cuenta.saldo_inicial) + Decimal(ingresos) - Decimal(pagos)
+    return (
+        Decimal(cuenta.saldo_inicial)
+        + Decimal(ingresos)
+        - Decimal(pagos)
+        + _abonos_netos_cuenta(db, cuenta.id)   # <-- NUEVO
+    )
 
 
 @app.get("/api/emojis-pote", response_model=schemas.EmojisPoteDisponibles)
@@ -2076,6 +2106,33 @@ def listar_abonos_deuda(
     )
 
 
+
+def _abonos_netos_cuenta(db: Session, cuenta_id: int) -> Decimal:
+    """Calcula el efecto neto de los abonos ligados a esta cuenta.
+    - deudas 'debo' (pagos) → negativo (sale dinero)
+    - deudas 'me_deben' (cobros) → positivo (entra dinero)
+    """
+    salidas = (
+        db.query(func.coalesce(func.sum(models.AbonoDeuda.monto), 0))
+        .join(models.Deuda, models.AbonoDeuda.deuda_id == models.Deuda.id)
+        .filter(
+            models.AbonoDeuda.cuenta_id == cuenta_id,
+            models.Deuda.tipo == "debo",
+        )
+        .scalar()
+    )
+    entradas = (
+        db.query(func.coalesce(func.sum(models.AbonoDeuda.monto), 0))
+        .join(models.Deuda, models.AbonoDeuda.deuda_id == models.Deuda.id)
+        .filter(
+            models.AbonoDeuda.cuenta_id == cuenta_id,
+            models.Deuda.tipo == "me_deben",
+        )
+        .scalar()
+    )
+    return Decimal(entradas) - Decimal(salidas)
+
+
 @app.post("/api/deudas/{deuda_id}/abonar", response_model=schemas.AbonarDeudaResultado)
 def abonar_deuda(
     deuda_id: int,
@@ -2095,8 +2152,22 @@ def abonar_deuda(
             ),
         )
 
+    # Validar cuenta si se proporcionó
+    if datos.cuenta_id is not None:
+        cuenta = (
+            db.query(models.Cuenta)
+            .filter(
+                models.Cuenta.id == datos.cuenta_id,
+                models.Cuenta.usuario_id == usuario.id,
+            )
+            .first()
+        )
+        if not cuenta:
+            raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+
     nuevo_abono = models.AbonoDeuda(
         deuda_id=deuda.id,
+        cuenta_id=datos.cuenta_id,
         monto=datos.monto,
         fecha=datos.fecha,
         nota=datos.nota,

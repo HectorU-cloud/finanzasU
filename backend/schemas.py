@@ -128,11 +128,6 @@ class GastoBase(BaseModel):
     descripcion: str | None = Field(default=None, max_length=150)
     categoria: str | None = Field(default=None, max_length=50)
 
-    @field_validator("fecha")
-    @classmethod
-    def _fecha_valida(cls, v):
-        return _validar_fecha(v)
-
     @field_validator("categoria")
     @classmethod
     def _categoria_valida(cls, v):
@@ -142,7 +137,10 @@ class GastoBase(BaseModel):
 
 
 class GastoCreate(GastoBase):
-    pass
+    @field_validator("fecha")
+    @classmethod
+    def _fecha_valida(cls, v):
+        return _validar_fecha(v)
 
 
 class GastoUpdate(BaseModel):
@@ -601,8 +599,8 @@ class ResetPassword(BaseModel):
     password_nueva: str = Field(min_length=6, max_length=72)
 
 class MovimientoCuenta(BaseModel):
-    tipo: str  # "ingreso" | "pago_tarjeta" | "deposito_pote" | "retiro_pote"
-    monto: Decimal  # positivo = entrada, negativo = salida
+    tipo: str  # "ingreso" | "pago_tarjeta" | "deposito_pote" | "retiro_pote" | "abono_deuda"
+    monto: Decimal
     fecha: date
     descripcion: str | None = None
     referencia_id: int | None = None
@@ -664,6 +662,7 @@ class AbonoDeudaCreate(BaseModel):
     monto: Decimal = Field(gt=0, le=MONTO_MAXIMO, decimal_places=2)
     fecha: date
     nota: str | None = Field(default=None, max_length=150)
+    cuenta_id: int | None = None  # <-- NUEVO
 
     @field_validator("fecha")
     @classmethod
@@ -677,6 +676,7 @@ class AbonoDeudaOut(BaseModel):
     monto: Decimal
     fecha: date
     nota: str | None
+    cuenta_id: int | None = None  # <-- NUEVO
 
 
 class DeudaOut(BaseModel):

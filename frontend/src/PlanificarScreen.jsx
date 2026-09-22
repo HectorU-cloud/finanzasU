@@ -34,36 +34,23 @@ export default function PlanificarScreen({ onIrAPotes, onIrAGrupos, onIrADeudas 
 
       {/* Segmented Control */}
       <div className="flex bg-gray-100 p-1 rounded-2xl mb-6">
-        <button
-          onClick={() => setTabActiva("potes")}
-          className={`flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all ${
-            tabActiva === "potes"
-              ? "bg-white text-coral shadow-sm"
-              : "text-gray-500 hover:text-carbon"
-          }`}
-        >
-          Mis Pot
-        </button>
-        <button
-          onClick={() => setTabActiva("grupos")}
-          className={`flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all ${
-            tabActiva === "grupos"
-              ? "bg-white text-coral shadow-sm"
-              : "text-gray-500 hover:text-carbon"
-          }`}
-        >
-          Grupos
-        </button>
-        <button
-          onClick={() => setTabActiva("deudas")}
-          className={`flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all ${
-            tabActiva === "deudas"
-              ? "bg-white text-coral shadow-sm"
-              : "text-gray-500 hover:text-carbon"
-          }`}
-        >
-          Deudas
-        </button>
+        {[
+          { id: "potes", label: "Mis Pot" },
+          { id: "grupos", label: "Grupos" },
+          { id: "deudas", label: "Deudas" },
+        ].map((t) => (
+          <button
+            key={t.id}
+            onClick={() => setTabActiva(t.id)}
+            className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all whitespace-nowrap ${
+              tabActiva === t.id
+                ? "bg-white text-coral shadow-sm"
+                : "text-gray-500 hover:text-carbon"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
       </div>
 
       {cargando ? (

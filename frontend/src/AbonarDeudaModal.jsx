@@ -2,12 +2,13 @@ import { useState } from "react";
 import { HandCoins, PartyPopper, X } from "lucide-react";
 import { api } from "./api.js";
 
+
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
 
 export default function AbonarDeudaModal({ deuda, onCerrar, onGuardado }) {
-  const [form, setForm] = useState({ monto: "", fecha: todayISO(), nota: "" });
+  const [form, setForm] = useState({ monto: "", fecha: todayISO(), nota: "", cuenta_id: "",});
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
   const [resultado, setResultado] = useState(null); // { deuda, quedo_saldada }
@@ -37,6 +38,7 @@ export default function AbonarDeudaModal({ deuda, onCerrar, onGuardado }) {
         monto: montoNum,
         fecha: form.fecha,
         nota: form.nota || null,
+        cuenta_id: form.cuenta_id ? Number(form.cuenta_id) : null,  // <-- NUEVO
       });
       setResultado(r);
     } catch (err) {
@@ -44,6 +46,14 @@ export default function AbonarDeudaModal({ deuda, onCerrar, onGuardado }) {
     } finally {
       setCargando(false);
     }
+
+    const [cuentas, setCuentas] = useState([]);
+
+  useEffect(() => {
+    api.getCuentas()
+      .then((d) => setCuentas(d || []))
+      .catch(() => setCuentas([]));
+  }, []);
   }
 
   if (resultado) {
@@ -156,6 +166,31 @@ export default function AbonarDeudaModal({ deuda, onCerrar, onGuardado }) {
               onChange={(e) => setForm({ ...form, nota: e.target.value })}
               className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm"
             />
+          </div>
+
+                    <div>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              {deuda.tipo === "debo"
+                ? "¿De qué cuenta sale el dinero? (opcional)"
+                : "¿A qué cuenta entra el dinero? (opcional)"}
+            </label>
+            <select
+              value={form.cuenta_id}
+              onChange={(e) => setForm({ ...form, cuenta_id: e.target.value })}
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm bg-white"
+            >
+              <option value="">Sin afectar ninguna cuenta</option>
+              {cuentas.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.nombre} (${Number(c.saldo_actual ?? c.saldo_inicial).toFixed(2)})
+                </option>
+              ))}
+            </select>
+            <p className="text-[10px] text-gray-400 mt-1">
+              {deuda.tipo === "debo"
+                ? "Si eliges una cuenta, el saldo bajará automáticamente."
+                : "Si eliges una cuenta, el saldo subirá automáticamente."}
+            </p>
           </div>
 
           {error && (
