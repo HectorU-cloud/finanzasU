@@ -223,7 +223,7 @@ export const api = {
   eliminarGrupo: (grupoId) => request(`/grupos/${grupoId}`, { method: "DELETE" }),
   getReporteMensual: (anio, mes, meses = 6) =>
     request(`/reportes/mensual?anio=${anio}&mes=${mes}&meses=${meses}`),
-
+  getInsights: () => request("/insights"),
   exportarGastos: async (desde, hasta, categoria = null) => {
     const headers = {};
     if (authToken) headers.Authorization = `Bearer ${authToken}`;

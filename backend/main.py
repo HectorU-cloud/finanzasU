@@ -2892,3 +2892,206 @@ def _nombre_mes(mes: int) -> str:
         "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
     ]
     return nombres[mes] if 1 <= mes <= 12 else ""
+
+# ============================================================
+# INSIGHTS PARA LA PESTAÑA "PARA TI"
+# ============================================================
+
+@app.get("/api/insights")
+def obtener_insights(
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """
+    Genera insights personalizados basados en los datos del usuario.
+    Devuelve una lista de tarjetas con tip, título, mensaje y datos extra.
+    """
+    hoy = date.today()
+    anio_actual = hoy.year
+    mes_actual = hoy.month
+
+    # Mes anterior
+    if mes_actual == 1:
+        anio_anterior = anio_actual - 1
+        mes_anterior = 12
+    else:
+        anio_anterior = anio_actual
+        mes_anterior = mes_actual - 1
+
+    insights = []
+
+    # --- 1. Comparación gasto mes actual vs anterior ---
+    gasto_actual = (
+        db.query(func.coalesce(func.sum(models.Gasto.monto), 0))
+        .join(models.Tarjeta)
+        .filter(models.Tarjeta.usuario_id == usuario.id)
+        .filter(extract("year", models.Gasto.fecha) == anio_actual)
+        .filter(extract("month", models.Gasto.fecha) == mes_actual)
+        .scalar()
+    )
+    gasto_actual = Decimal(gasto_actual)
+
+    gasto_anterior = (
+        db.query(func.coalesce(func.sum(models.Gasto.monto), 0))
+        .join(models.Tarjeta)
+        .filter(models.Tarjeta.usuario_id == usuario.id)
+        .filter(extract("year", models.Gasto.fecha) == anio_anterior)
+        .filter(extract("month", models.Gasto.fecha) == mes_anterior)
+        .scalar()
+    )
+    gasto_anterior = Decimal(gasto_anterior)
+
+    if gasto_anterior > 0:
+        diferencia_pct = float((gasto_actual - gasto_anterior) / gasto_anterior * 100)
+        if diferencia_pct > 10:
+            insights.append({
+                "tipo": "alerta",
+                "titulo": "Gastaste más que el mes pasado",
+                "mensaje": f"Este mes llevas ${gasto_actual:.2f}, un {abs(diferencia_pct):.0f}% más que el mes pasado.",
+                "color": "rojo",
+                "icono": "trending-up",
+            })
+        elif diferencia_pct < -10:
+            insights.append({
+                "tipo": "logro",
+                "titulo": "¡Buen control!",
+                "mensaje": f"Este mes llevas ${gasto_actual:.2f}, un {abs(diferencia_pct):.0f}% menos que el mes pasado.",
+                "color": "verde",
+                "icono": "trending-down",
+            })
+    elif gasto_actual > 0:
+        insights.append({
+            "tipo": "info",
+            "titulo": "Primer mes con gastos",
+            "mensaje": f"Llevas ${gasto_actual:.2f} este mes. ¡Sigue registrando para ver tendencias!",
+            "color": "azul",
+            "icono": "sparkles",
+        })
+
+    # --- 2. Categoría top del mes ---
+    categoria_top = (
+        db.query(
+            models.Gasto.categoria,
+            func.sum(models.Gasto.monto).label("total"),
+        )
+        .join(models.Tarjeta)
+        .filter(models.Tarjeta.usuario_id == usuario.id)
+        .filter(extract("year", models.Gasto.fecha) == anio_actual)
+        .filter(extract("month", models.Gasto.fecha) == mes_actual)
+        .filter(models.Gasto.categoria.isnot(None))
+        .group_by(models.Gasto.categoria)
+        .order_by(func.sum(models.Gasto.monto).desc())
+        .first()
+    )
+    if categoria_top and categoria_top[1] > 0:
+        insights.append({
+            "tipo": "estadistica",
+            "titulo": f"Tu categoría top: {categoria_top[0]}",
+            "mensaje": f"Has gastado ${Decimal(categoria_top[1]):.2f} en {categoria_top[0]} este mes.",
+            "color": "morado",
+            "icono": "pie-chart",
+        })
+
+    # --- 3. Próximo corte de tarjeta ---
+    tarjetas = db.query(models.Tarjeta).filter(
+        models.Tarjeta.usuario_id == usuario.id,
+        models.Tarjeta.tipo == "credito",
+    ).all()
+    corte_proximo = None
+    menor_dias = 999
+    for t in tarjetas:
+        if t.dia_corte is None:
+            continue
+        dias = dias_para_corte(t.dia_corte, hoy)
+        if 0 <= dias < menor_dias:
+            menor_dias = dias
+            corte_proximo = t
+    if corte_proximo:
+        texto = "hoy" if menor_dias == 0 else f"en {menor_dias} día{'s' if menor_dias != 1 else ''}"
+        insights.append({
+            "tipo": "recordatorio",
+            "titulo": f"Corte de {corte_proximo.nombre}",
+            "mensaje": f"Tu tarjeta {corte_proximo.nombre} cierra {texto}.",
+            "color": "amarillo" if menor_dias <= 3 else "azul",
+            "icono": "calendar",
+        })
+
+    # --- 4. Deudas pendientes ---
+    deudas = (
+        db.query(models.Deuda)
+        .filter(models.Deuda.usuario_id == usuario.id, models.Deuda.pagada == 0)
+        .all()
+    )
+    total_debo = sum(
+        (Decimal(d.saldo_pendiente) for d in deudas if d.tipo == "debo"),
+        Decimal("0"),
+    )
+    total_me_deben = sum(
+        (Decimal(d.saldo_pendiente) for d in deudas if d.tipo == "me_deben"),
+        Decimal("0"),
+    )
+    if total_debo > 0:
+        insights.append({
+            "tipo": "alerta",
+            "titulo": "Tienes deudas activas",
+            "mensaje": f"Debes ${total_debo:.2f} en total.",
+            "color": "rojo",
+            "icono": "hand-coins",
+        })
+    if total_me_deben > 0:
+        insights.append({
+            "tipo": "info",
+            "titulo": "Te deben dinero",
+            "mensaje": f"Tienes ${total_me_deben:.2f} por cobrar.",
+            "color": "verde",
+            "icono": "hand-coins",
+        })
+
+    # --- 5. Pote más cerca de completarse ---
+    potes = db.query(models.Pote).filter(models.Pote.usuario_id == usuario.id).all()
+    pote_cerca = None
+    mejor_pct = 0
+    for p in potes:
+        if p.meta and float(p.meta) > 0:
+            pct = float(p.saldo) / float(p.meta) * 100
+            if pct >= mejor_pct and pct < 100:
+                mejor_pct = pct
+                pote_cerca = p
+    if pote_cerca and mejor_pct > 30:
+        insights.append({
+            "tipo": "logro",
+            "titulo": f"{pote_cerca.emoji} {pote_cerca.nombre}",
+            "mensaje": f"Está al {mejor_pct:.0f}% de tu meta. ¡Ya casi!",
+            "color": "verde",
+            "icono": "target",
+        })
+
+    # --- 6. Cuenta con más saldo ---
+    cuentas = db.query(models.Cuenta).filter(models.Cuenta.usuario_id == usuario.id).all()
+    cuenta_top = None
+    mejor_saldo = Decimal("0")
+    for c in cuentas:
+        saldo = _calcular_saldo_cuenta(db, c)
+        if saldo > mejor_saldo:
+            mejor_saldo = saldo
+            cuenta_top = c
+    if cuenta_top and mejor_saldo > 0:
+        insights.append({
+            "tipo": "estadistica",
+            "titulo": "Tu cuenta más fuerte",
+            "mensaje": f"{cuenta_top.nombre} tiene ${mejor_saldo:.2f} disponibles.",
+            "color": "azul",
+            "icono": "wallet",
+        })
+
+    # --- 7. Consejo si no hay nada ---
+    if not insights:
+        insights.append({
+            "tipo": "info",
+            "titulo": "¡Bienvenido!",
+            "mensaje": "Registra tus gastos y deudas para ver insights personalizados aquí.",
+            "color": "azul",
+            "icono": "sparkles",
+        })
+
+    return {"insights": insights}

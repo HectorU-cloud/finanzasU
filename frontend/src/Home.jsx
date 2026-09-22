@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, TrendingUp, Wallet, Eye, EyeOff, ArrowRightLeft, PiggyBank, CreditCard, StickyNote, Trash2, HandCoins, Palette } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, Wallet, Eye, EyeOff, ArrowRightLeft, PiggyBank, CreditCard, StickyNote, Trash2, HandCoins, Palette, PieChart, Calendar, Target, Sparkles, AlertCircle } from "lucide-react";
 import { api } from "./api.js";
 import AlertasBanner from "./AlertasBanner.jsx";
 import TarjetasScreen from "./TarjetasScreen.jsx";
@@ -62,6 +62,8 @@ export default function Home({
   const [cargandoNotas, setCargandoNotas] = useState(true);
   const [deudas, setDeudas] = useState([]);
   const [cargandoDeudas, setCargandoDeudas] = useState(true);
+  const [insights, setInsights] = useState([]);
+  const [cargandoInsights, setCargandoInsights] = useState(true);
 
   useEffect(() => {
     api.getCuentas()
@@ -75,6 +77,13 @@ export default function Home({
       .then((d) => setDeudas(d || []))
       .catch(() => setDeudas([]))
       .finally(() => setCargandoDeudas(false));
+  }, []);
+
+  useEffect(() => {
+    api.getInsights()
+      .then((d) => setInsights(d || []))
+      .catch(() => setInsights([]))
+      .finally(() => setCargandoInsights(false));
   }, []);
 
   useEffect(() => {
@@ -397,10 +406,26 @@ export default function Home({
         />
       )}
       {tabActiva === "parati" && (
-        <div className="text-center py-12">
-          <p className="text-4xl mb-3">✨</p>
-          <p className="text-carbon font-semibold">Próximamente</p>
-          <p className="text-sm text-gray-500 mt-1">Aquí verás recomendaciones personalizadas</p>
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 mb-4">
+            <Sparkles size={18} className="text-coral" />
+            <h2 className="text-lg font-semibold text-carbon">Para ti</h2>
+          </div>
+
+          {cargandoInsights ? (
+            <p className="text-sm text-gray-400 text-center py-8">Cargando...</p>
+          ) : insights.length === 0 ? (
+            <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center">
+              <Sparkles size={32} className="text-gray-300 mx-auto mb-3" />
+              <p className="text-sm text-gray-500">
+                Aún no hay insights disponibles
+              </p>
+            </div>
+          ) : (
+            insights.map((insight, i) => (
+              <InsightCard key={i} insight={insight} />
+            ))
+          )}
         </div>
       )}
     </div>
@@ -434,6 +459,77 @@ function NotaItem({ nota, onGuardar, onEliminar }) {
     await onGuardar(contenido, nuevoColor);
     setGuardando(false);
   }
+const INSIGHT_ICONOS = {
+  "trending-up": TrendingUp,
+  "trending-down": TrendingDown,
+  "pie-chart": PieChart,
+  "calendar": Calendar,
+  "target": Target,
+  "sparkles": Sparkles,
+  "hand-coins": HandCoins,
+  "wallet": Wallet,
+};
+
+const INSIGHT_COLORES = {
+  rojo: {
+    bg: "bg-red-50",
+    border: "border-red-200",
+    text: "text-red-700",
+    icon: "text-red-500",
+    iconBg: "bg-red-100",
+  },
+  verde: {
+    bg: "bg-emerald-50",
+    border: "border-emerald-200",
+    text: "text-emerald-700",
+    icon: "text-emerald-500",
+    iconBg: "bg-emerald-100",
+  },
+  azul: {
+    bg: "bg-blue-50",
+    border: "border-blue-200",
+    text: "text-blue-700",
+    icon: "text-blue-500",
+    iconBg: "bg-blue-100",
+  },
+  amarillo: {
+    bg: "bg-amber-50",
+    border: "border-amber-200",
+    text: "text-amber-700",
+    icon: "text-amber-500",
+    iconBg: "bg-amber-100",
+  },
+  morado: {
+    bg: "bg-purple-50",
+    border: "border-purple-200",
+    text: "text-purple-700",
+    icon: "text-purple-500",
+    iconBg: "bg-purple-100",
+  },
+};
+
+function InsightCard({ insight }) {
+  const Icono = INSIGHT_ICONOS[insight.icono] || Sparkles;
+  const colores = INSIGHT_COLORES[insight.color] || INSIGHT_COLORES.azul;
+
+  return (
+    <div
+      className={`rounded-2xl border p-4 flex items-start gap-3 ${colores.bg} ${colores.border}`}
+    >
+      <div
+        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${colores.iconBg}`}
+      >
+        <Icono size={18} className={colores.icon} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-semibold mb-1 ${colores.text}`}>
+          {insight.titulo}
+        </p>
+        <p className="text-xs text-gray-600">{insight.mensaje}</p>
+      </div>
+    </div>
+  );
+}
 
   return (
     <div className={`rounded-xl overflow-hidden border ${colores.border} flex flex-col h-full`}>
