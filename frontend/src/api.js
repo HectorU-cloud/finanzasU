@@ -120,6 +120,21 @@ export const api = {
     request(`/deudas/${id}/abonar`, { method: "POST", body: JSON.stringify(datos) }),
   getAbonosDeuda: (id) => request(`/deudas/${id}/abonos`),
 
+  // Egresos directos de cuenta
+  getEgresosCuenta: (anio, mes) => {
+    const params = [];
+    if (anio) params.push(`anio=${anio}`);
+    if (mes) params.push(`mes=${mes}`);
+    const qs = params.length ? `?${params.join("&")}` : "";
+    return request(`/egresos-cuenta${qs}`);
+  },
+  crearEgresoCuenta: (datos) =>
+    request("/egresos-cuenta", { method: "POST", body: JSON.stringify(datos) }),
+  actualizarEgresoCuenta: (id, cambios) =>
+    request(`/egresos-cuenta/${id}`, { method: "PUT", body: JSON.stringify(cambios) }),
+  eliminarEgresoCuenta: (id) =>
+    request(`/egresos-cuenta/${id}`, { method: "DELETE" }),
+
   // Pots (metas de ahorro)
   getPotes: () => request("/potes"),
   crearPote: (pote) =>

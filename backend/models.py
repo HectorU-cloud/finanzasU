@@ -234,3 +234,18 @@ class Nota(Base):
     actualizado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 
     usuario = relationship("Usuario")
+
+class EgresoCuenta(Base):
+    __tablename__ = "egresos_cuenta"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    cuenta_id = Column(Integer, ForeignKey("cuentas.id"), nullable=False)
+    monto = Column(Numeric(12, 2), nullable=False)
+    fecha = Column(Date, nullable=False)
+    categoria = Column(String(50), nullable=True)
+    descripcion = Column(String(150), nullable=True)
+    creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    usuario = relationship("Usuario")
+    cuenta = relationship("Cuenta")

@@ -402,6 +402,7 @@ class Cuenta(CuentaBase):
     id: int
     creado_en: datetime | None = None
     total_ingresos: Decimal = Decimal("0")
+    total_egresos: Decimal = Decimal("0")
     saldo_actual: Decimal | None = None
 
 CATEGORIAS_INGRESO = [
@@ -477,6 +478,7 @@ class ResumenTotalCuenta(BaseModel):
     tipo: str
     saldo_inicial: Decimal
     total_ingresos: Decimal
+    total_egresos: Decimal
     saldo_actual: Decimal
 
 class PagoTarjetaCreate(BaseModel):
@@ -599,7 +601,7 @@ class ResetPassword(BaseModel):
     password_nueva: str = Field(min_length=6, max_length=72)
 
 class MovimientoCuenta(BaseModel):
-    tipo: str  # "ingreso" | "pago_tarjeta" | "deposito_pote" | "retiro_pote" | "abono_deuda"
+    tipo: str  # "ingreso" | "pago_tarjeta" | "deposito_pote" | "retiro_pote" | "abono_deuda" | "egreso_cuenta"
     monto: Decimal
     fecha: date
     descripcion: str | None = None
@@ -701,3 +703,54 @@ class DeudaOut(BaseModel):
 class AbonarDeudaResultado(BaseModel):
     deuda: DeudaOut
     quedo_saldada: bool
+
+class EgresoCuentaCreate(BaseModel):
+    cuenta_id: int
+    monto: Decimal = Field(gt=0, le=MONTO_MAXIMO, decimal_places=2)
+    fecha: date
+    categoria: str | None = Field(default=None, max_length=50)
+    descripcion: str | None = Field(default=None, max_length=150)
+
+    @field_validator("fecha")
+    @classmethod
+    def _fecha_valida(cls, v):
+        return _validar_fecha(v)
+
+    @field_validator("categoria")
+    @classmethod
+    def _categoria_valida(cls, v):
+        if v is not None and v not in CATEGORIAS_VALIDAS:
+            raise ValueError("la categoría no es válida")
+        return v
+
+
+class EgresoCuentaUpdate(BaseModel):
+    cuenta_id: int | None = None
+    monto: Decimal | None = Field(default=None, gt=0, le=MONTO_MAXIMO, decimal_places=2)
+    fecha: date | None = None
+    categoria: str | None = Field(default=None, max_length=50)
+    descripcion: str | None = Field(default=None, max_length=150)
+
+    @field_validator("fecha")
+    @classmethod
+    def _fecha_valida(cls, v):
+        if v is None:
+            return v
+        return _validar_fecha(v)
+
+    @field_validator("categoria")
+    @classmethod
+    def _categoria_valida(cls, v):
+        if v is not None and v not in CATEGORIAS_VALIDAS:
+            raise ValueError("la categoría no es válida")
+        return v
+
+
+class EgresoCuentaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    cuenta_id: int
+    monto: Decimal
+    fecha: date
+    categoria: str | None
+    descripcion: str | None

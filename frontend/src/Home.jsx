@@ -180,7 +180,10 @@ export default function Home({
                 <div className="flex items-center gap-2 mb-1">
                   <p className="text-xs opacity-75 uppercase tracking-wider">Disponible</p>
                   <button
-                    onClick={() => setSaldoVisible(!saldoVisible)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSaldoVisible(!saldoVisible);
+                    }}
                     className="opacity-75 hover:opacity-100"
                   >
                     {saldoVisible ? <Eye size={14} /> : <EyeOff size={14} />}

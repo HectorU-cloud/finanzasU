@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, TrendingUp, CreditCard, Target, Wallet } from "lucide-react";
+import { ArrowLeft, TrendingUp, CreditCard, Target, Wallet, HandCoins, Receipt } from "lucide-react";
 import { api } from "./api.js";
 
 const ICONOS_TIPO = {
@@ -7,6 +7,8 @@ const ICONOS_TIPO = {
   pago_tarjeta: CreditCard,
   deposito_pote: Target,
   retiro_pote: Target,
+  abono_deuda: HandCoins,
+  egreso_cuenta: Receipt,
 };
 
 const COLORES_TIPO = {
@@ -14,6 +16,8 @@ const COLORES_TIPO = {
   pago_tarjeta: "text-coral",
   deposito_pote: "text-coral",
   retiro_pote: "text-emerald-600",
+  abono_deuda: "text-coral",
+  egreso_cuenta: "text-amber-600",
 };
 
 export default function CuentaDetalleScreen({ cuenta, onVolver }) {

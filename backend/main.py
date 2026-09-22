@@ -286,6 +286,7 @@ def listar_cuentas(
             + Decimal(ingresos)
             - Decimal(pagos)
             + _abonos_netos_cuenta(db, c.id)
+            - _egresos_directos_cuenta(db, c.id)   # <-- NUEVO
         )
         c.total_ingresos = Decimal(ingresos)
         c.saldo_actual = saldo_actual
@@ -419,7 +420,7 @@ def resumen_total_cuentas(
             .filter(models.PagoTarjeta.cuenta_id == c.id)
             .scalar()
         )
-        total += Decimal(c.saldo_inicial) + Decimal(ingresos) - Decimal(pagos) + _abonos_netos_cuenta(db, c.id)
+        total += Decimal(c.saldo_inicial) + Decimal(ingresos) - Decimal(pagos) + _abonos_netos_cuenta(db, c.id) - _egresos_directos_cuenta(db, c.id)
     return {
         "total": float(total),
         "cantidad_cuentas": len(cuentas),
@@ -518,6 +519,21 @@ def movimientos_cuenta(
             ),
             referencia_id=abono.id,
             referencia_nombre=deuda.persona,
+        ))
+    
+    # 5. Egresos directos desde esta cuenta
+    egresos = (
+        db.query(models.EgresoCuenta)
+        .filter(models.EgresoCuenta.cuenta_id == cuenta_id)
+        .all()
+    )
+    for e in egresos:
+        movimientos.append(schemas.MovimientoCuenta(
+            tipo="egreso_cuenta",
+            monto=-Decimal(e.monto),
+            fecha=e.fecha,
+            descripcion=e.descripcion or e.categoria or "Gasto directo",
+            referencia_id=e.id,
         ))
 
     movimientos.sort(key=lambda m: m.fecha, reverse=True)
@@ -961,7 +977,8 @@ def _calcular_saldo_cuenta(db: Session, cuenta: models.Cuenta) -> Decimal:
         Decimal(cuenta.saldo_inicial)
         + Decimal(ingresos)
         - Decimal(pagos)
-        + _abonos_netos_cuenta(db, cuenta.id)   # <-- NUEVO
+        + _abonos_netos_cuenta(db, cuenta.id)
+        - _egresos_directos_cuenta(db, cuenta.id)   # <-- NUEVO
     )
 
 
@@ -2131,6 +2148,132 @@ def _abonos_netos_cuenta(db: Session, cuenta_id: int) -> Decimal:
         .scalar()
     )
     return Decimal(entradas) - Decimal(salidas)
+
+def _egresos_directos_cuenta(db: Session, cuenta_id: int) -> Decimal:
+    """Suma de egresos pagados directamente desde esta cuenta."""
+    total = (
+        db.query(func.coalesce(func.sum(models.EgresoCuenta.monto), 0))
+        .filter(models.EgresoCuenta.cuenta_id == cuenta_id)
+        .scalar()
+    )
+    return Decimal(total)
+
+# ---------- Egresos de cuenta (gastos directos) ----------
+
+def _egreso_del_usuario(db: Session, egreso_id: int, usuario: models.Usuario) -> models.EgresoCuenta:
+    egreso = (
+        db.query(models.EgresoCuenta)
+        .filter(models.EgresoCuenta.id == egreso_id, models.EgresoCuenta.usuario_id == usuario.id)
+        .first()
+    )
+    if not egreso:
+        raise HTTPException(status_code=404, detail="Egreso no encontrado")
+    return egreso
+
+
+@app.get("/api/egresos-cuenta", response_model=list[schemas.EgresoCuentaOut])
+def listar_egresos_cuenta(
+    anio: int | None = None,
+    mes: int | None = None,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    query = db.query(models.EgresoCuenta).filter(models.EgresoCuenta.usuario_id == usuario.id)
+    if anio is not None:
+        query = query.filter(extract("year", models.EgresoCuenta.fecha) == anio)
+    if mes is not None:
+        query = query.filter(extract("month", models.EgresoCuenta.fecha) == mes)
+    return query.order_by(models.EgresoCuenta.fecha.desc()).all()
+
+
+@app.post("/api/egresos-cuenta", response_model=schemas.EgresoCuentaOut)
+def crear_egreso_cuenta(
+    datos: schemas.EgresoCuentaCreate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    cuenta = (
+        db.query(models.Cuenta)
+        .filter(
+            models.Cuenta.id == datos.cuenta_id,
+            models.Cuenta.usuario_id == usuario.id,
+        )
+        .first()
+    )
+    if not cuenta:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+
+    # Validar saldo suficiente
+    saldo_cuenta = _calcular_saldo_cuenta(db, cuenta)
+    if datos.monto > saldo_cuenta:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"Saldo insuficiente en '{cuenta.nombre}'. "
+                f"Disponible: ${saldo_cuenta:.2f} · "
+                f"Intentas gastar: ${datos.monto:.2f}"
+            ),
+        )
+
+    nuevo = models.EgresoCuenta(
+        usuario_id=usuario.id,
+        cuenta_id=datos.cuenta_id,
+        monto=datos.monto,
+        fecha=datos.fecha,
+        categoria=datos.categoria,
+        descripcion=datos.descripcion,
+    )
+    db.add(nuevo)
+    db.commit()
+    db.refresh(nuevo)
+    return nuevo
+
+
+@app.put("/api/egresos-cuenta/{egreso_id}", response_model=schemas.EgresoCuentaOut)
+def actualizar_egreso_cuenta(
+    egreso_id: int,
+    payload: schemas.EgresoCuentaUpdate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    egreso = _egreso_del_usuario(db, egreso_id, usuario)
+
+    if payload.cuenta_id is not None and payload.cuenta_id != egreso.cuenta_id:
+        cuenta = (
+            db.query(models.Cuenta)
+            .filter(
+                models.Cuenta.id == payload.cuenta_id,
+                models.Cuenta.usuario_id == usuario.id,
+            )
+            .first()
+        )
+        if not cuenta:
+            raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+        egreso.cuenta_id = payload.cuenta_id
+
+    if payload.monto is not None:
+        egreso.monto = payload.monto
+    if payload.fecha is not None:
+        egreso.fecha = payload.fecha
+    if payload.categoria is not None:
+        egreso.categoria = payload.categoria
+    if payload.descripcion is not None:
+        egreso.descripcion = payload.descripcion
+
+    db.commit()
+    db.refresh(egreso)
+    return egreso
+
+
+@app.delete("/api/egresos-cuenta/{egreso_id}", status_code=204)
+def eliminar_egreso_cuenta(
+    egreso_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    egreso = _egreso_del_usuario(db, egreso_id, usuario)
+    db.delete(egreso)
+    db.commit()
 
 
 @app.post("/api/deudas/{deuda_id}/abonar", response_model=schemas.AbonarDeudaResultado)
