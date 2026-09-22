@@ -126,7 +126,6 @@ export default function App() {
 
   const peticionIdRef = useRef(0);
 
-  showToast("Gasto agregado ✓");
 
   useEffect(() => {
     if (!hayTokenGuardado()) {
