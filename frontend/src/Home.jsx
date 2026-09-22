@@ -29,6 +29,55 @@ const COLORES_NOTA = {
   morado:   { header: "from-purple-500 to-violet-600",bg: "bg-purple-50",  border: "border-purple-200" },
 };
 
+const INSIGHT_ICONOS = {
+  "trending-up": TrendingUp,
+  "trending-down": TrendingDown,
+  "pie-chart": PieChart,
+  "calendar": Calendar,
+  "target": Target,
+  "sparkles": Sparkles,
+  "hand-coins": HandCoins,
+  "wallet": Wallet,
+};
+
+const INSIGHT_COLORES = {
+  rojo: {
+    bg: "bg-red-50",
+    border: "border-red-200",
+    text: "text-red-700",
+    icon: "text-red-500",
+    iconBg: "bg-red-100",
+  },
+  verde: {
+    bg: "bg-emerald-50",
+    border: "border-emerald-200",
+    text: "text-emerald-700",
+    icon: "text-emerald-500",
+    iconBg: "bg-emerald-100",
+  },
+  azul: {
+    bg: "bg-blue-50",
+    border: "border-blue-200",
+    text: "text-blue-700",
+    icon: "text-blue-500",
+    iconBg: "bg-blue-100",
+  },
+  amarillo: {
+    bg: "bg-amber-50",
+    border: "border-amber-200",
+    text: "text-amber-700",
+    icon: "text-amber-500",
+    iconBg: "bg-amber-100",
+  },
+  morado: {
+    bg: "bg-purple-50",
+    border: "border-purple-200",
+    text: "text-purple-700",
+    icon: "text-purple-500",
+    iconBg: "bg-purple-100",
+  },
+};
+
 function formatearFecha() {
   const hoy = new Date();
   const opciones = { weekday: 'long', day: 'numeric' };
@@ -36,6 +85,28 @@ function formatearFecha() {
   return texto.charAt(0).toUpperCase() + texto.slice(1);
 }
 
+function InsightCard({ insight }) {
+  const Icono = INSIGHT_ICONOS[insight.icono] || Sparkles;
+  const colores = INSIGHT_COLORES[insight.color] || INSIGHT_COLORES.azul;
+
+  return (
+    <div
+      className={`rounded-2xl border p-4 flex items-start gap-3 ${colores.bg} ${colores.border}`}
+    >
+      <div
+        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${colores.iconBg}`}
+      >
+        <Icono size={18} className={colores.icon} />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className={`text-sm font-semibold mb-1 ${colores.text}`}>
+          {insight.titulo}
+        </p>
+        <p className="text-xs text-gray-600">{insight.mensaje}</p>
+      </div>
+    </div>
+  );
+}
 
 export default function Home({ 
   usuario, 
@@ -50,14 +121,13 @@ export default function Home({
   onIrAMovimientos,
   onVerCuenta,
   onIrADeudas,
-  onIrAReportes,   // <-- NUEVA
+  onIrAReportes,
 }) {
   const [cuentas, setCuentas] = useState([]);
   const [cargandoCuentas, setCargandoCuentas] = useState(true);
   const [tabActiva, setTabActiva] = useState("destacado");
   const [saldoVisible, setSaldoVisible] = useState(true);
 
-  // Estado de las notas (backend)
   const [notas, setNotas] = useState([]);
   const [cargandoNotas, setCargandoNotas] = useState(true);
   const [deudas, setDeudas] = useState([]);
@@ -125,13 +195,10 @@ export default function Home({
 
   const cuentaDestacada = cuentas.find((c) => c.fijada === 1 || c.fijada === true) || cuentas[0];
 
-  
-  // Tarjetas con algo pendiente de pago
   const tarjetasPagar = (resumen?.tarjetas || []).filter(
     (t) => Number(t.gastado_mes) > 0 && (t.tipo || "credito") === "credito"
   );
 
-  // Resumen de deudas (solo activas)
   const deudasActivas = deudas.filter((d) => !d.pagada);
   const totalDebo = deudasActivas
     .filter((d) => d.tipo === "debo")
@@ -139,8 +206,6 @@ export default function Home({
   const totalMeDeben = deudasActivas
     .filter((d) => d.tipo === "me_deben")
     .reduce((acc, d) => acc + Number(d.saldo_pendiente), 0);
-
-  
 
   return (
     <div className="max-w-md mx-auto px-4 pb-24 pt-6">
@@ -235,24 +300,24 @@ export default function Home({
                   )}
                 </div>
                 <div className="flex gap-3 shrink-0">
-                                  <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onIrAMovimientos();
-                  }}
-                  className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm hover:bg-white/30 transition-colors"
-                >
-                  <ArrowRightLeft size={18} />
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    onIrAPotes();
-                  }}
-                  className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm hover:bg-white/30 transition-colors"
-                >
-                  <PiggyBank size={18} />
-                </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onIrAMovimientos();
+                    }}
+                    className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm hover:bg-white/30 transition-colors"
+                  >
+                    <ArrowRightLeft size={18} />
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onIrAPotes();
+                    }}
+                    className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center backdrop-blur-sm hover:bg-white/30 transition-colors"
+                  >
+                    <PiggyBank size={18} />
+                  </button>
                 </div>
               </div>
             </div>
@@ -327,7 +392,7 @@ export default function Home({
             </div>
           )}
 
-                    {/* Widget de Deudas */}
+          {/* Widget de Deudas */}
           {deudasActivas.length > 0 && (
             <button
               onClick={onIrADeudas}
@@ -366,19 +431,19 @@ export default function Home({
                 <StickyNote size={12} /> Notas
               </p>
               <button
-                onClick={crearNota}
+                onClick={() => crearNota("rosa")}
                 className="text-white/80 hover:text-white transition-colors"
                 title="Nueva nota"
               >
                 <Plus size={16} />
               </button>
             </div>
-              <div className="p-3 grid grid-cols-2 gap-2" style={{ background: "var(--surface)" }}>
+            <div className="p-3 grid grid-cols-2 gap-2" style={{ background: "var(--surface)" }}>
               {cargandoNotas ? (
                 <p className="text-xs text-gray-400 text-center py-2">Cargando...</p>
               ) : notas.length === 0 ? (
                 <button
-                  onClick={crearNota}
+                  onClick={() => crearNota("rosa")}
                   className="w-full text-left text-sm text-gray-400 py-3 hover:text-coral transition-colors flex items-center gap-2"
                 >
                   <Plus size={16} /> Agregar nota
@@ -388,7 +453,7 @@ export default function Home({
                   <NotaItem
                     key={n.id}
                     nota={n}
-                    onGuardar={(contenido) => actualizarNota(n.id, contenido)}
+                    onGuardar={(contenido, color) => actualizarNota(n.id, contenido, color)}
                     onEliminar={() => eliminarNota(n.id)}
                   />
                 ))
@@ -398,7 +463,7 @@ export default function Home({
         </>
       )}
 
-            {tabActiva === "productos" && (
+      {tabActiva === "productos" && (
         <TarjetasScreen
           tarjetas={tarjetas}
           embedded={true}
@@ -408,6 +473,7 @@ export default function Home({
           onVolver={() => {}}
         />
       )}
+
       {tabActiva === "parati" && (
         <div className="space-y-3">
           <div className="flex items-center gap-2 mb-4">
@@ -462,77 +528,6 @@ function NotaItem({ nota, onGuardar, onEliminar }) {
     await onGuardar(contenido, nuevoColor);
     setGuardando(false);
   }
-const INSIGHT_ICONOS = {
-  "trending-up": TrendingUp,
-  "trending-down": TrendingDown,
-  "pie-chart": PieChart,
-  "calendar": Calendar,
-  "target": Target,
-  "sparkles": Sparkles,
-  "hand-coins": HandCoins,
-  "wallet": Wallet,
-};
-
-const INSIGHT_COLORES = {
-  rojo: {
-    bg: "bg-red-50",
-    border: "border-red-200",
-    text: "text-red-700",
-    icon: "text-red-500",
-    iconBg: "bg-red-100",
-  },
-  verde: {
-    bg: "bg-emerald-50",
-    border: "border-emerald-200",
-    text: "text-emerald-700",
-    icon: "text-emerald-500",
-    iconBg: "bg-emerald-100",
-  },
-  azul: {
-    bg: "bg-blue-50",
-    border: "border-blue-200",
-    text: "text-blue-700",
-    icon: "text-blue-500",
-    iconBg: "bg-blue-100",
-  },
-  amarillo: {
-    bg: "bg-amber-50",
-    border: "border-amber-200",
-    text: "text-amber-700",
-    icon: "text-amber-500",
-    iconBg: "bg-amber-100",
-  },
-  morado: {
-    bg: "bg-purple-50",
-    border: "border-purple-200",
-    text: "text-purple-700",
-    icon: "text-purple-500",
-    iconBg: "bg-purple-100",
-  },
-};
-
-function InsightCard({ insight }) {
-  const Icono = INSIGHT_ICONOS[insight.icono] || Sparkles;
-  const colores = INSIGHT_COLORES[insight.color] || INSIGHT_COLORES.azul;
-
-  return (
-    <div
-      className={`rounded-2xl border p-4 flex items-start gap-3 ${colores.bg} ${colores.border}`}
-    >
-      <div
-        className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${colores.iconBg}`}
-      >
-        <Icono size={18} className={colores.icon} />
-      </div>
-      <div className="flex-1 min-w-0">
-        <p className={`text-sm font-semibold mb-1 ${colores.text}`}>
-          {insight.titulo}
-        </p>
-        <p className="text-xs text-gray-600">{insight.mensaje}</p>
-      </div>
-    </div>
-  );
-}
 
   return (
     <div className={`rounded-xl overflow-hidden border ${colores.border} flex flex-col h-full`}>
