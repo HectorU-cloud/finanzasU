@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Receipt, Trash2, ArrowLeft, Plus, CreditCard } from "lucide-react";
+import { Receipt, Trash2, ArrowLeft, Plus, CreditCard, Download } from "lucide-react";
+import { descargarArchivo } from "./utils/descargas.js";
 import { api } from "./api.js";
 import ConfirmModal from "./ConfirmModal.jsx";
 import EgresoCuentaModal from "./EgresoCuentaModal.jsx";
@@ -19,6 +20,7 @@ export default function HistorialPagosScreen({ onVolver, ocultarHeader = false }
   const [pagoAEliminar, setPagoAEliminar] = useState(null);
   const [egresoEditando, setEgresoEditando] = useState(null);
   const [modalEgreso, setModalEgreso] = useState(false);
+  const [exportando, setExportando] = useState(false);
 
   async function cargar() {
     setCargando(true);
@@ -92,6 +94,16 @@ export default function HistorialPagosScreen({ onVolver, ocultarHeader = false }
     }
   }
 
+  async function exportar() {
+    const ahora = new Date();
+    const haceTresMeses = new Date(ahora.getFullYear(), ahora.getMonth() - 3, 1);
+    const desde = haceTresMeses.toISOString().slice(0, 10);
+    const hasta = ahora.toISOString().slice(0, 10);
+    setExportando(true);
+    await descargarArchivo(api.exportarPagos(desde, hasta));
+    setExportando(false);
+  }
+
   return (
     <div className={ocultarHeader ? "" : "max-w-md mx-auto px-4 pb-28 pt-6"}>
       {!ocultarHeader && (
@@ -124,6 +136,17 @@ export default function HistorialPagosScreen({ onVolver, ocultarHeader = false }
         className="w-full mb-4 py-3 rounded-2xl bg-coral text-white font-semibold text-sm flex items-center justify-center gap-2 hover:bg-coral-dark transition-colors"
       >
         <Plus size={16} /> Registrar gasto directo
+      </button>
+
+      {/* Botón Descargar CSV */} 
+
+      <button
+        onClick={exportar}
+        disabled={exportando}
+        className="w-full mb-4 py-2.5 rounded-xl border border-coral/30 bg-coral/5 text-coral font-semibold text-xs flex items-center justify-center gap-2 hover:bg-coral/10 transition-colors disabled:opacity-50"
+      >
+        <Download size={14} />
+        {exportando ? "Generando CSV..." : "Descargar CSV (últimos 3 meses)"}
       </button>
 
       {cargando ? (

@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from "react";
-import { ArrowLeft, Plus, ChevronLeft, ChevronRight, CreditCard, MoreVertical, Pencil, Trash2, CheckCircle2, X } from "lucide-react";
+import { ArrowLeft, Plus, ChevronLeft, ChevronRight, CreditCard, MoreVertical, Pencil, Trash2, CheckCircle2, X, Download } from "lucide-react";
+import { descargarArchivo } from "./utils/descargas.js";
 import { api } from "./api.js";
 import CardNetworkLogo from "./CardNetworkLogo.jsx";
 import EditarGastoModal from "./EditarGastoModal.jsx";
@@ -56,6 +57,7 @@ export default function TarjetaDetalleScreen({ tarjeta, onVolver, onCambio }) {
     descripcion: "",
     categoria: leerUltima(ULTIMA_CATEGORIA_KEY),
   });
+  const [exportando, setExportando] = useState(false);
 
   const esDebito = tarjeta.tipo === "debito";
 
@@ -146,6 +148,15 @@ export default function TarjetaDetalleScreen({ tarjeta, onVolver, onCambio }) {
     } finally {
       setEnviando(false);
     }
+  }
+
+  async function exportar() {
+    const ultimoDia = new Date(periodo.anio, periodo.mes, 0).getDate();
+    const desde = `${periodo.anio}-${String(periodo.mes).padStart(2, "0")}-01`;
+    const hasta = `${periodo.anio}-${String(periodo.mes).padStart(2, "0")}-${ultimoDia}`;
+    setExportando(true);
+    await descargarArchivo(api.exportarTarjeta(tarjeta.id, desde, hasta));
+    setExportando(false);
   }
 
   async function handleDelete(id) {
@@ -294,6 +305,17 @@ export default function TarjetaDetalleScreen({ tarjeta, onVolver, onCambio }) {
             <ChevronRight size={14} />
           </button>
         </div>
+
+        <button
+        onClick={exportar}
+        disabled={exportando}
+        className="w-full mb-4 py-2.5 rounded-xl border border-coral/30 bg-coral/5 text-coral font-semibold text-xs flex items-center justify-center gap-2 hover:bg-coral/10 transition-colors disabled:opacity-50"
+      >
+        <Download size={14} />
+        {exportando
+          ? "Generando CSV..."
+          : `Descargar CSV de ${NOMBRES_MES[periodo.mes - 1]}`}
+      </button>
 
         {/* Botón agregar gasto */}
         <button

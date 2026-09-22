@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, HandCoins, Pencil, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, HandCoins, Pencil, Plus, Trash2, Download } from "lucide-react";
+import { descargarArchivo } from "./utils/descargas.js";
 import { api } from "./api.js";
 import DeudaModal from "./DeudaModal.jsx";
 import AbonarDeudaModal from "./AbonarDeudaModal.jsx";
@@ -14,6 +15,7 @@ export default function DeudasScreen({ onVolver }) {
   const [deudaEditando, setDeudaEditando] = useState(null);
   const [deudaAAbonar, setDeudaAAbonar] = useState(null);
   const [deudaAEliminar, setDeudaAEliminar] = useState(null);
+  const [exportando, setExportando] = useState(false);
 
   async function cargar() {
     setCargando(true);
@@ -25,6 +27,12 @@ export default function DeudasScreen({ onVolver }) {
     } finally {
       setCargando(false);
     }
+  }
+
+  async function exportar() {
+    setExportando(true);
+    await descargarArchivo(api.exportarDeudas());
+    setExportando(false);
   }
 
   useEffect(() => {
@@ -84,6 +92,15 @@ export default function DeudasScreen({ onVolver }) {
           <Plus size={20} />
         </button>
       </header>
+
+      <button
+        onClick={exportar}
+        disabled={exportando}
+        className="w-full mb-4 py-2.5 rounded-xl border border-coral/30 bg-coral/5 text-coral font-semibold text-xs flex items-center justify-center gap-2 hover:bg-coral/10 transition-colors disabled:opacity-50"
+      >
+        <Download size={14} />
+        {exportando ? "Generando CSV..." : "Descargar todas mis deudas"}
+      </button>
 
       <div className="flex bg-gray-100 p-1 rounded-2xl mb-5">
         <button

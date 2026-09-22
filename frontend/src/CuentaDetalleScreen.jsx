@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, TrendingUp, CreditCard, Target, Wallet, HandCoins, Receipt } from "lucide-react";
+import { ArrowLeft, TrendingUp, CreditCard, Target, Wallet, HandCoins, Receipt, Download } from "lucide-react";
+import { descargarArchivo } from "./utils/descargas.js";
 import { api } from "./api.js";
 
 const ICONOS_TIPO = {
@@ -24,6 +25,7 @@ export default function CuentaDetalleScreen({ cuenta, onVolver }) {
   const [movimientos, setMovimientos] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
+  const [exportando, setExportando] = useState(false);
 
   useEffect(() => {
     api.getMovimientosCuenta(cuenta.id)
@@ -31,6 +33,14 @@ export default function CuentaDetalleScreen({ cuenta, onVolver }) {
       .catch((e) => setError(e.message))
       .finally(() => setCargando(false));
   }, [cuenta.id]);
+
+  async function exportar() {
+    setExportando(true);
+    const desde = "2000-01-01";
+    const hasta = new Date().toISOString().slice(0, 10);
+    await descargarArchivo(api.exportarCuenta(cuenta.id, desde, hasta));
+    setExportando(false);
+  }
 
     return (
     <div className="fixed inset-0 z-40 bg-cream overflow-y-auto">
@@ -54,6 +64,15 @@ export default function CuentaDetalleScreen({ cuenta, onVolver }) {
           ${Number(cuenta.saldo_actual ?? cuenta.saldo_inicial).toFixed(2)}
         </p>
       </div>
+      {/* Botón Descargar CSV */}
+      <button
+        onClick={exportar}
+        disabled={exportando}
+        className="w-full mb-4 py-2.5 rounded-xl border border-coral/30 bg-coral/5 text-coral font-semibold text-xs flex items-center justify-center gap-2 hover:bg-coral/10 transition-colors disabled:opacity-50"
+      >
+        <Download size={14} />
+        {exportando ? "Generando CSV..." : "Descargar historial completo"}
+      </button>
 
       <h2 className="text-base font-semibold text-carbon mb-3">
         Historial de movimientos
