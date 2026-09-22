@@ -23,7 +23,7 @@ export default function AlertasBanner() {
     api
       .getAlertas()
       .then((data) => {
-        if (!cancelado) setAlertas(data || []);
+        if (!cancelado) setAlertas(Array.isArray(data) ? data : []);
       })
       .catch(() => {});
     return () => {
@@ -42,7 +42,9 @@ export default function AlertasBanner() {
     }
   }
 
-  const visibles = alertas.filter((a) => !descartadas.includes(claveDescarte(a)));
+  const visibles = Array.isArray(alertas)
+    ? alertas.filter((a) => !descartadas.includes(claveDescarte(a)))
+    : [];
 
   if (visibles.length === 0) return null;
 

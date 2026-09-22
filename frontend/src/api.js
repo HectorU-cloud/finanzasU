@@ -52,7 +52,8 @@ async function request(path, options = {}) {
     throw new Error(detail.detail || `Error ${res.status}`);
   }
   if (res.status === 204) return null;
-  return res.json();
+  const data = await res.json().catch(() => null);
+  return data;
 }
 
 export const api = {

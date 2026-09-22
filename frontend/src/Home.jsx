@@ -67,14 +67,14 @@ export default function Home({
 
   useEffect(() => {
     api.getCuentas()
-      .then((d) => setCuentas(d || []))
+      .then((d) => setCuentas(Array.isArray(d) ? d : []))
       .catch(() => setCuentas([]))
       .finally(() => setCargandoCuentas(false));
   }, []);
 
-    useEffect(() => {
+  useEffect(() => {
     api.getDeudas()
-      .then((d) => setDeudas(d || []))
+      .then((d) => setDeudas(Array.isArray(d) ? d : []))
       .catch(() => setDeudas([]))
       .finally(() => setCargandoDeudas(false));
   }, []);
@@ -88,7 +88,7 @@ export default function Home({
 
   useEffect(() => {
     api.getNotas()
-      .then((d) => setNotas(d || []))
+      .then((d) => setNotas(Array.isArray(d) ? d : []))
       .catch(() => setNotas([]))
       .finally(() => setCargandoNotas(false));
   }, []);

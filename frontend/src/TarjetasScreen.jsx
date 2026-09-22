@@ -32,7 +32,7 @@ export default function TarjetasScreen({
 }) {
   const [tabActiva, setTabActiva] = useState("credito");
 
-  const todasLasTarjetas = tarjetas || [];
+  const todasLasTarjetas = Array.isArray(tarjetas) ? tarjetas : [];
   const tarjetasCredito = todasLasTarjetas.filter(
     (t) => (t.tipo || "credito") === "credito"
   );
