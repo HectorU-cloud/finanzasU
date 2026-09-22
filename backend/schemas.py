@@ -632,16 +632,19 @@ class MovimientoCuenta(BaseModel):
 
 class NotaCreate(BaseModel):
     contenido: str = Field(default="", max_length=500)
+    color: str = Field(default="rosa", max_length=20)
 
 
 class NotaUpdate(BaseModel):
     contenido: str | None = Field(default=None, max_length=500)
+    color: str | None = Field(default=None, max_length=20)
 
 
 class NotaOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
     id: int
     contenido: str
+    color: str = "rosa"
     creado_en: datetime | None = None
     actualizado_en: datetime | None = None
 

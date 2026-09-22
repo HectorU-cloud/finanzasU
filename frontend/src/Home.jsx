@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, TrendingUp, Wallet, Eye, EyeOff, ArrowRightLeft, PiggyBank, CreditCard, StickyNote, Trash2, HandCoins } from "lucide-react";
+import { Plus, TrendingUp, Wallet, Eye, EyeOff, ArrowRightLeft, PiggyBank, CreditCard, StickyNote, Trash2, HandCoins, Palette } from "lucide-react";
 import { api } from "./api.js";
 import AlertasBanner from "./AlertasBanner.jsx";
 import TarjetasScreen from "./TarjetasScreen.jsx";
@@ -19,6 +19,14 @@ const COLORES_CUENTA = {
   corriente: "from-blue-500 to-blue-700",
   inversion: "from-amber-500 to-amber-700",
   otra: "from-gray-500 to-gray-700",
+};
+
+const COLORES_NOTA = {
+  rosa:     { header: "from-pink-600 to-rose-600",    bg: "bg-rose-50",    border: "border-rose-200" },
+  amarillo: { header: "from-yellow-500 to-amber-500", bg: "bg-amber-50",   border: "border-amber-200" },
+  verde:    { header: "from-emerald-500 to-teal-600", bg: "bg-emerald-50", border: "border-emerald-200" },
+  azul:     { header: "from-blue-500 to-indigo-600",  bg: "bg-blue-50",    border: "border-blue-200" },
+  morado:   { header: "from-purple-500 to-violet-600",bg: "bg-purple-50",  border: "border-purple-200" },
 };
 
 function formatearFecha() {
@@ -75,18 +83,18 @@ export default function Home({
       .finally(() => setCargandoNotas(false));
   }, []);
 
-  async function crearNota() {
+  async function crearNota(color = "rosa") {
     try {
-      const nueva = await api.crearNota("");
+      const nueva = await api.crearNota("", color);
       setNotas((prev) => [nueva, ...prev]);
     } catch (err) {
       console.error(err);
     }
   }
 
-  async function actualizarNota(id, contenido) {
+  async function actualizarNota(id, contenido, color = null) {
     try {
-      const actualizada = await api.actualizarNota(id, contenido);
+      const actualizada = await api.actualizarNota(id, contenido, color);
       setNotas((prev) => prev.map((n) => (n.id === id ? actualizada : n)));
     } catch (err) {
       console.error(err);
@@ -396,45 +404,85 @@ export default function Home({
 
 function NotaItem({ nota, onGuardar, onEliminar }) {
   const [contenido, setContenido] = useState(nota.contenido);
+  const [color, setColor] = useState(nota.color || "rosa");
   const [guardando, setGuardando] = useState(false);
+  const [selectorAbierto, setSelectorAbierto] = useState(false);
 
   useEffect(() => {
     setContenido(nota.contenido);
-  }, [nota.contenido]);
+    setColor(nota.color || "rosa");
+  }, [nota.contenido, nota.color]);
+
+  const colores = COLORES_NOTA[color] || COLORES_NOTA.rosa;
 
   async function handleBlur() {
-    if (contenido === nota.contenido) return;
+    if (contenido === nota.contenido && color === (nota.color || "rosa")) return;
     setGuardando(true);
-    await onGuardar(contenido);
+    await onGuardar(contenido, color);
     setGuardando(false);
   }
 
-    return (
-    <div className="rounded-xl p-3 border flex flex-col h-full" style={{ borderColor: "var(--border)" }}>
-      <textarea
-        value={contenido}
-        onChange={(e) => setContenido(e.target.value)}
-        onBlur={handleBlur}
-        placeholder="Escribe una nota..."
-        className="w-full text-sm font-serif italic text-carbon bg-transparent resize-none focus:outline-none flex-1"
-        rows={2}
-        maxLength={500}
-      />
-      <div className="flex items-center justify-between mt-1">
-        <p className="text-[9px] text-gray-400">
+  async function cambiarColor(nuevoColor) {
+    setColor(nuevoColor);
+    setSelectorAbierto(false);
+    setGuardando(true);
+    await onGuardar(contenido, nuevoColor);
+    setGuardando(false);
+  }
+
+  return (
+    <div className={`rounded-xl overflow-hidden border ${colores.border} flex flex-col h-full`}>
+      {/* Header con color + selector */}
+      <div className={`bg-gradient-to-r ${colores.header} px-2 py-1 flex items-center justify-between`}>
+        <button
+          type="button"
+          onClick={() => setSelectorAbierto(!selectorAbierto)}
+          className="text-white/80 hover:text-white transition-colors flex items-center gap-1"
+          title="Cambiar color"
+        >
+          <Palette size={13} />
+        </button>
+        <button
+          type="button"
+          onClick={onEliminar}
+          className="text-white/80 hover:text-white transition-colors"
+          title="Eliminar nota"
+        >
+          <Trash2 size={12} />
+        </button>
+      </div>
+
+      {/* Selector de color */}
+      {selectorAbierto && (
+        <div className="flex justify-around p-1.5 bg-white border-b" style={{ borderColor: "var(--border)" }}>
+          {Object.entries(COLORES_NOTA).map(([key, val]) => (
+            <button
+              key={key}
+              type="button"
+              onClick={() => cambiarColor(key)}
+              className={`w-5 h-5 rounded-full bg-gradient-to-br ${val.header} ${color === key ? "ring-2 ring-offset-1 ring-carbon" : ""}`}
+            />
+          ))}
+        </div>
+      )}
+
+      <div className="p-2 flex-1" style={{ background: "var(--surface)" }}>
+        <textarea
+          value={contenido}
+          onChange={(e) => setContenido(e.target.value)}
+          onBlur={handleBlur}
+          placeholder="Escribe una nota..."
+          className="w-full text-sm font-serif italic text-carbon bg-transparent resize-none focus:outline-none"
+          rows={2}
+          maxLength={500}
+        />
+        <p className="text-[9px] text-gray-400 mt-1">
           {new Date(nota.actualizado_en || nota.creado_en).toLocaleDateString("es-ES", {
             day: "numeric",
             month: "short",
           })}
           {guardando && " · g..."}
         </p>
-        <button
-          onClick={onEliminar}
-          className="text-gray-400 hover:text-coral transition-colors"
-          title="Eliminar nota"
-        >
-          <Trash2 size={14} />
-        </button>
       </div>
     </div>
   );

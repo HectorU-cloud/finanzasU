@@ -233,6 +233,7 @@ class Nota(Base):
     id = Column(Integer, primary_key=True, index=True)
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
     contenido = Column(String(500), nullable=False, default="")
+    color = Column(String(20), nullable=False, default="rosa")  # <-- NUEVO
     creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     actualizado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 

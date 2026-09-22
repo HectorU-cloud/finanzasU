@@ -120,6 +120,17 @@ export const api = {
     request(`/deudas/${id}/abonar`, { method: "POST", body: JSON.stringify(datos) }),
   getAbonosDeuda: (id) => request(`/deudas/${id}/abonos`),
 
+  // Notas
+  getNotas: () => request("/notas"),
+  crearNota: (contenido, color = "rosa") =>
+    request("/notas", { method: "POST", body: JSON.stringify({ contenido, color }) }),
+  actualizarNota: (id, contenido, color = null) =>
+    request(`/notas/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(color ? { contenido, color } : { contenido }),
+    }),
+  eliminarNota: (id) => request(`/notas/${id}`, { method: "DELETE" }),
+
   // Egresos directos de cuenta
   getEgresosCuenta: (anio, mes) => {
     const params = [];

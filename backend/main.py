@@ -1927,7 +1927,7 @@ def crear_nota(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
-    nueva = models.Nota(usuario_id=usuario.id, contenido=datos.contenido)
+    nueva = models.Nota(usuario_id=usuario.id, contenido=datos.contenido, color=datos.color)
     db.add(nueva)
     db.commit()
     db.refresh(nueva)
@@ -1950,6 +1950,8 @@ def actualizar_nota(
         raise HTTPException(status_code=404, detail="Nota no encontrada")
     if datos.contenido is not None:
         nota.contenido = datos.contenido
+    if datos.color is not None:
+        nota.color = datos.color
     db.commit()
     db.refresh(nota)
     return nota
