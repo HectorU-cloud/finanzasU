@@ -1810,3 +1810,20 @@ input:-webkit-autofill:active {
   -webkit-box-shadow: 0 0 0 30px var(--surface) inset !important;
   -webkit-text-fill-color: var(--ink) !important;
 }
+/* ============================================================
+   Toast (notificación flotante)
+   ============================================================ */
+@keyframes toast-slide-down {
+  0% {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-toast {
+  animation: toast-slide-down 0.3s ease-out;
+}

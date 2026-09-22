@@ -1,0 +1,73 @@
+import { createContext, useContext, useState, useCallback } from "react";
+import { CheckCircle2, AlertCircle, Info, X } from "lucide-react";
+
+const ToastContext = createContext(null);
+
+export function useToast() {
+  const ctx = useContext(ToastContext);
+  if (!ctx) throw new Error("useToast debe usarse dentro de ToastProvider");
+  return ctx;
+}
+
+export function ToastProvider({ children }) {
+  const [toasts, setToasts] = useState([]);
+
+  const showToast = useCallback((mensaje, tipo = "exito") => {
+    const id = Date.now() + Math.random();
+    setToasts((prev) => [...prev, { id, mensaje, tipo }]);
+    setTimeout(() => {
+      setToasts((prev) => prev.filter((t) => t.id !== id));
+    }, 3000);
+  }, []);
+
+  const removeToast = useCallback((id) => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, []);
+
+  return (
+    <ToastContext.Provider value={{ showToast }}>
+      {children}
+      <ToastContainer toasts={toasts} onRemove={removeToast} />
+    </ToastContext.Provider>
+  );
+}
+
+function ToastContainer({ toasts, onRemove }) {
+  if (toasts.length === 0) return null;
+  return (
+    <div className="fixed top-4 left-0 right-0 z-[100] flex flex-col items-center gap-2 pointer-events-none px-4">
+      {toasts.map((t) => (
+        <Toast key={t.id} toast={t} onRemove={onRemove} />
+      ))}
+    </div>
+  );
+}
+
+function Toast({ toast, onRemove }) {
+  const estilos = {
+    exito: { bg: "bg-emerald-600", Icono: CheckCircle2 },
+    error: { bg: "bg-red-600", Icono: AlertCircle },
+    info: { bg: "bg-blue-600", Icono: Info },
+  };
+
+  const { bg, Icono } = estilos[toast.tipo] || estilos.exito;
+
+  return (
+    <div
+      className={`${bg} text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 pointer-events-auto animate-toast max-w-md w-full cursor-pointer`}
+      onClick={() => onRemove(toast.id)}
+    >
+      <Icono size={18} className="shrink-0" />
+      <span className="text-sm font-medium flex-1">{toast.mensaje}</span>
+      <button
+        onClick={(e) => {
+          e.stopPropagation();
+          onRemove(toast.id);
+        }}
+        className="opacity-70 hover:opacity-100 shrink-0"
+      >
+        <X size={16} />
+      </button>
+    </div>
+  );
+}

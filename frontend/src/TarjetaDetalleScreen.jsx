@@ -7,6 +7,7 @@ import EditarGastoModal from "./EditarGastoModal.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
 import PagarTarjetaModal from "./PagarTarjetaModal.jsx";
 import { calcularVencimiento } from "./utils/fechas.js";
+import { useToast } from "./ToastContext.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -58,13 +59,10 @@ export default function TarjetaDetalleScreen({ tarjeta, onVolver, onCambio }) {
     categoria: leerUltima(ULTIMA_CATEGORIA_KEY),
   });
   const [exportando, setExportando] = useState(false);
+  const { showToast } = useToast();
 
   const esDebito = tarjeta.tipo === "debito";
 
-  function mostrarExito(mensaje) {
-    setExito(mensaje);
-    setTimeout(() => setExito(""), 2500);
-  }
 
   const cargar = useCallback(async () => {
     setCargando(true);
@@ -141,7 +139,7 @@ export default function TarjetaDetalleScreen({ tarjeta, onVolver, onCambio }) {
       setForm((f) => ({ ...f, monto: "", descripcion: "" }));
       setFormAbierto(false);
       await cargar();
-      mostrarExito("Gasto agregado ✓");
+      showToast("Gasto agregado ✓");
       onCambio?.();
     } catch (err) {
       setError(err.message);
@@ -388,9 +386,7 @@ export default function TarjetaDetalleScreen({ tarjeta, onVolver, onCambio }) {
               {error && (
                 <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>
               )}
-              {exito && (
-                <p className="text-sm text-emerald-600 bg-emerald-50 rounded-xl px-3 py-2">{exito}</p>
-              )}
+
 
               <button
                 type="submit"

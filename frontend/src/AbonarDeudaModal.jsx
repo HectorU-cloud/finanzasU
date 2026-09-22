@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { HandCoins, PartyPopper, X } from "lucide-react";
 import { api } from "./api.js";
+import { useToast } from "./ToastContext.jsx";
 
 
 function todayISO() {
@@ -12,6 +13,7 @@ export default function AbonarDeudaModal({ deuda, onCerrar, onGuardado }) {
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
   const [resultado, setResultado] = useState(null); // { deuda, quedo_saldada }
+  const { showToast } = useToast();
 
   const saldoPendiente = Number(deuda.saldo_pendiente);
   const verbo = deuda.tipo === "debo" ? "Abonar a" : "Registrar pago de";
@@ -41,6 +43,7 @@ export default function AbonarDeudaModal({ deuda, onCerrar, onGuardado }) {
         cuenta_id: form.cuenta_id ? Number(form.cuenta_id) : null,  // <-- NUEVO
       });
       setResultado(r);
+      showToast(r.quedo_saldada ? "¡Deuda saldada! 🎉" : "Abono registrado ✓");
     } catch (err) {
       setError(err.message);
     } finally {

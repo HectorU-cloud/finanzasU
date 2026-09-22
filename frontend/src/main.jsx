@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.jsx";
+import { ToastProvider } from "./ToastContext.jsx";
 import "./index.css";
 
 // --- Limpieza de Service Workers viejos (PWA desactivada temporalmente) ---
@@ -24,6 +25,8 @@ if ("serviceWorker" in navigator) {
 
 ReactDOM.createRoot(document.getElementById("root")).render(
   <React.StrictMode>
-    <App />
+    <ToastProvider>
+      <App />
+    </ToastProvider>
   </React.StrictMode>
 );

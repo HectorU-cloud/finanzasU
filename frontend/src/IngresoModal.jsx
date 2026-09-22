@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { TrendingUp, X } from "lucide-react";
 import { api } from "./api.js";
+import { useToast } from "./ToastContext.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -18,6 +19,7 @@ export default function IngresoModal({ ingreso, cuentas, onCerrar, onGuardado })
   });
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
+  const { showToast } = useToast();
 
   useEffect(() => {
     api.getCategoriasIngreso()
@@ -55,6 +57,7 @@ export default function IngresoModal({ ingreso, cuentas, onCerrar, onGuardado })
       } else {
         await api.crearIngreso(datos);
       }
+      showToast(editando ? "Ingreso actualizado ✓" : "Ingreso registrado ✓");
       onGuardado();
     } catch (err) {
       setError(err.message);

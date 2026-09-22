@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Wallet, X } from "lucide-react";
 import { api } from "./api.js";
+import { useToast } from "./ToastContext.jsx";
 
 const TIPOS = [
   { valor: "efectivo",  nombre: "Efectivo" },
@@ -22,6 +23,7 @@ export default function CuentaModal({ cuenta, onCerrar, onGuardado }) {
   });
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
+  const { showToast } = useToast();
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -61,6 +63,7 @@ export default function CuentaModal({ cuenta, onCerrar, onGuardado }) {
       } else {
         await api.crearCuenta(datos);
       }
+      showToast(editando ? "Cuenta actualizada ✓" : "Cuenta creada ✓");
       onGuardado();
     } catch (err) {
       setError(err.message);

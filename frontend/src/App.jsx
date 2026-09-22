@@ -27,6 +27,7 @@ import MovimientosScreen from "./MovimientosScreen.jsx";
 import PlanificarScreen from "./PlanificarScreen.jsx";
 import CuentaDetalleScreen from "./CuentaDetalleScreen.jsx";
 import ReportesScreen from "./ReportesScreen.jsx";
+import { useToast } from "./ToastContext.jsx";
 
 
 function todayISO() {
@@ -88,11 +89,11 @@ export default function App() {
   const hoy = new Date();
   const [periodo, setPeriodo] = useState({ anio: hoy.getFullYear(), mes: hoy.getMonth() + 1 });
   const esMesActual = periodo.anio === hoy.getFullYear() && periodo.mes === hoy.getMonth() + 1;
+  const { showToast } = useToast();
 
   const [modalPassword, setModalPassword] = useState(false);
   const [gastoEditando, setGastoEditando] = useState(null);
   const [gastoAEliminar, setGastoAEliminar] = useState(null);
-  const [exito, setExito] = useState("");
   const [enviando, setEnviando] = useState(false);
   const [panelTarjetasAbierto, setPanelTarjetasAbierto] = useState(false);
   const [vista, setVista] = useState("home");
@@ -125,10 +126,7 @@ export default function App() {
 
   const peticionIdRef = useRef(0);
 
-  function mostrarExito(mensaje) {
-    setExito(mensaje);
-    setTimeout(() => setExito(""), 2500);
-  }
+  showToast("Gasto agregado ✓");
 
   useEffect(() => {
     if (!hayTokenGuardado()) {
@@ -326,7 +324,7 @@ export default function App() {
       guardarUltima(ULTIMA_CATEGORIA_KEY, form.categoria);
       setForm((f) => ({ ...f, monto: "", descripcion: "" }));
       await cargarDatos();
-      mostrarExito("Gasto agregado ✓");
+      showToast("Gasto agregado ✓");
     } catch (err) {
       manejarError(err);
     } finally {
@@ -338,6 +336,7 @@ export default function App() {
     try {
       await api.eliminarGasto(id);
       await cargarDatos();
+      showToast("Gasto eliminado", "info");
     } catch (err) {
       manejarError(err);
     }
@@ -784,7 +783,6 @@ export default function App() {
             </div>
           </div>
           {error && <p className="error">{error}</p>}
-          {exito && <p className="exito">{exito}</p>}
           <button className="submit" type="submit" disabled={enviando}>
             <Plus size={16} />
             {enviando ? "Agregando..." : "Agregar gasto"}

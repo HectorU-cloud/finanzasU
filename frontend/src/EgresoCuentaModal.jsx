@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { Receipt, X } from "lucide-react";
 import { api } from "./api.js";
+import { useToast } from "./ToastContext.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -19,6 +20,7 @@ export default function EgresoCuentaModal({ egreso, onCerrar, onGuardado }) {
   });
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
+  const { showToast } = useToast();
 
   useEffect(() => {
     Promise.all([
@@ -63,6 +65,7 @@ export default function EgresoCuentaModal({ egreso, onCerrar, onGuardado }) {
       } else {
         await api.crearEgresoCuenta(datos);
       }
+      showToast(editando ? "Gasto actualizado ✓" : "Gasto registrado ✓");
       onGuardado();
     } catch (err) {
       setError(err.message);
