@@ -257,6 +257,67 @@ export const api = {
     const match = disposition.match(/filename="?([^"]+)"?/);
     return { blob, filename: match?.[1] || "finanzas.zip" };
   },
+
+  exportarIngresos: async (desde, hasta) => {
+    const headers = {};
+    if (authToken) headers.Authorization = `Bearer ${authToken}`;
+    const url = `${BASE}/export/ingresos?desde=${desde}&hasta=${hasta}`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error("No se pudo generar el archivo.");
+    const blob = await res.blob();
+    const disposition = res.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    return { blob, filename: match?.[1] || "ingresos.csv" };
+  },
+
+  exportarPagos: async (desde, hasta) => {
+    const headers = {};
+    if (authToken) headers.Authorization = `Bearer ${authToken}`;
+    const url = `${BASE}/export/pagos?desde=${desde}&hasta=${hasta}`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error("No se pudo generar el archivo.");
+    const blob = await res.blob();
+    const disposition = res.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    return { blob, filename: match?.[1] || "pagos.csv" };
+  },
+
+  exportarDeudas: async () => {
+    const headers = {};
+    if (authToken) headers.Authorization = `Bearer ${authToken}`;
+    const url = `${BASE}/export/deudas`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error("No se pudo generar el archivo.");
+    const blob = await res.blob();
+    const disposition = res.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    return { blob, filename: match?.[1] || "deudas.csv" };
+  },
+
+  exportarCuenta: async (cuentaId, desde, hasta) => {
+    const headers = {};
+    if (authToken) headers.Authorization = `Bearer ${authToken}`;
+    const url = `${BASE}/export/cuenta/${cuentaId}?desde=${desde}&hasta=${hasta}`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error("No se pudo generar el archivo.");
+    const blob = await res.blob();
+    const disposition = res.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    return { blob, filename: match?.[1] || "cuenta.csv" };
+  },
+
+  exportarTarjeta: async (tarjetaId, desde, hasta) => {
+    const headers = {};
+    if (authToken) headers.Authorization = `Bearer ${authToken}`;
+    const url = `${BASE}/export/tarjeta/${tarjetaId}?desde=${desde}&hasta=${hasta}`;
+    const res = await fetch(url, { headers });
+    if (!res.ok) throw new Error("No se pudo generar el archivo.");
+    const blob = await res.blob();
+    const disposition = res.headers.get("Content-Disposition") || "";
+    const match = disposition.match(/filename="?([^"]+)"?/);
+    return { blob, filename: match?.[1] || "tarjeta.csv" };
+  },
+
 };
 
 

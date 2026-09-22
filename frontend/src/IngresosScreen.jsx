@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { TrendingUp, Plus, MoreVertical, Pencil, Trash2, ChevronLeft, ChevronRight } from "lucide-react";
+import { TrendingUp, Plus, MoreVertical, Pencil, Trash2, ChevronLeft, ChevronRight, Download } from "lucide-react";
+import { descargarArchivo } from "./utils/descargas.js";
 import { api } from "./api.js";
 import IngresoModal from "./IngresoModal.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
@@ -23,6 +24,7 @@ export default function IngresosScreen({ ocultarHeader = false }) {
   const [ingresoAEliminar, setIngresoAEliminar] = useState(null);
   const [menuAbiertoId, setMenuAbiertoId] = useState(null);
   const [error, setError] = useState("");
+  const [exportando, setExportando] = useState(false);
 
   async function cargar() {
     setCargando(true);
@@ -82,6 +84,15 @@ export default function IngresosScreen({ ocultarHeader = false }) {
     }
   }
 
+  async function exportar() {
+    const ultimoDia = new Date(periodo.anio, periodo.mes, 0).getDate();
+    const desde = `${periodo.anio}-${String(periodo.mes).padStart(2, "0")}-01`;
+    const hasta = `${periodo.anio}-${String(periodo.mes).padStart(2, "0")}-${ultimoDia}`;
+    setExportando(true);
+    await descargarArchivo(api.exportarIngresos(desde, hasta));
+    setExportando(false);
+  }
+
   return (
     <div className={ocultarHeader ? "" : "max-w-md mx-auto px-4 pb-28 pt-6"}>
       {!ocultarHeader && (
@@ -122,6 +133,14 @@ export default function IngresosScreen({ ocultarHeader = false }) {
           className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50"
         >
           <ChevronRight size={16} />
+        </button>
+        <button
+          onClick={exportar}
+          disabled={exportando}
+          className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 disabled:opacity-50"
+          title="Descargar CSV"
+        >
+          <Download size={16} />
         </button>
       </div>
 

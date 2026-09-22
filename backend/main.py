@@ -2521,3 +2521,275 @@ def exportar_todo(
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{nombre_archivo}"'},
     )
+
+# ============================================================
+# EXPORTACIONES ESPECÍFICAS POR SECCIÓN
+# ============================================================
+
+@app.get("/api/export/ingresos")
+def exportar_ingresos(
+    desde: date,
+    hasta: date,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    if hasta < desde:
+        raise HTTPException(status_code=400, detail="El rango de fechas es inválido")
+
+    ingresos = (
+        db.query(models.Ingreso)
+        .filter(
+            models.Ingreso.usuario_id == usuario.id,
+            models.Ingreso.fecha >= desde,
+            models.Ingreso.fecha <= hasta,
+        )
+        .order_by(models.Ingreso.fecha)
+        .all()
+    )
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["Fecha", "Cuenta", "Monto", "Categoria", "Descripcion"])
+    for i in ingresos:
+        cuenta = db.query(models.Cuenta).get(i.cuenta_id)
+        writer.writerow([
+            i.fecha.isoformat(),
+            cuenta.nombre if cuenta else "",
+            f"{i.monto:.2f}",
+            i.categoria or "",
+            i.descripcion or "",
+        ])
+    total = sum((i.monto for i in ingresos), Decimal("0"))
+    writer.writerow([])
+    writer.writerow(["Total", "", f"{total:.2f}", "", ""])
+    buffer.seek(0)
+
+    nombre = f"ingresos_{desde.isoformat()}_a_{hasta.isoformat()}.csv"
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{nombre}"'},
+    )
+
+
+@app.get("/api/export/pagos")
+def exportar_pagos(
+    desde: date,
+    hasta: date,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    if hasta < desde:
+        raise HTTPException(status_code=400, detail="El rango de fechas es inválido")
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+
+    # Pagos de tarjeta
+    writer.writerow(["=== PAGOS DE TARJETA ==="])
+    writer.writerow(["Fecha", "Tarjeta", "Cuenta origen", "Mes cerrado", "Año cerrado", "Monto"])
+    pagos = (
+        db.query(models.PagoTarjeta)
+        .filter(
+            models.PagoTarjeta.usuario_id == usuario.id,
+            models.PagoTarjeta.fecha_pago >= desde,
+            models.PagoTarjeta.fecha_pago <= hasta,
+        )
+        .order_by(models.PagoTarjeta.fecha_pago)
+        .all()
+    )
+    for p in pagos:
+        tarjeta = db.query(models.Tarjeta).get(p.tarjeta_id)
+        cuenta = db.query(models.Cuenta).get(p.cuenta_id)
+        writer.writerow([
+            p.fecha_pago.isoformat(),
+            tarjeta.nombre if tarjeta else "",
+            cuenta.nombre if cuenta else "",
+            p.mes_cerrado,
+            p.anio_cerrado,
+            f"{p.monto:.2f}",
+        ])
+
+    writer.writerow([])
+    writer.writerow(["=== GASTOS DIRECTOS ==="])
+    writer.writerow(["Fecha", "Cuenta", "Monto", "Categoria", "Descripcion"])
+    egresos = (
+        db.query(models.EgresoCuenta)
+        .filter(
+            models.EgresoCuenta.usuario_id == usuario.id,
+            models.EgresoCuenta.fecha >= desde,
+            models.EgresoCuenta.fecha <= hasta,
+        )
+        .order_by(models.EgresoCuenta.fecha)
+        .all()
+    )
+    for e in egresos:
+        cuenta = db.query(models.Cuenta).get(e.cuenta_id)
+        writer.writerow([
+            e.fecha.isoformat(),
+            cuenta.nombre if cuenta else "",
+            f"{e.monto:.2f}",
+            e.categoria or "",
+            e.descripcion or "",
+        ])
+
+    buffer.seek(0)
+    nombre = f"pagos_{desde.isoformat()}_a_{hasta.isoformat()}.csv"
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{nombre}"'},
+    )
+
+
+@app.get("/api/export/deudas")
+def exportar_deudas(
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["DEUDAS"])
+    writer.writerow(["ID", "Persona", "Tipo", "Monto original", "Saldo pendiente", "Pagada", "Descripcion"])
+    deudas = (
+        db.query(models.Deuda)
+        .filter(models.Deuda.usuario_id == usuario.id)
+        .order_by(models.Deuda.creado_en.desc())
+        .all()
+    )
+    for d in deudas:
+        writer.writerow([
+            d.id,
+            d.persona,
+            d.tipo,
+            f"{d.monto_original:.2f}",
+            f"{d.saldo_pendiente:.2f}",
+            "Sí" if d.pagada else "No",
+            d.descripcion or "",
+        ])
+
+    writer.writerow([])
+    writer.writerow(["=== ABONOS ==="])
+    writer.writerow(["Fecha", "Deuda con", "Monto", "Cuenta", "Nota"])
+    abonos = (
+        db.query(models.AbonoDeuda)
+        .join(models.Deuda)
+        .filter(models.Deuda.usuario_id == usuario.id)
+        .order_by(models.AbonoDeuda.fecha)
+        .all()
+    )
+    for a in abonos:
+        deuda = db.query(models.Deuda).get(a.deuda_id)
+        cuenta = db.query(models.Cuenta).get(a.cuenta_id) if a.cuenta_id else None
+        writer.writerow([
+            a.fecha.isoformat(),
+            deuda.persona if deuda else "",
+            f"{a.monto:.2f}",
+            cuenta.nombre if cuenta else "",
+            a.nota or "",
+        ])
+    buffer.seek(0)
+    nombre = "deudas.csv"
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{nombre}"'},
+    )
+
+
+@app.get("/api/export/cuenta/{cuenta_id}")
+def exportar_cuenta(
+    cuenta_id: int,
+    desde: date,
+    hasta: date,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    cuenta = (
+        db.query(models.Cuenta)
+        .filter(models.Cuenta.id == cuenta_id, models.Cuenta.usuario_id == usuario.id)
+        .first()
+    )
+    if not cuenta:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+    if hasta < desde:
+        raise HTTPException(status_code=400, detail="El rango de fechas es inválido")
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["Fecha", "Tipo", "Descripcion", "Monto"])
+
+    # Reutilizamos la lógica de movimientos_cuenta
+    # (la dejamos como llamada interna para no duplicar)
+    movimientos = movimientos_cuenta(cuenta_id, db, usuario)
+    movimientos_filtrados = [
+        m for m in movimientos if desde <= m.fecha <= hasta
+    ]
+
+    for m in movimientos_filtrados:
+        writer.writerow([
+            m.fecha.isoformat(),
+            m.tipo,
+            m.descripcion or "",
+            f"{m.monto:.2f}",
+        ])
+
+    total = sum((m.monto for m in movimientos_filtrados), Decimal("0"))
+    writer.writerow([])
+    writer.writerow(["Total neto", "", "", f"{total:.2f}"])
+    buffer.seek(0)
+
+    nombre_limpio = cuenta.nombre.replace(" ", "_").replace("/", "-")
+    nombre = f"cuenta_{nombre_limpio}_{desde.isoformat()}_a_{hasta.isoformat()}.csv"
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{nombre}"'},
+    )
+
+
+@app.get("/api/export/tarjeta/{tarjeta_id}")
+def exportar_tarjeta(
+    tarjeta_id: int,
+    desde: date,
+    hasta: date,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    tarjeta = tarjeta_del_usuario(db, tarjeta_id, usuario)
+    if hasta < desde:
+        raise HTTPException(status_code=400, detail="El rango de fechas es inválido")
+
+    gastos = (
+        db.query(models.Gasto)
+        .filter(
+            models.Gasto.tarjeta_id == tarjeta.id,
+            models.Gasto.fecha >= desde,
+            models.Gasto.fecha <= hasta,
+        )
+        .order_by(models.Gasto.fecha)
+        .all()
+    )
+
+    buffer = io.StringIO()
+    writer = csv.writer(buffer)
+    writer.writerow(["Fecha", "Monto", "Categoria", "Descripcion"])
+    for g in gastos:
+        writer.writerow([
+            g.fecha.isoformat(),
+            f"{g.monto:.2f}",
+            g.categoria or "",
+            g.descripcion or "",
+        ])
+    total = sum((g.monto for g in gastos), Decimal("0"))
+    writer.writerow([])
+    writer.writerow(["Total", f"{total:.2f}", "", ""])
+    buffer.seek(0)
+
+    nombre_limpio = tarjeta.nombre.replace(" ", "_").replace("/", "-")
+    nombre = f"tarjeta_{nombre_limpio}_{desde.isoformat()}_a_{hasta.isoformat()}.csv"
+    return StreamingResponse(
+        iter([buffer.getvalue()]),
+        media_type="text/csv",
+        headers={"Content-Disposition": f'attachment; filename="{nombre}"'},
+    )
