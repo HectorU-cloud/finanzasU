@@ -250,8 +250,15 @@ export default function App() {
   async function handleExportTodo() {
     let desde, hasta;
     const ahora = new Date();
-    if (rangoExportTodo === "mes") {
-      // Último mes
+    
+    if (rangoExportTodo === "mesActual") {
+      // Mes actual: del 1 al último día del mes actual
+      const inicio = new Date(ahora.getFullYear(), ahora.getMonth(), 1);
+      const fin = new Date(ahora.getFullYear(), ahora.getMonth() + 1, 0);
+      desde = inicio.toISOString().slice(0, 10);
+      hasta = fin.toISOString().slice(0, 10);
+    } else if (rangoExportTodo === "mesAnterior") {
+      // Mes anterior completo
       const inicio = new Date(ahora.getFullYear(), ahora.getMonth() - 1, 1);
       const fin = new Date(ahora.getFullYear(), ahora.getMonth(), 0);
       desde = inicio.toISOString().slice(0, 10);
@@ -265,10 +272,10 @@ export default function App() {
       desde = inicio.toISOString().slice(0, 10);
       hasta = ahora.toISOString().slice(0, 10);
     } else {
-      // Todo (desde 2000)
       desde = "2000-01-01";
       hasta = ahora.toISOString().slice(0, 10);
     }
+    
 
     setExportandoTodo(true);
     try {
@@ -532,7 +539,8 @@ export default function App() {
                       onChange={(e) => setRangoExportTodo(e.target.value)}
                       className="flex-1 px-3 py-2 rounded-lg border border-gray-200 focus:border-coral focus:outline-none text-xs bg-white"
                     >
-                      <option value="mes">Último mes</option>
+                      <option value="mesActual">Mes actual</option>
+                      <option value="mesAnterior">Mes anterior</option>
                       <option value="3meses">Últimos 3 meses</option>
                       <option value="anio">Este año</option>
                       <option value="todo">Todo</option>
