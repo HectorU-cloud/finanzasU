@@ -108,6 +108,18 @@ export const api = {
   eliminarCuenta: (id) => request(`/cuentas/${id}`, { method: "DELETE" }),
   getResumenTotalCuentas: () => request("/cuentas/resumen-total"),
 
+  // Deudas (debo / me deben)
+  getDeudas: (incluirPagadas = false) =>
+    request(`/deudas?incluir_pagadas=${incluirPagadas}`),
+  crearDeuda: (deuda) =>
+    request("/deudas", { method: "POST", body: JSON.stringify(deuda) }),
+  actualizarDeuda: (id, cambios) =>
+    request(`/deudas/${id}`, { method: "PUT", body: JSON.stringify(cambios) }),
+  eliminarDeuda: (id) => request(`/deudas/${id}`, { method: "DELETE" }),
+  abonarDeuda: (id, datos) =>
+    request(`/deudas/${id}/abonar`, { method: "POST", body: JSON.stringify(datos) }),
+  getAbonosDeuda: (id) => request(`/deudas/${id}/abonos`),
+
   // Pots (metas de ahorro)
   getPotes: () => request("/potes"),
   crearPote: (pote) =>

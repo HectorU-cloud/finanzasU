@@ -19,6 +19,7 @@ import PagarTarjetaModal from "./PagarTarjetaModal.jsx";
 import HistorialPagosScreen from "./HistorialPagosScreen.jsx";
 import TarjetaDetalleScreen from "./TarjetaDetalleScreen.jsx";
 import PotesScreen from "./PotesScreen.jsx";
+import DeudasScreen from "./DeudasScreen.jsx";
 import SolicitarResetScreen from "./SolicitarResetScreen.jsx";
 import ResetPasswordScreen from "./ResetPasswordScreen.jsx";
 import TarjetasScreen from "./TarjetasScreen.jsx";
@@ -422,9 +423,11 @@ export default function App() {
           <PlanificarScreen
             onIrAPotes={() => setVista("potes")}
             onIrAGrupos={() => setVista("grupos")}
+            onIrADeudas={() => setVista("deudas")}
           />
         )}
         {vista === "potes" && <PotesScreen onVolver={() => setVista("planificar")} />}
+        {vista === "deudas" && <DeudasScreen onVolver={() => setVista("planificar")} />}
         {vista === "grupos" && (
           <div className="max-w-md mx-auto p-6">
             <GruposPanel 

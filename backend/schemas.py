@@ -514,9 +514,10 @@ class EstadoPagoTarjeta(BaseModel):
 
 
 class Alerta(BaseModel):
-    tipo: str  # "corte_proximo" | "pago_atrasado"
-    tarjeta_id: int
-    tarjeta_nombre: str
+    tipo: str  # "corte_proximo" | "pago_atrasado" | "recordatorio_deuda"
+    tarjeta_id: int | None = None
+    tarjeta_nombre: str | None = None
+    deuda_id: int | None = None
     dias: int | None = None
     monto: Decimal | None = None
     mensaje: str
@@ -621,3 +622,82 @@ class NotaOut(BaseModel):
     contenido: str
     creado_en: datetime | None = None
     actualizado_en: datetime | None = None
+
+
+TIPOS_DEUDA = {"debo", "me_deben"}
+
+
+class DeudaCreate(BaseModel):
+    persona: str = Field(min_length=1, max_length=80)
+    tipo: str
+    descripcion: str | None = Field(default=None, max_length=150)
+    monto: Decimal = Field(gt=0, le=MONTO_MAXIMO, decimal_places=2)
+    frecuencia_recordatorio_dias: int | None = Field(default=None, ge=1, le=365)
+
+    @field_validator("persona")
+    @classmethod
+    def _persona_valida(cls, v):
+        return _validar_texto_no_vacio(v)
+
+    @field_validator("tipo")
+    @classmethod
+    def _tipo_valido(cls, v):
+        if v not in TIPOS_DEUDA:
+            raise ValueError("el tipo debe ser 'debo' o 'me_deben'")
+        return v
+
+
+class DeudaUpdate(BaseModel):
+    persona: str | None = Field(default=None, max_length=80)
+    descripcion: str | None = Field(default=None, max_length=150)
+    frecuencia_recordatorio_dias: int | None = Field(default=None, ge=1, le=365)
+
+    @field_validator("persona")
+    @classmethod
+    def _persona_valida(cls, v):
+        if v is None:
+            return v
+        return _validar_texto_no_vacio(v)
+
+
+class AbonoDeudaCreate(BaseModel):
+    monto: Decimal = Field(gt=0, le=MONTO_MAXIMO, decimal_places=2)
+    fecha: date
+    nota: str | None = Field(default=None, max_length=150)
+
+    @field_validator("fecha")
+    @classmethod
+    def _fecha_valida(cls, v):
+        return _validar_fecha(v)
+
+
+class AbonoDeudaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    monto: Decimal
+    fecha: date
+    nota: str | None
+
+
+class DeudaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    persona: str
+    tipo: str
+    descripcion: str | None
+    monto_original: Decimal
+    saldo_pendiente: Decimal
+    frecuencia_recordatorio_dias: int | None
+    pagada: bool
+    fecha_pagada: date | None
+    creado_en: datetime | None = None
+
+    @field_validator("pagada", mode="before")
+    @classmethod
+    def _pagada_bool(cls, v):
+        return bool(v)
+
+
+class AbonarDeudaResultado(BaseModel):
+    deuda: DeudaOut
+    quedo_saldada: bool

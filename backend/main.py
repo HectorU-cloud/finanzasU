@@ -609,6 +609,38 @@ def obtener_alertas(
                 mensaje=f"{t.nombre} tiene ${pendiente_atrasado:.2f} pendiente de meses anteriores",
             ))
 
+    # Recordatorios de deudas activas, según la frecuencia que cada quien eligió
+    deudas = (
+        db.query(models.Deuda)
+        .filter(models.Deuda.usuario_id == usuario.id, models.Deuda.pagada == 0)
+        .all()
+    )
+    for d in deudas:
+        if not d.frecuencia_recordatorio_dias:
+            continue
+
+        ultimo_abono = (
+            db.query(models.AbonoDeuda)
+            .filter(models.AbonoDeuda.deuda_id == d.id)
+            .order_by(models.AbonoDeuda.fecha.desc())
+            .first()
+        )
+        fecha_referencia = ultimo_abono.fecha if ultimo_abono else d.creado_en.date()
+        dias_desde = (hoy - fecha_referencia).days
+
+        if dias_desde >= d.frecuencia_recordatorio_dias:
+            if d.tipo == "debo":
+                mensaje = f"No olvides: le debes a {d.persona} ${Decimal(d.saldo_pendiente):.2f}"
+            else:
+                mensaje = f"No olvides: {d.persona} te debe ${Decimal(d.saldo_pendiente):.2f}"
+            alertas.append(schemas.Alerta(
+                tipo="recordatorio_deuda",
+                deuda_id=d.id,
+                dias=dias_desde,
+                monto=Decimal(d.saldo_pendiente),
+                mensaje=mensaje,
+            ))
+
     return alertas
 
 
@@ -1952,3 +1984,132 @@ def resumen_por_categoria(
     ]
     resumen.sort(key=lambda r: r.total, reverse=True)
     return resumen
+
+# ---------- Deudas ----------
+
+def _deuda_del_usuario(db: Session, deuda_id: int, usuario: models.Usuario) -> models.Deuda:
+    deuda = (
+        db.query(models.Deuda)
+        .filter(models.Deuda.id == deuda_id, models.Deuda.usuario_id == usuario.id)
+        .first()
+    )
+    if not deuda:
+        raise HTTPException(status_code=404, detail="Deuda no encontrada")
+    return deuda
+
+
+@app.get("/api/deudas", response_model=list[schemas.DeudaOut])
+def listar_deudas(
+    incluir_pagadas: bool = False,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    query = db.query(models.Deuda).filter(models.Deuda.usuario_id == usuario.id)
+    if not incluir_pagadas:
+        query = query.filter(models.Deuda.pagada == 0)
+    return query.order_by(models.Deuda.creado_en.desc()).all()
+
+
+@app.post("/api/deudas", response_model=schemas.DeudaOut)
+def crear_deuda(
+    datos: schemas.DeudaCreate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    nueva = models.Deuda(
+        usuario_id=usuario.id,
+        persona=datos.persona.strip(),
+        tipo=datos.tipo,
+        descripcion=datos.descripcion,
+        monto_original=datos.monto,
+        saldo_pendiente=datos.monto,
+        frecuencia_recordatorio_dias=datos.frecuencia_recordatorio_dias,
+    )
+    db.add(nueva)
+    db.commit()
+    db.refresh(nueva)
+    return nueva
+
+
+@app.put("/api/deudas/{deuda_id}", response_model=schemas.DeudaOut)
+def actualizar_deuda(
+    deuda_id: int,
+    payload: schemas.DeudaUpdate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    deuda = _deuda_del_usuario(db, deuda_id, usuario)
+    if payload.persona is not None:
+        deuda.persona = payload.persona
+    if payload.descripcion is not None:
+        deuda.descripcion = payload.descripcion
+    if payload.frecuencia_recordatorio_dias is not None:
+        deuda.frecuencia_recordatorio_dias = payload.frecuencia_recordatorio_dias
+    db.commit()
+    db.refresh(deuda)
+    return deuda
+
+
+@app.delete("/api/deudas/{deuda_id}", status_code=204)
+def eliminar_deuda(
+    deuda_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    deuda = _deuda_del_usuario(db, deuda_id, usuario)
+    db.delete(deuda)
+    db.commit()
+
+
+@app.get("/api/deudas/{deuda_id}/abonos", response_model=list[schemas.AbonoDeudaOut])
+def listar_abonos_deuda(
+    deuda_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    deuda = _deuda_del_usuario(db, deuda_id, usuario)
+    return (
+        db.query(models.AbonoDeuda)
+        .filter(models.AbonoDeuda.deuda_id == deuda.id)
+        .order_by(models.AbonoDeuda.fecha.desc())
+        .all()
+    )
+
+
+@app.post("/api/deudas/{deuda_id}/abonar", response_model=schemas.AbonarDeudaResultado)
+def abonar_deuda(
+    deuda_id: int,
+    datos: schemas.AbonoDeudaCreate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    deuda = _deuda_del_usuario(db, deuda_id, usuario)
+    if deuda.pagada:
+        raise HTTPException(status_code=400, detail="Esta deuda ya está saldada")
+    if datos.monto > deuda.saldo_pendiente:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                f"El abono (${datos.monto:.2f}) es mayor al saldo pendiente "
+                f"(${deuda.saldo_pendiente:.2f})"
+            ),
+        )
+
+    nuevo_abono = models.AbonoDeuda(
+        deuda_id=deuda.id,
+        monto=datos.monto,
+        fecha=datos.fecha,
+        nota=datos.nota,
+    )
+    db.add(nuevo_abono)
+
+    deuda.saldo_pendiente = Decimal(deuda.saldo_pendiente) - datos.monto
+    quedo_saldada = deuda.saldo_pendiente <= 0
+    if quedo_saldada:
+        deuda.saldo_pendiente = Decimal("0")
+        deuda.pagada = 1
+        deuda.fecha_pagada = datos.fecha
+
+    db.commit()
+    db.refresh(deuda)
+    return schemas.AbonarDeudaResultado(deuda=deuda, quedo_saldada=quedo_saldada)

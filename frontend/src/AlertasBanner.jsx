@@ -1,10 +1,11 @@
 import { useEffect, useState } from "react";
-import { AlertTriangle, Clock, X } from "lucide-react";
+import { AlertTriangle, Clock, HandCoins, X } from "lucide-react";
 import { api } from "./api.js";
 
 function claveDescarte(alerta) {
   const hoy = new Date().toISOString().slice(0, 10);
-  return `alerta_descartada:${hoy}:${alerta.tipo}:${alerta.tarjeta_id}`;
+  const referencia = alerta.tarjeta_id ?? `deuda-${alerta.deuda_id}`;
+  return `alerta_descartada:${hoy}:${alerta.tipo}:${referencia}`;
 }
 
 export default function AlertasBanner() {
@@ -45,21 +46,31 @@ export default function AlertasBanner() {
 
   if (visibles.length === 0) return null;
 
+  const ESTILOS = {
+    pago_atrasado: {
+      clase: "bg-coral/10 text-coral border border-coral/30",
+      Icono: AlertTriangle,
+    },
+    corte_proximo: {
+      clase: "bg-amber-50 text-amber-700 border border-amber-300",
+      Icono: Clock,
+    },
+    recordatorio_deuda: {
+      clase: "bg-blue-50 text-blue-700 border border-blue-300",
+      Icono: HandCoins,
+    },
+  };
+
   return (
     <div className="space-y-2 mb-5">
       {visibles.map((a, i) => {
-        const esPagoAtrasado = a.tipo === "pago_atrasado";
+        const { clase, Icono } = ESTILOS[a.tipo] || ESTILOS.corte_proximo;
         return (
           <div
-            key={`${a.tipo}-${a.tarjeta_id}-${i}`}
-            className={
-              "flex items-center gap-3 rounded-xl px-4 py-3 text-sm " +
-              (esPagoAtrasado
-                ? "bg-coral/10 text-coral border border-coral/30"
-                : "bg-amber-50 text-amber-700 border border-amber-300")
-            }
+            key={`${a.tipo}-${a.tarjeta_id ?? a.deuda_id}-${i}`}
+            className={"flex items-center gap-3 rounded-xl px-4 py-3 text-sm " + clase}
           >
-            {esPagoAtrasado ? <AlertTriangle size={16} /> : <Clock size={16} />}
+            <Icono size={16} />
             <span className="flex-1 font-medium">{a.mensaje}</span>
             <button onClick={() => descartar(a)} className="opacity-60 hover:opacity-100">
               <X size={15} />

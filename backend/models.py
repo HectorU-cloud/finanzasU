@@ -190,7 +190,37 @@ class PasswordReset(Base):
     usado = Column(Integer, default=0)  # 0=no usado, 1=usado
     creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
+
+class Deuda(Base):
+    __tablename__ = "deudas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    persona = Column(String(80), nullable=False)  # a quién le debes, o quién te debe
+    tipo = Column(String(10), nullable=False)  # "debo" | "me_deben"
+    descripcion = Column(String(150), nullable=True)
+    monto_original = Column(Numeric(12, 2), nullable=False)
+    saldo_pendiente = Column(Numeric(12, 2), nullable=False)
+    frecuencia_recordatorio_dias = Column(Integer, nullable=True)  # null = sin recordatorio
+    pagada = Column(Integer, default=0)  # 0=activa, 1=saldada
+    fecha_pagada = Column(Date, nullable=True)
+    creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
     usuario = relationship("Usuario")
+    abonos = relationship("AbonoDeuda", back_populates="deuda", cascade="all, delete-orphan")
+
+
+class AbonoDeuda(Base):
+    __tablename__ = "abonos_deuda"
+
+    id = Column(Integer, primary_key=True, index=True)
+    deuda_id = Column(Integer, ForeignKey("deudas.id"), nullable=False)
+    monto = Column(Numeric(12, 2), nullable=False)
+    fecha = Column(Date, nullable=False)
+    nota = Column(String(150), nullable=True)
+    creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    deuda = relationship("Deuda", back_populates="abonos")
 
 class Nota(Base):
     __tablename__ = "notas"
