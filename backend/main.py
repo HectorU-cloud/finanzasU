@@ -22,7 +22,6 @@ from database import get_db
 
 LIMITE_MENSUAL = Decimal("350")
 
-# --- Configuración de Resend (email) ---
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 FROM_EMAIL = os.getenv("FROM_EMAIL", "noreply@vectoraec.app")
@@ -32,7 +31,6 @@ if RESEND_API_KEY:
 
 
 def enviar_email_reset(destinatario: str, nombre: str, token: str) -> bool:
-    """Envía el email de recuperación. Devuelve True si se envió."""
     if not RESEND_API_KEY:
         print("⚠️ RESEND_API_KEY no configurada. No se envía email.")
         return False
@@ -82,7 +80,6 @@ app = FastAPI(title="API Finanzas Personales")
 
 @app.exception_handler(RequestValidationError)
 async def manejar_error_validacion(request: Request, exc: RequestValidationError):
-    """Convierte los errores de validación de Pydantic en un mensaje simple y legible."""
     errores = exc.errors()
     if errores:
         primero = errores[0]
@@ -121,7 +118,6 @@ def dias_para_corte(dia_corte: int, hoy: date) -> int:
 
 
 def tarjeta_del_usuario(db: Session, tarjeta_id: int, usuario: models.Usuario) -> models.Tarjeta:
-    """Devuelve la tarjeta solo si pertenece al usuario actual; si no, 404."""
     tarjeta = (
         db.query(models.Tarjeta)
         .filter(models.Tarjeta.id == tarjeta_id, models.Tarjeta.usuario_id == usuario.id)
@@ -132,7 +128,72 @@ def tarjeta_del_usuario(db: Session, tarjeta_id: int, usuario: models.Usuario) -
     return tarjeta
 
 
-# ---------- Autenticación ----------
+# ============================================================
+# HELPERS DE SALDO
+# ============================================================
+
+def _abonos_netos_cuenta(db: Session, cuenta_id: int) -> Decimal:
+    salidas = (
+        db.query(func.coalesce(func.sum(models.AbonoDeuda.monto), 0))
+        .join(models.Deuda, models.AbonoDeuda.deuda_id == models.Deuda.id)
+        .filter(models.AbonoDeuda.cuenta_id == cuenta_id, models.Deuda.tipo == "debo")
+        .scalar()
+    )
+    entradas = (
+        db.query(func.coalesce(func.sum(models.AbonoDeuda.monto), 0))
+        .join(models.Deuda, models.AbonoDeuda.deuda_id == models.Deuda.id)
+        .filter(models.AbonoDeuda.cuenta_id == cuenta_id, models.Deuda.tipo == "me_deben")
+        .scalar()
+    )
+    return Decimal(entradas) - Decimal(salidas)
+
+
+def _egresos_directos_cuenta(db: Session, cuenta_id: int) -> Decimal:
+    total = (
+        db.query(func.coalesce(func.sum(models.EgresoCuenta.monto), 0))
+        .filter(models.EgresoCuenta.cuenta_id == cuenta_id)
+        .scalar()
+    )
+    return Decimal(total)
+
+
+def _gastos_debito_cuenta(db: Session, cuenta_id: int) -> Decimal:
+    total = (
+        db.query(func.coalesce(func.sum(models.Gasto.monto), 0))
+        .join(models.Tarjeta, models.Gasto.tarjeta_id == models.Tarjeta.id)
+        .filter(
+            models.Tarjeta.cuenta_id == cuenta_id,
+            models.Tarjeta.tipo == "debito",
+        )
+        .scalar()
+    )
+    return Decimal(total)
+
+
+def _calcular_saldo_cuenta(db: Session, cuenta: models.Cuenta) -> Decimal:
+    ingresos = (
+        db.query(func.coalesce(func.sum(models.Ingreso.monto), 0))
+        .filter(models.Ingreso.cuenta_id == cuenta.id)
+        .scalar()
+    )
+    pagos = (
+        db.query(func.coalesce(func.sum(models.PagoTarjeta.monto), 0))
+        .filter(models.PagoTarjeta.cuenta_id == cuenta.id)
+        .scalar()
+    )
+    return (
+        Decimal(cuenta.saldo_inicial)
+        + Decimal(ingresos)
+        - Decimal(pagos)
+        + _abonos_netos_cuenta(db, cuenta.id)
+        - _egresos_directos_cuenta(db, cuenta.id)
+        - _gastos_debito_cuenta(db, cuenta.id)
+    )
+
+
+# ============================================================
+# AUTENTICACIÓN
+# ============================================================
 
 @app.post("/api/auth/registro", response_model=schemas.Token)
 def registrar(datos: schemas.UsuarioCreate, db: Session = Depends(get_db)):
@@ -178,11 +239,9 @@ def cambiar_password(
     usuario.password_hash = auth.hash_password(datos.password_nueva)
     db.commit()
 
+
 @app.post("/api/auth/solicitar-reset")
-def solicitar_reset(
-    datos: schemas.SolicitarReset,
-    db: Session = Depends(get_db),
-):
+def solicitar_reset(datos: schemas.SolicitarReset, db: Session = Depends(get_db)):
     email = datos.email.lower()
     usuario = db.query(models.Usuario).filter(models.Usuario.email == email).first()
 
@@ -208,18 +267,11 @@ def solicitar_reset(
 
     enviado = enviar_email_reset(usuario.email, usuario.nombre, token)
 
-    return {
-        "ok": True,
-        "mensaje": "Si el correo existe, te enviamos un enlace.",
-        "email_enviado": enviado,
-    }
+    return {"ok": True, "mensaje": "Si el correo existe, te enviamos un enlace.", "email_enviado": enviado}
 
 
 @app.post("/api/auth/reset-password", status_code=204)
-def reset_password(
-    datos: schemas.ResetPassword,
-    db: Session = Depends(get_db),
-):
+def reset_password(datos: schemas.ResetPassword, db: Session = Depends(get_db)):
     reset = (
         db.query(models.PasswordReset)
         .filter(models.PasswordReset.token == datos.token)
@@ -227,20 +279,14 @@ def reset_password(
         .first()
     )
     if not reset:
-        raise HTTPException(
-            status_code=400,
-            detail="Enlace inválido o ya utilizado. Solicita uno nuevo."
-        )
+        raise HTTPException(status_code=400, detail="Enlace inválido o ya utilizado. Solicita uno nuevo.")
 
     ahora = datetime.now(timezone.utc)
     expira = reset.expira_en
     if expira.tzinfo is None:
         expira = expira.replace(tzinfo=timezone.utc)
     if expira < ahora:
-        raise HTTPException(
-            status_code=400,
-            detail="El enlace expiró. Solicita uno nuevo."
-        )
+        raise HTTPException(status_code=400, detail="El enlace expiró. Solicita uno nuevo.")
 
     usuario = db.query(models.Usuario).get(reset.usuario_id)
     if not usuario:
@@ -251,12 +297,14 @@ def reset_password(
     db.commit()
 
 
-
 @app.get("/api/auth/yo", response_model=schemas.UsuarioOut)
 def yo(usuario: models.Usuario = Depends(auth.obtener_usuario_actual)):
     return usuario
 
-# ---------- Cuentas ----------
+
+# ============================================================
+# CUENTAS
+# ============================================================
 
 @app.get("/api/cuentas", response_model=list[schemas.Cuenta])
 def listar_cuentas(
@@ -286,12 +334,14 @@ def listar_cuentas(
             + Decimal(ingresos)
             - Decimal(pagos)
             + _abonos_netos_cuenta(db, c.id)
-            - _egresos_directos_cuenta(db, c.id)   # <-- NUEVO
+            - _egresos_directos_cuenta(db, c.id)
+            - _gastos_debito_cuenta(db, c.id)
         )
         c.total_ingresos = Decimal(ingresos)
         c.saldo_actual = saldo_actual
         resultado.append(c)
     return resultado
+
 
 @app.post("/api/cuentas", response_model=schemas.Cuenta)
 def crear_cuenta(
@@ -334,7 +384,7 @@ def actualizar_cuenta(
 
     if payload.nombre is not None:
         cuenta.nombre = payload.nombre
-    if payload.titular is not None:              # <-- NUEVA
+    if payload.titular is not None:
         cuenta.titular = payload.titular
     if payload.tipo is not None:
         cuenta.tipo = payload.tipo
@@ -364,34 +414,22 @@ def eliminar_cuenta(
     if not cuenta:
         raise HTTPException(status_code=404, detail="Cuenta no encontrada")
 
-    # Verificar que no tenga ingresos asociados
-    tiene_ingresos = (
-        db.query(models.Ingreso)
-        .filter(models.Ingreso.cuenta_id == cuenta_id)
-        .first()
-    )
-    if tiene_ingresos:
+    if db.query(models.Ingreso).filter(models.Ingreso.cuenta_id == cuenta_id).first():
         raise HTTPException(
             status_code=400,
-            detail=(
-                f"No puedes eliminar '{cuenta.nombre}' porque tiene ingresos registrados. "
-                "Elimina primero los ingresos o muévelos a otra cuenta."
-            ),
+            detail=f"No puedes eliminar '{cuenta.nombre}' porque tiene ingresos registrados. Elimina primero los ingresos o muévelos a otra cuenta.",
         )
 
-    # Verificar que no tenga pagos asociados
-    tiene_pagos = (
-        db.query(models.PagoTarjeta)
-        .filter(models.PagoTarjeta.cuenta_id == cuenta_id)
-        .first()
-    )
-    if tiene_pagos:
+    if db.query(models.PagoTarjeta).filter(models.PagoTarjeta.cuenta_id == cuenta_id).first():
         raise HTTPException(
             status_code=400,
-            detail=(
-                f"No puedes eliminar '{cuenta.nombre}' porque tiene pagos de tarjeta registrados. "
-                "Elimínalos primero desde la sección Pagos."
-            ),
+            detail=f"No puedes eliminar '{cuenta.nombre}' porque tiene pagos de tarjeta registrados. Elimínalos primero desde la sección Pagos.",
+        )
+
+    if db.query(models.Tarjeta).filter(models.Tarjeta.cuenta_id == cuenta_id).first():
+        raise HTTPException(
+            status_code=400,
+            detail=f"No puedes eliminar '{cuenta.nombre}' porque tiene tarjetas de débito asociadas.",
         )
 
     db.delete(cuenta)
@@ -403,11 +441,7 @@ def resumen_total_cuentas(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
-    cuentas = (
-        db.query(models.Cuenta)
-        .filter(models.Cuenta.usuario_id == usuario.id)
-        .all()
-    )
+    cuentas = db.query(models.Cuenta).filter(models.Cuenta.usuario_id == usuario.id).all()
     total = Decimal("0")
     for c in cuentas:
         ingresos = (
@@ -420,11 +454,16 @@ def resumen_total_cuentas(
             .filter(models.PagoTarjeta.cuenta_id == c.id)
             .scalar()
         )
-        total += Decimal(c.saldo_inicial) + Decimal(ingresos) - Decimal(pagos) + _abonos_netos_cuenta(db, c.id) - _egresos_directos_cuenta(db, c.id)
-    return {
-        "total": float(total),
-        "cantidad_cuentas": len(cuentas),
-    }
+        total += (
+            Decimal(c.saldo_inicial)
+            + Decimal(ingresos)
+            - Decimal(pagos)
+            + _abonos_netos_cuenta(db, c.id)
+            - _egresos_directos_cuenta(db, c.id)
+            - _gastos_debito_cuenta(db, c.id)
+        )
+    return {"total": float(total), "cantidad_cuentas": len(cuentas)}
+
 
 @app.get("/api/cuentas/{cuenta_id}/movimientos", response_model=list[schemas.MovimientoCuenta])
 def movimientos_cuenta(
@@ -442,13 +481,8 @@ def movimientos_cuenta(
 
     movimientos = []
 
-    # 1. Ingresos a la cuenta
-    ingresos = (
-        db.query(models.Ingreso)
-        .filter(models.Ingreso.cuenta_id == cuenta_id)
-        .all()
-    )
-    for i in ingresos:
+    # 1. Ingresos
+    for i in db.query(models.Ingreso).filter(models.Ingreso.cuenta_id == cuenta_id).all():
         movimientos.append(schemas.MovimientoCuenta(
             tipo="ingreso",
             monto=Decimal(i.monto),
@@ -457,13 +491,8 @@ def movimientos_cuenta(
             referencia_id=i.id,
         ))
 
-    # 2. Pagos de tarjeta desde esta cuenta
-    pagos = (
-        db.query(models.PagoTarjeta)
-        .filter(models.PagoTarjeta.cuenta_id == cuenta_id)
-        .all()
-    )
-    for p in pagos:
+    # 2. Pagos de tarjeta de crédito
+    for p in db.query(models.PagoTarjeta).filter(models.PagoTarjeta.cuenta_id == cuenta_id).all():
         tarjeta = db.query(models.Tarjeta).get(p.tarjeta_id)
         movimientos.append(schemas.MovimientoCuenta(
             tipo="pago_tarjeta",
@@ -474,23 +503,12 @@ def movimientos_cuenta(
             referencia_nombre=tarjeta.nombre if tarjeta else None,
         ))
 
-    # 3. Movimientos de potes asociados a esta cuenta
-    potes = (
-        db.query(models.Pote)
-        .filter(models.Pote.cuenta_id == cuenta_id)
-        .all()
-    )
+    # 3. Movimientos de potes
+    potes = db.query(models.Pote).filter(models.Pote.cuenta_id == cuenta_id).all()
     pote_ids = [p.id for p in potes]
     if pote_ids:
-        movs_pote = (
-            db.query(models.MovimientoPote)
-            .filter(models.MovimientoPote.pote_id.in_(pote_ids))
-            .all()
-        )
-        for mp in movs_pote:
+        for mp in db.query(models.MovimientoPote).filter(models.MovimientoPote.pote_id.in_(pote_ids)).all():
             pote = next((p for p in potes if p.id == mp.pote_id), None)
-            # Depósito al pote = RESTA a la cuenta (dinero sale)
-            # Retiro del pote = SUMA a la cuenta (dinero entra)
             movimientos.append(schemas.MovimientoCuenta(
                 tipo="deposito_pote" if Decimal(mp.monto) > 0 else "retiro_pote",
                 monto=-Decimal(mp.monto),
@@ -500,34 +518,25 @@ def movimientos_cuenta(
                 referencia_nombre=pote.nombre if pote else None,
             ))
 
-        # 4. Abonos de deudas ligados a esta cuenta
-    abonos = (
+    # 4. Abonos de deudas
+    for abono, deuda in (
         db.query(models.AbonoDeuda, models.Deuda)
         .join(models.Deuda, models.AbonoDeuda.deuda_id == models.Deuda.id)
         .filter(models.AbonoDeuda.cuenta_id == cuenta_id)
         .all()
-    )
-    for abono, deuda in abonos:
+    ):
         es_salida = deuda.tipo == "debo"
         movimientos.append(schemas.MovimientoCuenta(
             tipo="abono_deuda",
             monto=-Decimal(abono.monto) if es_salida else Decimal(abono.monto),
             fecha=abono.fecha,
-            descripcion=(
-                f"Abono a {deuda.persona}" if es_salida
-                else f"Cobro de {deuda.persona}"
-            ),
+            descripcion=f"Abono a {deuda.persona}" if es_salida else f"Cobro de {deuda.persona}",
             referencia_id=abono.id,
             referencia_nombre=deuda.persona,
         ))
-    
-    # 5. Egresos directos desde esta cuenta
-    egresos = (
-        db.query(models.EgresoCuenta)
-        .filter(models.EgresoCuenta.cuenta_id == cuenta_id)
-        .all()
-    )
-    for e in egresos:
+
+    # 5. Egresos directos
+    for e in db.query(models.EgresoCuenta).filter(models.EgresoCuenta.cuenta_id == cuenta_id).all():
         movimientos.append(schemas.MovimientoCuenta(
             tipo="egreso_cuenta",
             monto=-Decimal(e.monto),
@@ -536,13 +545,34 @@ def movimientos_cuenta(
             referencia_id=e.id,
         ))
 
+    # 6. Gastos con tarjetas de débito asociadas a esta cuenta
+    for gasto, tarjeta in (
+        db.query(models.Gasto, models.Tarjeta)
+        .join(models.Tarjeta, models.Gasto.tarjeta_id == models.Tarjeta.id)
+        .filter(
+            models.Tarjeta.cuenta_id == cuenta_id,
+            models.Tarjeta.tipo == "debito",
+        )
+        .all()
+    ):
+        movimientos.append(schemas.MovimientoCuenta(
+            tipo="gasto_debito",
+            monto=-Decimal(gasto.monto),
+            fecha=gasto.fecha,
+            descripcion=gasto.descripcion or f"Gasto con {tarjeta.nombre}",
+            referencia_id=gasto.id,
+            referencia_nombre=tarjeta.nombre,
+        ))
+
     movimientos.sort(key=lambda m: m.fecha, reverse=True)
     return movimientos
 
-# ---------- Pagos de tarjetas ----------
+
+# ============================================================
+# PAGOS DE TARJETAS
+# ============================================================
 
 def _calcular_estado_pago(db: Session, tarjeta: models.Tarjeta, anio: int, mes: int):
-    """Calcula el estado del pago de una tarjeta para un mes."""
     total_gastos = (
         db.query(func.coalesce(func.sum(models.Gasto.monto), 0))
         .filter(models.Gasto.tarjeta_id == tarjeta.id)
@@ -586,13 +616,10 @@ def estado_pago_tarjeta(
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
     tarjeta = tarjeta_del_usuario(db, tarjeta_id, usuario)
-
     hoy = date.today()
     anio = anio or hoy.year
     mes = mes or hoy.month
-
     estado = _calcular_estado_pago(db, tarjeta, anio, mes)
-
     return schemas.EstadoPagoTarjeta(
         tarjeta_id=tarjeta.id,
         tarjeta_nombre=tarjeta.nombre,
@@ -611,14 +638,16 @@ def obtener_alertas(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
-    """Recordatorios: cortes próximos (siguientes 3 días) y pagos atrasados
-    de meses anteriores que aún no se han marcado como pagados."""
     hoy = date.today()
     primer_dia_mes_actual = date(hoy.year, hoy.month, 1)
     tarjetas = db.query(models.Tarjeta).filter(models.Tarjeta.usuario_id == usuario.id).all()
 
     alertas = []
     for t in tarjetas:
+        # Saltar tarjetas de débito (no tienen corte)
+        if t.tipo == "debito":
+            continue
+
         dias = dias_para_corte(t.dia_corte, hoy)
         if 0 <= dias <= 3:
             texto_dias = "hoy" if dias == 0 else f"en {dias} día{'s' if dias != 1 else ''}"
@@ -651,16 +680,10 @@ def obtener_alertas(
                 mensaje=f"{t.nombre} tiene ${pendiente_atrasado:.2f} pendiente de meses anteriores",
             ))
 
-    # Recordatorios de deudas activas, según la frecuencia que cada quien eligió
-    deudas = (
-        db.query(models.Deuda)
-        .filter(models.Deuda.usuario_id == usuario.id, models.Deuda.pagada == 0)
-        .all()
-    )
+    deudas = db.query(models.Deuda).filter(models.Deuda.usuario_id == usuario.id, models.Deuda.pagada == 0).all()
     for d in deudas:
         if not d.frecuencia_recordatorio_dias:
             continue
-
         ultimo_abono = (
             db.query(models.AbonoDeuda)
             .filter(models.AbonoDeuda.deuda_id == d.id)
@@ -669,7 +692,6 @@ def obtener_alertas(
         )
         fecha_referencia = ultimo_abono.fecha if ultimo_abono else d.creado_en.date()
         dias_desde = (hoy - fecha_referencia).days
-
         if dias_desde >= d.frecuencia_recordatorio_dias:
             if d.tipo == "debo":
                 mensaje = f"No olvides: le debes a {d.persona} ${Decimal(d.saldo_pendiente):.2f}"
@@ -693,65 +715,33 @@ def crear_pago_tarjeta(
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
     tarjeta = tarjeta_del_usuario(db, datos.tarjeta_id, usuario)
+    if tarjeta.tipo == "debito":
+        raise HTTPException(status_code=400, detail="Las tarjetas de débito no se pagan")
 
     cuenta = (
         db.query(models.Cuenta)
-        .filter(
-            models.Cuenta.id == datos.cuenta_id,
-            models.Cuenta.usuario_id == usuario.id,
-        )
+        .filter(models.Cuenta.id == datos.cuenta_id, models.Cuenta.usuario_id == usuario.id)
         .first()
     )
     if not cuenta:
         raise HTTPException(status_code=404, detail="Cuenta no encontrada")
 
-    # --- Validar saldo suficiente en la cuenta ---
-    ingresos_cuenta = (
-        db.query(func.coalesce(func.sum(models.Ingreso.monto), 0))
-        .filter(models.Ingreso.cuenta_id == cuenta.id)
-        .scalar()
-    )
-    pagos_cuenta = (
-        db.query(func.coalesce(func.sum(models.PagoTarjeta.monto), 0))
-        .filter(models.PagoTarjeta.cuenta_id == cuenta.id)
-        .scalar()
-    )
-    saldo_actual = (
-        Decimal(cuenta.saldo_inicial) + Decimal(ingresos_cuenta) - Decimal(pagos_cuenta)
-    )
-
+    saldo_actual = _calcular_saldo_cuenta(db, cuenta)
     if datos.monto > saldo_actual:
         raise HTTPException(
             status_code=400,
-            detail=(
-                f"Saldo insuficiente en '{cuenta.nombre}'. "
-                f"Disponible: ${saldo_actual:.2f} · "
-                f"Intentas pagar: ${datos.monto:.2f}"
-            ),
+            detail=f"Saldo insuficiente en '{cuenta.nombre}'. Disponible: ${saldo_actual:.2f} · Intentas pagar: ${datos.monto:.2f}",
         )
 
-    # --- Validar monto del pago ---
     estado = _calcular_estado_pago(db, tarjeta, datos.anio, datos.mes)
 
     if estado["total_gastos"] == 0:
-        raise HTTPException(
-            status_code=400,
-            detail="Esta tarjeta no tiene gastos en ese mes",
-        )
-
+        raise HTTPException(status_code=400, detail="Esta tarjeta no tiene gastos en ese mes")
     if estado["cerrado"]:
-        raise HTTPException(
-            status_code=400,
-            detail="Esta tarjeta ya está pagada para ese mes",
-        )
-
+        raise HTTPException(status_code=400, detail="Esta tarjeta ya está pagada para ese mes")
     if datos.monto > estado["pendiente"]:
-        raise HTTPException(
-            status_code=400,
-            detail=f"El monto excede lo pendiente (${estado['pendiente']:.2f})",
-        )
+        raise HTTPException(status_code=400, detail=f"El monto excede lo pendiente (${estado['pendiente']:.2f})")
 
-    # --- Registrar el pago ---
     nuevo_pago = models.PagoTarjeta(
         usuario_id=usuario.id,
         tarjeta_id=tarjeta.id,
@@ -764,7 +754,6 @@ def crear_pago_tarjeta(
     db.add(nuevo_pago)
     db.flush()
 
-    # ¿Cerró el mes?
     nuevo_total_pagado = estado["total_pagado"] + datos.monto
     if nuevo_total_pagado >= estado["total_gastos"]:
         gastos_pendientes = (
@@ -781,6 +770,7 @@ def crear_pago_tarjeta(
     db.commit()
     db.refresh(nuevo_pago)
     return nuevo_pago
+
 
 @app.get("/api/pagos-tarjeta", response_model=list[schemas.PagoTarjetaOut])
 def listar_pagos_tarjeta(
@@ -803,21 +793,20 @@ def eliminar_pago_tarjeta(
 ):
     pago = (
         db.query(models.PagoTarjeta)
-        .filter(
-            models.PagoTarjeta.id == pago_id,
-            models.PagoTarjeta.usuario_id == usuario.id,
-        )
+        .filter(models.PagoTarjeta.id == pago_id, models.PagoTarjeta.usuario_id == usuario.id)
         .first()
     )
     if not pago:
         raise HTTPException(status_code=404, detail="Pago no encontrado")
 
-    # Desmarcar los gastos que apuntaban a este pago
-    db.query(models.Gasto).filter(models.Gasto.pago_id == pago.id).update(
-        {models.Gasto.pago_id: None}
-    )
+    db.query(models.Gasto).filter(models.Gasto.pago_id == pago.id).update({models.Gasto.pago_id: None})
     db.delete(pago)
     db.commit()
+
+
+# ============================================================
+# INGRESOS
+# ============================================================
 
 @app.get("/api/ingresos", response_model=list[schemas.IngresoOut])
 def listar_ingresos(
@@ -842,10 +831,7 @@ def crear_ingreso(
 ):
     cuenta = (
         db.query(models.Cuenta)
-        .filter(
-            models.Cuenta.id == datos.cuenta_id,
-            models.Cuenta.usuario_id == usuario.id,
-        )
+        .filter(models.Cuenta.id == datos.cuenta_id, models.Cuenta.usuario_id == usuario.id)
         .first()
     )
     if not cuenta:
@@ -858,7 +844,6 @@ def crear_ingreso(
     return nuevo
 
 
-
 @app.put("/api/ingresos/{ingreso_id}", response_model=schemas.IngresoOut)
 def actualizar_ingreso(
     ingreso_id: int,
@@ -868,10 +853,7 @@ def actualizar_ingreso(
 ):
     ingreso = (
         db.query(models.Ingreso)
-        .filter(
-            models.Ingreso.id == ingreso_id,
-            models.Ingreso.usuario_id == usuario.id,
-        )
+        .filter(models.Ingreso.id == ingreso_id, models.Ingreso.usuario_id == usuario.id)
         .first()
     )
     if not ingreso:
@@ -880,10 +862,7 @@ def actualizar_ingreso(
     if payload.cuenta_id is not None:
         cuenta = (
             db.query(models.Cuenta)
-            .filter(
-                models.Cuenta.id == payload.cuenta_id,
-                models.Cuenta.usuario_id == usuario.id,
-            )
+            .filter(models.Cuenta.id == payload.cuenta_id, models.Cuenta.usuario_id == usuario.id)
             .first()
         )
         if not cuenta:
@@ -912,10 +891,7 @@ def eliminar_ingreso(
 ):
     ingreso = (
         db.query(models.Ingreso)
-        .filter(
-            models.Ingreso.id == ingreso_id,
-            models.Ingreso.usuario_id == usuario.id,
-        )
+        .filter(models.Ingreso.id == ingreso_id, models.Ingreso.usuario_id == usuario.id)
         .first()
     )
     if not ingreso:
@@ -934,7 +910,6 @@ def resumen_ingresos(
     hoy = date.today()
     anio = anio or hoy.year
     mes = mes or hoy.month
-
     total = (
         db.query(func.coalesce(func.sum(models.Ingreso.monto), 0))
         .filter(models.Ingreso.usuario_id == usuario.id)
@@ -949,7 +924,10 @@ def resumen_ingresos(
 def listar_categorias_ingreso():
     return schemas.CategoriasDisponibles(categorias=schemas.CATEGORIAS_INGRESO)
 
-# ---------- Pots (metas de ahorro) ----------
+
+# ============================================================
+# POTES
+# ============================================================
 
 def _pote_del_usuario(db: Session, pote_id: int, usuario: models.Usuario) -> models.Pote:
     pote = (
@@ -960,26 +938,6 @@ def _pote_del_usuario(db: Session, pote_id: int, usuario: models.Usuario) -> mod
     if not pote:
         raise HTTPException(status_code=404, detail="Pote no encontrado")
     return pote
-
-
-def _calcular_saldo_cuenta(db: Session, cuenta: models.Cuenta) -> Decimal:
-    ingresos = (
-        db.query(func.coalesce(func.sum(models.Ingreso.monto), 0))
-        .filter(models.Ingreso.cuenta_id == cuenta.id)
-        .scalar()
-    )
-    pagos = (
-        db.query(func.coalesce(func.sum(models.PagoTarjeta.monto), 0))
-        .filter(models.PagoTarjeta.cuenta_id == cuenta.id)
-        .scalar()
-    )
-    return (
-        Decimal(cuenta.saldo_inicial)
-        + Decimal(ingresos)
-        - Decimal(pagos)
-        + _abonos_netos_cuenta(db, cuenta.id)
-        - _egresos_directos_cuenta(db, cuenta.id)   # <-- NUEVO
-    )
 
 
 @app.get("/api/emojis-pote", response_model=schemas.EmojisPoteDisponibles)
@@ -1008,10 +966,7 @@ def crear_pote(
 ):
     cuenta = (
         db.query(models.Cuenta)
-        .filter(
-            models.Cuenta.id == datos.cuenta_id,
-            models.Cuenta.usuario_id == usuario.id,
-        )
+        .filter(models.Cuenta.id == datos.cuenta_id, models.Cuenta.usuario_id == usuario.id)
         .first()
     )
     if not cuenta:
@@ -1039,14 +994,12 @@ def actualizar_pote(
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
     pote = _pote_del_usuario(db, pote_id, usuario)
-
     if payload.nombre is not None:
         pote.nombre = payload.nombre.strip()
     if payload.emoji is not None:
         pote.emoji = payload.emoji
     if payload.meta is not None:
         pote.meta = payload.meta
-
     db.commit()
     db.refresh(pote)
     return pote
@@ -1059,17 +1012,6 @@ def eliminar_pote(
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
     pote = _pote_del_usuario(db, pote_id, usuario)
-
-    # Si tiene saldo, devolverlo a la cuenta antes de eliminar
-    if Decimal(pote.saldo) > 0:
-        cuenta = db.query(models.Cuenta).get(pote.cuenta_id)
-        if cuenta:
-            # No hay campo "saldo" persistido en cuentas; el saldo real es
-            # calculado con ingresos + saldo_inicial - pagos. Cuando
-            # eliminamos el pote, el dinero "vuelve" automáticamente porque
-            # el saldo del pote ya no se descuenta en las próximas consultas.
-            pass
-
     db.delete(pote)
     db.commit()
 
@@ -1082,15 +1024,11 @@ def depositar_pote(
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
     pote = _pote_del_usuario(db, pote_id, usuario)
-
     cuenta = db.query(models.Cuenta).get(pote.cuenta_id)
     if not cuenta:
         raise HTTPException(status_code=404, detail="Cuenta asociada no encontrada")
 
-    # Validar saldo disponible en la cuenta (ingresos + saldo_inicial - pagos - pots)
     saldo_cuenta = _calcular_saldo_cuenta(db, cuenta)
-
-    # Restar lo que ya está en otros potes de esa cuenta
     total_en_potes = (
         db.query(func.coalesce(func.sum(models.Pote.saldo), 0))
         .filter(models.Pote.cuenta_id == cuenta.id)
@@ -1102,15 +1040,10 @@ def depositar_pote(
     if datos.monto > saldo_disponible:
         raise HTTPException(
             status_code=400,
-            detail=(
-                f"Saldo insuficiente en '{cuenta.nombre}'. "
-                f"Disponible: ${saldo_disponible:.2f} · "
-                f"Intentas depositar: ${datos.monto:.2f}"
-            ),
+            detail=f"Saldo insuficiente en '{cuenta.nombre}'. Disponible: ${saldo_disponible:.2f} · Intentas depositar: ${datos.monto:.2f}",
         )
 
     pote.saldo = Decimal(pote.saldo) + datos.monto
-
     mov = models.MovimientoPote(
         pote_id=pote.id,
         monto=datos.monto,
@@ -1131,21 +1064,15 @@ def retirar_pote(
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
     pote = _pote_del_usuario(db, pote_id, usuario)
-
     if datos.monto > Decimal(pote.saldo):
         raise HTTPException(
             status_code=400,
-            detail=(
-                f"El pote solo tiene ${float(pote.saldo):.2f}. "
-                f"No puedes retirar ${datos.monto:.2f}"
-            ),
+            detail=f"El pote solo tiene ${float(pote.saldo):.2f}. No puedes retirar ${datos.monto:.2f}",
         )
-
     pote.saldo = Decimal(pote.saldo) - datos.monto
-
     mov = models.MovimientoPote(
         pote_id=pote.id,
-        monto=-datos.monto,  # negativo = retiro
+        monto=-datos.monto,
         descripcion=datos.descripcion,
         fecha=datos.fecha,
     )
@@ -1169,7 +1096,10 @@ def listar_movimientos_pote(
         .all()
     )
 
-# ---------- Tarjetas ----------
+
+# ============================================================
+# TARJETAS
+# ============================================================
 
 @app.get("/api/tarjetas", response_model=list[schemas.Tarjeta])
 def listar_tarjetas(
@@ -1185,6 +1115,20 @@ def crear_tarjeta(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
+    # Validaciones
+    if tarjeta.tipo == "debito":
+        if not tarjeta.cuenta_id:
+            raise HTTPException(status_code=400, detail="Las tarjetas de débito necesitan una cuenta asociada")
+        cuenta = (
+            db.query(models.Cuenta)
+            .filter(models.Cuenta.id == tarjeta.cuenta_id, models.Cuenta.usuario_id == usuario.id)
+            .first()
+        )
+        if not cuenta:
+            raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+    if tarjeta.tipo == "credito" and tarjeta.dia_corte is None:
+        raise HTTPException(status_code=400, detail="Las tarjetas de crédito requieren día de corte")
+
     existe = (
         db.query(models.Tarjeta)
         .filter(
@@ -1211,6 +1155,7 @@ def actualizar_tarjeta(
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
     tarjeta = tarjeta_del_usuario(db, tarjeta_id, usuario)
+
     if payload.nombre is not None:
         existe = (
             db.query(models.Tarjeta)
@@ -1224,14 +1169,37 @@ def actualizar_tarjeta(
         if existe:
             raise HTTPException(status_code=400, detail="Ya tienes una tarjeta con ese nombre")
         tarjeta.nombre = payload.nombre
+
+    if payload.tipo is not None:
+        tarjeta.tipo = payload.tipo
     if payload.dia_corte is not None:
         tarjeta.dia_corte = payload.dia_corte
-    if payload.dia_pago is not None:        # <-- NUEVA
+    if payload.dia_pago is not None:
         tarjeta.dia_pago = payload.dia_pago
     if payload.red is not None:
         tarjeta.red = payload.red
     if payload.tema is not None:
-        tarjeta.tema = payload.tema    
+        tarjeta.tema = payload.tema
+
+    if payload.cuenta_id is not None:
+        if payload.cuenta_id == 0:
+            tarjeta.cuenta_id = None
+        else:
+            cuenta = (
+                db.query(models.Cuenta)
+                .filter(models.Cuenta.id == payload.cuenta_id, models.Cuenta.usuario_id == usuario.id)
+                .first()
+            )
+            if not cuenta:
+                raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+            tarjeta.cuenta_id = payload.cuenta_id
+
+    # Validaciones finales
+    if tarjeta.tipo == "credito" and tarjeta.dia_corte is None:
+        raise HTTPException(status_code=400, detail="Las tarjetas de crédito requieren día de corte")
+    if tarjeta.tipo == "debito" and not tarjeta.cuenta_id:
+        raise HTTPException(status_code=400, detail="Las tarjetas de débito necesitan una cuenta asociada")
+
     db.commit()
     db.refresh(tarjeta)
     return tarjeta
@@ -1248,7 +1216,9 @@ def eliminar_tarjeta(
     db.commit()
 
 
-# ---------- Gastos ----------
+# ============================================================
+# GASTOS
+# ============================================================
 
 @app.get("/api/gastos", response_model=list[schemas.Gasto])
 def listar_gastos(
@@ -1277,13 +1247,28 @@ def listar_gastos(
         query = query.filter(models.Gasto.tarjeta_id == tarjeta_id)
     return query.order_by(models.Gasto.fecha.desc()).all()
 
+
 @app.post("/api/gastos", response_model=schemas.Gasto)
 def crear_gasto(
     gasto: schemas.GastoCreate,
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
-    tarjeta_del_usuario(db, gasto.tarjeta_id, usuario)
+    tarjeta = tarjeta_del_usuario(db, gasto.tarjeta_id, usuario)
+
+    # Si es tarjeta de débito, validar saldo de la cuenta asociada
+    if tarjeta.tipo == "debito":
+        if not tarjeta.cuenta_id:
+            raise HTTPException(status_code=400, detail="Esta tarjeta de débito no tiene cuenta asociada")
+        cuenta = db.query(models.Cuenta).get(tarjeta.cuenta_id)
+        if cuenta:
+            saldo_cuenta = _calcular_saldo_cuenta(db, cuenta)
+            if gasto.monto > saldo_cuenta:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Saldo insuficiente en '{cuenta.nombre}'. Disponible: ${saldo_cuenta:.2f} · Intentas gastar: ${gasto.monto:.2f}",
+                )
+
     nuevo = models.Gasto(**gasto.model_dump())
     db.add(nuevo)
     db.commit()
@@ -1393,7 +1378,9 @@ def exportar_gastos(
     )
 
 
-# ---------- Resumen mensual ----------
+# ============================================================
+# RESUMEN MENSUAL
+# ============================================================
 
 @app.get("/api/resumen", response_model=schemas.Resumen)
 def resumen_mensual(
@@ -1408,11 +1395,13 @@ def resumen_mensual(
 
     tarjetas = db.query(models.Tarjeta).filter(models.Tarjeta.usuario_id == usuario.id).all()
 
+    # Solo contamos gastos de tarjetas de crédito en el resumen general
     total_mes = (
         db.query(func.coalesce(func.sum(models.Gasto.monto), 0))
         .join(models.Tarjeta)
         .filter(models.Tarjeta.usuario_id == usuario.id)
-        .filter(models.Gasto.pago_id.is_(None))    # ← NUEVO: solo pendientes
+        .filter(models.Tarjeta.tipo == "credito")
+        .filter(models.Gasto.pago_id.is_(None))
         .filter(extract("year", models.Gasto.fecha) == anio)
         .filter(extract("month", models.Gasto.fecha) == mes)
         .scalar()
@@ -1422,10 +1411,26 @@ def resumen_mensual(
 
     resumen_tarjetas = []
     for t in tarjetas:
+        if t.tipo == "debito":
+            resumen_tarjetas.append(schemas.ResumenTarjeta(
+                id=t.id,
+                nombre=t.nombre,
+                tipo="debito",
+                dia_corte=None,
+                dia_pago=None,
+                red=t.red,
+                tema=t.tema,
+                cuenta_id=t.cuenta_id,
+                dias_para_corte=0,
+                gastado_mes=Decimal("0"),
+                en_rojo=False,
+            ))
+            continue
+
         gastado = (
             db.query(func.coalesce(func.sum(models.Gasto.monto), 0))
             .filter(models.Gasto.tarjeta_id == t.id)
-            .filter(models.Gasto.pago_id.is_(None))    # ← NUEVO
+            .filter(models.Gasto.pago_id.is_(None))
             .filter(extract("year", models.Gasto.fecha) == anio)
             .filter(extract("month", models.Gasto.fecha) == mes)
             .scalar()
@@ -1433,10 +1438,12 @@ def resumen_mensual(
         resumen_tarjetas.append(schemas.ResumenTarjeta(
             id=t.id,
             nombre=t.nombre,
+            tipo="credito",
             dia_corte=t.dia_corte,
-            dia_pago=t.dia_pago,      # <-- NUEVO
+            dia_pago=t.dia_pago,
             red=t.red,
             tema=t.tema,
+            cuenta_id=t.cuenta_id,
             dias_para_corte=dias_para_corte(t.dia_corte, hoy),
             gastado_mes=Decimal(gastado),
             en_rojo=en_rojo,
@@ -1452,8 +1459,9 @@ def resumen_mensual(
     )
 
 
-# ---------- Grupos ----------
-
+# ============================================================
+# GRUPOS
+# ============================================================
 
 @app.post("/api/grupos", response_model=schemas.GrupoOut)
 def crear_grupo(
@@ -1524,6 +1532,16 @@ def listar_grupos(
     return db.query(models.Grupo).join(models.MiembroGrupo).filter(
         models.MiembroGrupo.usuario_id == usuario.id
     ).all()
+
+
+def verificar_miembro(db: Session, grupo_id: int, usuario_id: int) -> models.MiembroGrupo:
+    miembro = db.query(models.MiembroGrupo).filter(
+        models.MiembroGrupo.grupo_id == grupo_id,
+        models.MiembroGrupo.usuario_id == usuario_id,
+    ).first()
+    if not miembro:
+        raise HTTPException(status_code=403, detail="No eres miembro de este grupo")
+    return miembro
 
 
 @app.post("/api/gastos-compartidos", response_model=schemas.GastoCompartidoOut)
@@ -1603,12 +1621,7 @@ def saldos_grupo(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
-    miembro = db.query(models.MiembroGrupo).filter(
-        models.MiembroGrupo.grupo_id == grupo_id,
-        models.MiembroGrupo.usuario_id == usuario.id,
-    ).first()
-    if not miembro:
-        raise HTTPException(status_code=403, detail="No eres miembro de este grupo")
+    verificar_miembro(db, grupo_id, usuario.id)
 
     miembros = db.query(models.Usuario).join(models.MiembroGrupo).filter(
         models.MiembroGrupo.grupo_id == grupo_id
@@ -1629,11 +1642,7 @@ def saldos_grupo(
         ).scalar()
 
         saldo = Decimal(pagado) - Decimal(debe)
-        saldos[m.id] = {
-            "usuario_id": m.id,
-            "nombre": m.nombre,
-            "debe": saldo,
-        }
+        saldos[m.id] = {"usuario_id": m.id, "nombre": m.nombre, "debe": saldo}
 
     return list(saldos.values())
 
@@ -1647,7 +1656,6 @@ def resumen_grupo(
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
     verificar_miembro(db, grupo_id, usuario.id)
-
     grupo = db.query(models.Grupo).get(grupo_id)
     if not grupo:
         raise HTTPException(status_code=404, detail="Grupo no encontrado")
@@ -1688,12 +1696,9 @@ def actualizar_limite_grupo(
     grupo = db.query(models.Grupo).get(grupo_id)
     if not grupo:
         raise HTTPException(status_code=404, detail="Grupo no encontrado")
-
     verificar_miembro(db, grupo_id, usuario.id)
-
     if grupo.creado_por_id != usuario.id:
         raise HTTPException(status_code=403, detail="Solo quien creó el grupo puede cambiar el límite")
-
     grupo.limite_mensual = payload.limite_mensual
     db.commit()
     db.refresh(grupo)
@@ -1709,7 +1714,6 @@ def resumen_categorias_grupo(
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
     verificar_miembro(db, grupo_id, usuario.id)
-
     hoy = date.today()
     anio = anio or hoy.year
     mes = mes or hoy.month
@@ -1727,7 +1731,6 @@ def resumen_categorias_grupo(
     )
 
     total_general = sum((Decimal(t) for _, t in filas), Decimal("0")) or Decimal("1")
-
     resumen = [
         schemas.ResumenCategoria(
             categoria=cat or "Sin categoría",
@@ -1738,16 +1741,6 @@ def resumen_categorias_grupo(
     ]
     resumen.sort(key=lambda r: r.total, reverse=True)
     return resumen
-
-
-def verificar_miembro(db: Session, grupo_id: int, usuario_id: int) -> models.MiembroGrupo:
-    miembro = db.query(models.MiembroGrupo).filter(
-        models.MiembroGrupo.grupo_id == grupo_id,
-        models.MiembroGrupo.usuario_id == usuario_id,
-    ).first()
-    if not miembro:
-        raise HTTPException(status_code=403, detail="No eres miembro de este grupo")
-    return miembro
 
 
 @app.get("/api/grupos/{grupo_id}/gastos", response_model=list[schemas.GastoCompartidoOut])
@@ -1773,7 +1766,6 @@ def eliminar_gasto_compartido(
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
     verificar_miembro(db, grupo_id, usuario.id)
-
     gasto = (
         db.query(models.GastoCompartido)
         .filter(
@@ -1784,7 +1776,6 @@ def eliminar_gasto_compartido(
     )
     if not gasto:
         raise HTTPException(status_code=404, detail="Gasto no encontrado")
-
     db.delete(gasto)
     db.commit()
 
@@ -1798,7 +1789,6 @@ def actualizar_gasto_compartido(
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
     verificar_miembro(db, grupo_id, usuario.id)
-
     gasto = (
         db.query(models.GastoCompartido)
         .filter(
@@ -1816,15 +1806,12 @@ def actualizar_gasto_compartido(
         n = len(divisiones)
         if n == 0:
             raise HTTPException(status_code=400, detail="El gasto no tiene divisiones")
-
         total_centavos = int((nuevo_monto * 100).to_integral_value())
         base_centavos = total_centavos // n
         resto_centavos = total_centavos - base_centavos * n
-
         for i, div in enumerate(divisiones):
             centavos = base_centavos + (1 if i < resto_centavos else 0)
             div.monto = Decimal(centavos) / 100
-
         gasto.monto = nuevo_monto
 
     if payload.fecha is not None:
@@ -1913,12 +1900,13 @@ def eliminar_grupo(
         raise HTTPException(status_code=404, detail="Grupo no encontrado")
     if grupo.creado_por_id != usuario.id:
         raise HTTPException(status_code=403, detail="Solo quien creó el grupo puede eliminarlo")
-
     db.delete(grupo)
     db.commit()
 
 
-# ---------- Notas ----------
+# ============================================================
+# NOTAS
+# ============================================================
 
 @app.get("/api/notas", response_model=list[schemas.NotaOut])
 def listar_notas(
@@ -1960,10 +1948,8 @@ def actualizar_nota(
     )
     if not nota:
         raise HTTPException(status_code=404, detail="Nota no encontrada")
-
     if datos.contenido is not None:
         nota.contenido = datos.contenido
-
     db.commit()
     db.refresh(nota)
     return nota
@@ -1982,16 +1968,16 @@ def eliminar_nota(
     )
     if not nota:
         raise HTTPException(status_code=404, detail="Nota no encontrada")
-
     db.delete(nota)
     db.commit()
 
 
-# ---------- Resumen por categoría ----------
+# ============================================================
+# CATEGORÍAS Y RESÚMENES
+# ============================================================
 
 @app.get("/api/categorias", response_model=schemas.CategoriasDisponibles)
 def listar_categorias():
-    """Devuelve las categorías válidas para que el frontend las use."""
     return schemas.CategoriasDisponibles(categorias=schemas.CATEGORIAS_VALIDAS)
 
 
@@ -2020,7 +2006,6 @@ def resumen_por_categoria(
     )
 
     total_general = sum((Decimal(t) for _, t in filas), Decimal("0")) or Decimal("1")
-
     resumen = [
         schemas.ResumenCategoria(
             categoria=cat or "Sin categoría",
@@ -2032,7 +2017,10 @@ def resumen_por_categoria(
     resumen.sort(key=lambda r: r.total, reverse=True)
     return resumen
 
-# ---------- Deudas ----------
+
+# ============================================================
+# DEUDAS
+# ============================================================
 
 def _deuda_del_usuario(db: Session, deuda_id: int, usuario: models.Usuario) -> models.Deuda:
     deuda = (
@@ -2123,42 +2111,55 @@ def listar_abonos_deuda(
     )
 
 
-
-def _abonos_netos_cuenta(db: Session, cuenta_id: int) -> Decimal:
-    """Calcula el efecto neto de los abonos ligados a esta cuenta.
-    - deudas 'debo' (pagos) → negativo (sale dinero)
-    - deudas 'me_deben' (cobros) → positivo (entra dinero)
-    """
-    salidas = (
-        db.query(func.coalesce(func.sum(models.AbonoDeuda.monto), 0))
-        .join(models.Deuda, models.AbonoDeuda.deuda_id == models.Deuda.id)
-        .filter(
-            models.AbonoDeuda.cuenta_id == cuenta_id,
-            models.Deuda.tipo == "debo",
+@app.post("/api/deudas/{deuda_id}/abonar", response_model=schemas.AbonarDeudaResultado)
+def abonar_deuda(
+    deuda_id: int,
+    datos: schemas.AbonoDeudaCreate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    deuda = _deuda_del_usuario(db, deuda_id, usuario)
+    if deuda.pagada:
+        raise HTTPException(status_code=400, detail="Esta deuda ya está saldada")
+    if datos.monto > deuda.saldo_pendiente:
+        raise HTTPException(
+            status_code=400,
+            detail=f"El abono (${datos.monto:.2f}) es mayor al saldo pendiente (${deuda.saldo_pendiente:.2f})",
         )
-        .scalar()
-    )
-    entradas = (
-        db.query(func.coalesce(func.sum(models.AbonoDeuda.monto), 0))
-        .join(models.Deuda, models.AbonoDeuda.deuda_id == models.Deuda.id)
-        .filter(
-            models.AbonoDeuda.cuenta_id == cuenta_id,
-            models.Deuda.tipo == "me_deben",
+
+    if datos.cuenta_id is not None:
+        cuenta = (
+            db.query(models.Cuenta)
+            .filter(models.Cuenta.id == datos.cuenta_id, models.Cuenta.usuario_id == usuario.id)
+            .first()
         )
-        .scalar()
-    )
-    return Decimal(entradas) - Decimal(salidas)
+        if not cuenta:
+            raise HTTPException(status_code=404, detail="Cuenta no encontrada")
 
-def _egresos_directos_cuenta(db: Session, cuenta_id: int) -> Decimal:
-    """Suma de egresos pagados directamente desde esta cuenta."""
-    total = (
-        db.query(func.coalesce(func.sum(models.EgresoCuenta.monto), 0))
-        .filter(models.EgresoCuenta.cuenta_id == cuenta_id)
-        .scalar()
+    nuevo_abono = models.AbonoDeuda(
+        deuda_id=deuda.id,
+        cuenta_id=datos.cuenta_id,
+        monto=datos.monto,
+        fecha=datos.fecha,
+        nota=datos.nota,
     )
-    return Decimal(total)
+    db.add(nuevo_abono)
 
-# ---------- Egresos de cuenta (gastos directos) ----------
+    deuda.saldo_pendiente = Decimal(deuda.saldo_pendiente) - datos.monto
+    quedo_saldada = deuda.saldo_pendiente <= 0
+    if quedo_saldada:
+        deuda.saldo_pendiente = Decimal("0")
+        deuda.pagada = 1
+        deuda.fecha_pagada = datos.fecha
+
+    db.commit()
+    db.refresh(deuda)
+    return schemas.AbonarDeudaResultado(deuda=deuda, quedo_saldada=quedo_saldada)
+
+
+# ============================================================
+# EGRESOS DE CUENTA (GASTOS DIRECTOS)
+# ============================================================
 
 def _egreso_del_usuario(db: Session, egreso_id: int, usuario: models.Usuario) -> models.EgresoCuenta:
     egreso = (
@@ -2194,25 +2195,17 @@ def crear_egreso_cuenta(
 ):
     cuenta = (
         db.query(models.Cuenta)
-        .filter(
-            models.Cuenta.id == datos.cuenta_id,
-            models.Cuenta.usuario_id == usuario.id,
-        )
+        .filter(models.Cuenta.id == datos.cuenta_id, models.Cuenta.usuario_id == usuario.id)
         .first()
     )
     if not cuenta:
         raise HTTPException(status_code=404, detail="Cuenta no encontrada")
 
-    # Validar saldo suficiente
     saldo_cuenta = _calcular_saldo_cuenta(db, cuenta)
     if datos.monto > saldo_cuenta:
         raise HTTPException(
             status_code=400,
-            detail=(
-                f"Saldo insuficiente en '{cuenta.nombre}'. "
-                f"Disponible: ${saldo_cuenta:.2f} · "
-                f"Intentas gastar: ${datos.monto:.2f}"
-            ),
+            detail=f"Saldo insuficiente en '{cuenta.nombre}'. Disponible: ${saldo_cuenta:.2f} · Intentas gastar: ${datos.monto:.2f}",
         )
 
     nuevo = models.EgresoCuenta(
@@ -2241,10 +2234,7 @@ def actualizar_egreso_cuenta(
     if payload.cuenta_id is not None and payload.cuenta_id != egreso.cuenta_id:
         cuenta = (
             db.query(models.Cuenta)
-            .filter(
-                models.Cuenta.id == payload.cuenta_id,
-                models.Cuenta.usuario_id == usuario.id,
-            )
+            .filter(models.Cuenta.id == payload.cuenta_id, models.Cuenta.usuario_id == usuario.id)
             .first()
         )
         if not cuenta:
@@ -2274,56 +2264,3 @@ def eliminar_egreso_cuenta(
     egreso = _egreso_del_usuario(db, egreso_id, usuario)
     db.delete(egreso)
     db.commit()
-
-
-@app.post("/api/deudas/{deuda_id}/abonar", response_model=schemas.AbonarDeudaResultado)
-def abonar_deuda(
-    deuda_id: int,
-    datos: schemas.AbonoDeudaCreate,
-    db: Session = Depends(get_db),
-    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
-):
-    deuda = _deuda_del_usuario(db, deuda_id, usuario)
-    if deuda.pagada:
-        raise HTTPException(status_code=400, detail="Esta deuda ya está saldada")
-    if datos.monto > deuda.saldo_pendiente:
-        raise HTTPException(
-            status_code=400,
-            detail=(
-                f"El abono (${datos.monto:.2f}) es mayor al saldo pendiente "
-                f"(${deuda.saldo_pendiente:.2f})"
-            ),
-        )
-
-    # Validar cuenta si se proporcionó
-    if datos.cuenta_id is not None:
-        cuenta = (
-            db.query(models.Cuenta)
-            .filter(
-                models.Cuenta.id == datos.cuenta_id,
-                models.Cuenta.usuario_id == usuario.id,
-            )
-            .first()
-        )
-        if not cuenta:
-            raise HTTPException(status_code=404, detail="Cuenta no encontrada")
-
-    nuevo_abono = models.AbonoDeuda(
-        deuda_id=deuda.id,
-        cuenta_id=datos.cuenta_id,
-        monto=datos.monto,
-        fecha=datos.fecha,
-        nota=datos.nota,
-    )
-    db.add(nuevo_abono)
-
-    deuda.saldo_pendiente = Decimal(deuda.saldo_pendiente) - datos.monto
-    quedo_saldada = deuda.saldo_pendiente <= 0
-    if quedo_saldada:
-        deuda.saldo_pendiente = Decimal("0")
-        deuda.pagada = 1
-        deuda.fecha_pagada = datos.fecha
-
-    db.commit()
-    db.refresh(deuda)
-    return schemas.AbonarDeudaResultado(deuda=deuda, quedo_saldada=quedo_saldada)

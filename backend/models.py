@@ -23,12 +23,15 @@ class Tarjeta(Base):
     id = Column(Integer, primary_key=True, index=True)
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
     nombre = Column(String(50), nullable=False)
-    dia_corte = Column(Integer, nullable=False)
+    tipo = Column(String(10), nullable=False, default="credito")
+    dia_corte = Column(Integer, nullable=True)
+    dia_pago = Column(Integer, nullable=True)
     red = Column(String(20), nullable=True)
     tema = Column(String(30), nullable=False, default="clasico")
-    dia_pago = Column(Integer, nullable=True)
+    cuenta_id = Column(Integer, ForeignKey("cuentas.id"), nullable=True)  # <-- NUEVO
 
     usuario = relationship("Usuario", back_populates="tarjetas")
+    cuenta = relationship("Cuenta")  # <-- NUEVO
     gastos = relationship("Gasto", back_populates="tarjeta", cascade="all, delete-orphan")
 
 

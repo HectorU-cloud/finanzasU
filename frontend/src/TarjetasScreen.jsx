@@ -28,17 +28,27 @@ export default function TarjetasScreen({
   onAgregar,
   onVerTarjeta,
   onPagar,
-  embedded = false,   // <-- NUEVO
+  embedded = false,
 }) {
   const [tabActiva, setTabActiva] = useState("credito");
 
-  const listaTarjetas = tarjetas || [];
-  const totalConsumos = listaTarjetas.reduce((acc, t) => acc + Number(t.gastado_mes || 0), 0);
-  const limiteTotal = 350 * Math.max(listaTarjetas.length, 1);
+  const todasLasTarjetas = tarjetas || [];
+  const tarjetasCredito = todasLasTarjetas.filter(
+    (t) => (t.tipo || "credito") === "credito"
+  );
+  const tarjetasDebito = todasLasTarjetas.filter((t) => t.tipo === "debito");
+
+  const totalConsumos = tarjetasCredito.reduce(
+    (acc, t) => acc + Number(t.gastado_mes || 0),
+    0
+  );
+  const limiteTotal = 350 * Math.max(tarjetasCredito.length, 1);
   const disponibleTotal = Math.max(limiteTotal - totalConsumos, 0);
 
   // Una tarjeta está "en corte generado" si ya pasó su día de corte
-  const algunaEnCorte = listaTarjetas.some((t) => t.dias_para_corte === 0 || t.dias_para_corte < 0);
+  const algunaEnCorte = tarjetasCredito.some(
+    (t) => t.dias_para_corte === 0 || t.dias_para_corte < 0
+  );
   const badgeTexto = algunaEnCorte ? "Corte generado" : "Al día";
 
   return (
@@ -106,7 +116,7 @@ export default function TarjetasScreen({
 
       {tabActiva === "credito" ? (
         <>
-          {listaTarjetas.length === 0 ? (
+          {tarjetasCredito.length === 0 ? (
             <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center mb-6">
               <p className="text-sm text-gray-500 mb-3">Sin tarjetas todavía</p>
               <button
@@ -124,11 +134,13 @@ export default function TarjetasScreen({
                   <p className="text-xs tracking-widest text-gray-400 font-medium">
                     CONSUMOS A LA FECHA
                   </p>
-                  <span className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${
-                    algunaEnCorte
-                      ? "bg-yellow-900/50 text-yellow-300"
-                      : "bg-gray-700 text-gray-300"
-                  }`}>
+                  <span
+                    className={`text-[10px] font-semibold px-2.5 py-1 rounded-full ${
+                      algunaEnCorte
+                        ? "bg-yellow-900/50 text-yellow-300"
+                        : "bg-gray-700 text-gray-300"
+                    }`}
+                  >
                     {badgeTexto}
                   </span>
                 </div>
@@ -138,7 +150,7 @@ export default function TarjetasScreen({
                     ${totalConsumos.toFixed(2)}
                   </p>
                   <button
-                    onClick={() => onPagar?.(listaTarjetas[0])}
+                    onClick={() => onPagar?.(tarjetasCredito[0])}
                     className="px-5 py-2 rounded-full bg-white text-carbon text-sm font-semibold hover:bg-gray-100 transition-colors"
                   >
                     Pagar
@@ -150,20 +162,24 @@ export default function TarjetasScreen({
                     <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-1">
                       Disponible total
                     </p>
-                    <p className="text-lg font-semibold">${disponibleTotal.toFixed(2)}</p>
+                    <p className="text-lg font-semibold">
+                      ${disponibleTotal.toFixed(2)}
+                    </p>
                   </div>
                   <div>
                     <p className="text-[10px] uppercase tracking-widest text-gray-400 mb-1">
                       Por pagar
                     </p>
-                    <p className="text-lg font-semibold">${totalConsumos.toFixed(2)}</p>
+                    <p className="text-lg font-semibold">
+                      ${totalConsumos.toFixed(2)}
+                    </p>
                   </div>
                 </div>
               </div>
 
               {/* Carrusel horizontal de tarjetas */}
               <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide -mx-4 px-4">
-                {listaTarjetas.map((t) => {
+                {tarjetasCredito.map((t) => {
                   const gradiente = GRADIENTES[t.tema || "clasico"];
                   const infoTema = TARJETAS_LOGO[t.tema] || TARJETAS_LOGO.clasico;
                   return (
@@ -215,7 +231,9 @@ export default function TarjetasScreen({
               </div>
 
               {/* Sección Adicionales */}
-              <h2 className="text-lg font-semibold text-carbon mt-4 mb-3">Adicionales</h2>
+              <h2 className="text-lg font-semibold text-carbon mt-4 mb-3">
+                Adicionales
+              </h2>
               <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center">
                 <div className="flex justify-center mb-4">
                   <div className="relative">
@@ -237,15 +255,72 @@ export default function TarjetasScreen({
           )}
         </>
       ) : (
-        <div className="border-2 border-dashed border-gray-300 rounded-2xl p-10 text-center">
-          <p className="text-4xl mb-3">💳</p>
-          <p className="text-carbon font-semibold text-sm mb-1">
-            Tarjetas de débito
-          </p>
-          <p className="text-xs text-gray-500">
-            Próximamente podrás gestionar tus tarjetas de débito aquí.
-          </p>
-        </div>
+        <>
+          {tarjetasDebito.length === 0 ? (
+            <button
+              onClick={onAgregar}
+              className="w-full border-2 border-dashed border-gray-300 rounded-2xl p-10 text-center hover:border-coral transition-colors"
+            >
+              <p className="text-4xl mb-3">💳</p>
+              <p className="text-carbon font-semibold text-sm mb-1">
+                Tarjetas de débito
+              </p>
+              <p className="text-xs text-gray-500 mb-4">
+                Toca aquí para agregar tu primera tarjeta de débito
+              </p>
+              <span className="inline-block bg-coral text-white font-semibold text-xs px-4 py-2 rounded-full">
+                + Agregar tarjeta
+              </span>
+            </button>
+          ) : (
+            <>
+              <div className="flex gap-4 overflow-x-auto pb-4 snap-x snap-mandatory scrollbar-hide -mx-4 px-4">
+                {tarjetasDebito.map((t) => {
+                  const gradiente = GRADIENTES[t.tema || "clasico"];
+                  const infoTema = TARJETAS_LOGO[t.tema] || TARJETAS_LOGO.clasico;
+                  return (
+                    <div
+                      key={t.id}
+                      onClick={() => onVerTarjeta?.(t)}
+                      className="shrink-0 w-[260px] snap-center rounded-2xl overflow-hidden shadow-lg cursor-pointer active:scale-[0.98] transition-transform"
+                    >
+                      <div
+                        className="h-40 relative flex items-center justify-center"
+                        style={{ background: gradiente }}
+                      >
+                        {t.red && (
+                          <div className="opacity-20 absolute">
+                            <CardNetworkLogo red={t.red} size={90} color="#ffffff" />
+                          </div>
+                        )}
+                        <div className="relative z-10 text-center text-white/90">
+                          <p className="text-[10px] tracking-widest uppercase opacity-80">
+                            {infoTema.texto} · Débito
+                          </p>
+                          <p className="text-2xl font-bold mt-1">
+                            {t.nombre.split(" ").slice(0, 2).join(" ")}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="bg-[#3a3a3a] px-4 py-3 text-center">
+                        <p className="text-[10px] text-gray-400">
+                          Tarjeta de débito
+                        </p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <button
+                onClick={onAgregar}
+                className="w-full mt-4 py-3 rounded-xl bg-coral text-white font-semibold text-sm flex items-center justify-center gap-2"
+              >
+                + Agregar otra tarjeta de débito
+              </button>
+            </>
+          )}
+        </>
       )}
     </div>
   );

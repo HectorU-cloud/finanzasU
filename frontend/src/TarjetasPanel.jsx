@@ -20,22 +20,33 @@ export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onTogg
   const [editandoId, setEditandoId] = useState(null);
   const [borrador, setBorrador] = useState({
     nombre: "",
+    tipo: "credito",
     dia_corte: "",
     dia_pago: "",
     red: REDES[0],
     tema: "clasico",
+    cuenta_id: "",
   });
   const [nueva, setNueva] = useState({
     nombre: "",
+    tipo: "credito",
     dia_corte: "",
     dia_pago: "",
     red: REDES[0],
     tema: "clasico",
+    cuenta_id: "",
   });
   const [error, setError] = useState("");
   const [menuAbiertoId, setMenuAbiertoId] = useState(null);
   const [tarjetaAEliminar, setTarjetaAEliminar] = useState(null);
   const [enviando, setEnviando] = useState(false);
+  const [cuentas, setCuentas] = useState([]);
+
+  useEffect(() => {
+    api.getCuentas()
+      .then((d) => setCuentas(d || []))
+      .catch(() => setCuentas([]));
+  }, []);
 
   // Cerrar el menú al hacer clic fuera
   useEffect(() => {
@@ -52,10 +63,12 @@ export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onTogg
     setEditandoId(t.id);
     setBorrador({
       nombre: t.nombre,
-      dia_corte: t.dia_corte,
+      tipo: t.tipo || "credito",
+      dia_corte: t.dia_corte || "",
       dia_pago: t.dia_pago || "",
       red: t.red || REDES[0],
       tema: t.tema || "clasico",
+      cuenta_id: t.cuenta_id || "",
     });
     setError("");
     setMenuAbiertoId(null);
@@ -63,23 +76,29 @@ export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onTogg
 
   async function guardarEdicion(id) {
     const dia = Number(borrador.dia_corte);
-    if (!borrador.nombre.trim() || !dia || dia < 1 || dia > 31) {
-      setError("Nombre y día de corte (1-31) son obligatorios.");
+
+    if (!borrador.nombre.trim()) {
+      setError("El nombre es obligatorio.");
       return;
     }
-    const diaPagoNum = Number(borrador.dia_pago);
-    if (borrador.dia_pago && (isNaN(diaPagoNum) || diaPagoNum < 1 || diaPagoNum > 31)) {
-      setError("El día de pago debe estar entre 1 y 31.");
+    if (borrador.tipo === "credito" && (!dia || dia < 1 || dia > 31)) {
+      setError("Las tarjetas de crédito necesitan día de corte (1-31).");
+      return;
+    }
+    if (borrador.tipo === "debito" && !borrador.cuenta_id) {
+      setError("Las tarjetas de débito necesitan una cuenta asociada.");
       return;
     }
     setError("");
     try {
       await api.actualizarTarjeta(id, {
         nombre: borrador.nombre.trim(),
-        dia_corte: dia,
-        dia_pago: diaPagoNum || null,
+        tipo: borrador.tipo,
+        dia_corte: borrador.tipo === "credito" ? dia : null,
+        dia_pago: borrador.tipo === "credito" ? (Number(borrador.dia_pago) || null) : null,
         red: borrador.red,
         tema: borrador.tema,
+        cuenta_id: borrador.tipo === "debito" ? Number(borrador.cuenta_id) : 0,
       });
       setEditandoId(null);
       onChange();
@@ -104,13 +123,17 @@ export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onTogg
     e.preventDefault();
     if (enviando) return;
     const dia = Number(nueva.dia_corte);
-    if (!nueva.nombre.trim() || !dia || dia < 1 || dia > 31) {
-      setError("Nombre y día de corte (1-31) son obligatorios.");
+
+    if (!nueva.nombre.trim()) {
+      setError("El nombre es obligatorio.");
       return;
     }
-    const diaPagoNum = Number(nueva.dia_pago);
-    if (nueva.dia_pago && (isNaN(diaPagoNum) || diaPagoNum < 1 || diaPagoNum > 31)) {
-      setError("El día de pago debe estar entre 1 y 31.");
+    if (nueva.tipo === "credito" && (!dia || dia < 1 || dia > 31)) {
+      setError("Las tarjetas de crédito necesitan día de corte (1-31).");
+      return;
+    }
+    if (nueva.tipo === "debito" && !nueva.cuenta_id) {
+      setError("Las tarjetas de débito necesitan una cuenta asociada.");
       return;
     }
     setError("");
@@ -118,12 +141,22 @@ export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onTogg
     try {
       await api.crearTarjeta({
         nombre: nueva.nombre.trim(),
-        dia_corte: dia,
-        dia_pago: diaPagoNum || null,
+        tipo: nueva.tipo,
+        dia_corte: nueva.tipo === "credito" ? dia : null,
+        dia_pago: nueva.tipo === "credito" ? (Number(nueva.dia_pago) || null) : null,
         red: nueva.red,
         tema: nueva.tema,
+        cuenta_id: nueva.tipo === "debito" ? Number(nueva.cuenta_id) : null,
       });
-      setNueva({ nombre: "", dia_corte: "", dia_pago: "", red: REDES[0], tema: "clasico" });
+      setNueva({
+        nombre: "",
+        tipo: "credito",
+        dia_corte: "",
+        dia_pago: "",
+        red: REDES[0],
+        tema: "clasico",
+        cuenta_id: "",
+      });
       onChange();
     } catch (err) {
       setError(err.message);
@@ -148,28 +181,52 @@ export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onTogg
             <div className="tarjeta-row" key={t.id}>
               {editandoId === t.id ? (
                 <>
+                  <select
+                    value={borrador.tipo}
+                    onChange={(e) => setBorrador({ ...borrador, tipo: e.target.value })}
+                    style={{ width: "auto" }}
+                  >
+                    <option value="credito">Crédito</option>
+                    <option value="debito">Débito</option>
+                  </select>
                   <input
                     type="text"
                     value={borrador.nombre}
                     onChange={(e) => setBorrador({ ...borrador, nombre: e.target.value })}
                   />
-                  <span className="corte-label">Corte día</span>
-                  <input
-                    type="number"
-                    min="1"
-                    max="31"
-                    value={borrador.dia_corte}
-                    onChange={(e) => setBorrador({ ...borrador, dia_corte: e.target.value })}
-                  />
-                  <span className="corte-label">Pago día</span>
-                  <input
-                    type="number"
-                    min="1"
-                    max="31"
-                    placeholder="—"
-                    value={borrador.dia_pago}
-                    onChange={(e) => setBorrador({ ...borrador, dia_pago: e.target.value })}
-                  />
+                  {borrador.tipo === "credito" && (
+                    <>
+                      <span className="corte-label">Corte día</span>
+                      <input
+                        type="number"
+                        min="1"
+                        max="31"
+                        value={borrador.dia_corte}
+                        onChange={(e) => setBorrador({ ...borrador, dia_corte: e.target.value })}
+                      />
+                      <span className="corte-label">Pago día</span>
+                      <input
+                        type="number"
+                        min="1"
+                        max="31"
+                        placeholder="—"
+                        value={borrador.dia_pago}
+                        onChange={(e) => setBorrador({ ...borrador, dia_pago: e.target.value })}
+                      />
+                    </>
+                  )}
+                  {borrador.tipo === "debito" && (
+                    <select
+                      value={borrador.cuenta_id}
+                      onChange={(e) => setBorrador({ ...borrador, cuenta_id: e.target.value })}
+                      style={{ width: "auto" }}
+                    >
+                      <option value="">Cuenta...</option>
+                      {cuentas.map((c) => (
+                        <option key={c.id} value={c.id}>{c.nombre}</option>
+                      ))}
+                    </select>
+                  )}
                   <select
                     value={borrador.red}
                     onChange={(e) => setBorrador({ ...borrador, red: e.target.value })}
@@ -201,12 +258,21 @@ export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onTogg
               ) : (
                 <>
                   <span style={{ flex: 1, fontSize: 14 }}>{t.nombre}</span>
+                  <span style={{ fontSize: 11, color: "var(--ink-faint)", textTransform: "uppercase" }}>
+                    {t.tipo === "debito" ? "débito" : "crédito"}
+                  </span>
                   <span className="corte-label" style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                     {t.red && <CardNetworkLogo red={t.red} size={18} color="var(--ink-soft)" />}
-                    <span>
-                      corte {t.dia_corte}
-                      {t.dia_pago ? ` · pago ${t.dia_pago}` : ""}
-                    </span>
+                    {t.tipo === "debito" ? (
+                      <span>
+                        {cuentas.find((c) => c.id === t.cuenta_id)?.nombre || "sin cuenta"}
+                      </span>
+                    ) : (
+                      <span>
+                        corte {t.dia_corte}
+                        {t.dia_pago ? ` · pago ${t.dia_pago}` : ""}
+                      </span>
+                    )}
                   </span>
                   <div className="acciones-menu">
                     <button
@@ -242,28 +308,73 @@ export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onTogg
           ))}
 
           <form className="agregar-tarjeta" onSubmit={agregar}>
+            {/* Selector de tipo */}
+            <div className="flex bg-gray-100 p-1 rounded-xl w-full mb-2">
+              <button
+                type="button"
+                onClick={() => setNueva({ ...nueva, tipo: "credito" })}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                  nueva.tipo === "credito"
+                    ? "bg-white text-coral shadow-sm"
+                    : "text-gray-500"
+                }`}
+              >
+                Crédito
+              </button>
+              <button
+                type="button"
+                onClick={() => setNueva({ ...nueva, tipo: "debito" })}
+                className={`flex-1 py-1.5 text-xs font-semibold rounded-lg transition-all ${
+                  nueva.tipo === "debito"
+                    ? "bg-white text-coral shadow-sm"
+                    : "text-gray-500"
+                }`}
+              >
+                Débito
+              </button>
+            </div>
+
             <input
               type="text"
               placeholder="Nombre de la nueva tarjeta"
               value={nueva.nombre}
               onChange={(e) => setNueva({ ...nueva, nombre: e.target.value })}
             />
-            <input
-              type="number"
-              min="1"
-              max="31"
-              placeholder="Corte"
-              value={nueva.dia_corte}
-              onChange={(e) => setNueva({ ...nueva, dia_corte: e.target.value })}
-            />
-            <input
-              type="number"
-              min="1"
-              max="31"
-              placeholder="Pago"
-              value={nueva.dia_pago}
-              onChange={(e) => setNueva({ ...nueva, dia_pago: e.target.value })}
-            />
+
+            {nueva.tipo === "credito" && (
+              <>
+                <input
+                  type="number"
+                  min="1"
+                  max="31"
+                  placeholder="Corte"
+                  value={nueva.dia_corte}
+                  onChange={(e) => setNueva({ ...nueva, dia_corte: e.target.value })}
+                />
+                <input
+                  type="number"
+                  min="1"
+                  max="31"
+                  placeholder="Pago"
+                  value={nueva.dia_pago}
+                  onChange={(e) => setNueva({ ...nueva, dia_pago: e.target.value })}
+                />
+              </>
+            )}
+
+            {nueva.tipo === "debito" && (
+              <select
+                value={nueva.cuenta_id}
+                onChange={(e) => setNueva({ ...nueva, cuenta_id: e.target.value })}
+                style={{ width: "auto" }}
+              >
+                <option value="">Cuenta asociada...</option>
+                {cuentas.map((c) => (
+                  <option key={c.id} value={c.id}>{c.nombre}</option>
+                ))}
+              </select>
+            )}
+
             <select
               value={nueva.red}
               onChange={(e) => setNueva({ ...nueva, red: e.target.value })}

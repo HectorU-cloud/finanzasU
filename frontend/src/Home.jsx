@@ -107,7 +107,7 @@ export default function Home({
   
   // Tarjetas con algo pendiente de pago
   const tarjetasPagar = (resumen?.tarjetas || []).filter(
-    (t) => Number(t.gastado_mes) > 0
+    (t) => Number(t.gastado_mes) > 0 && (t.tipo || "credito") === "credito"
   );
 
   // Resumen de deudas (solo activas)

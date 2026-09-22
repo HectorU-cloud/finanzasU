@@ -69,18 +69,29 @@ class Token(BaseModel):
 
 REDES_VALIDAS = {"Visa", "Mastercard", "American Express", "Diners Club", "Otra"}
 
+TIPOS_TARJETA_VALIDOS = {"credito", "debito"}
+
 
 class TarjetaBase(BaseModel):
     nombre: str = Field(min_length=1, max_length=50)
-    dia_corte: int = Field(ge=1, le=31)
-    dia_pago: int | None = Field(default=None, ge=1, le=31)  # <-- NUEVO
+    tipo: str = Field(default="credito", max_length=10)  # <-- NUEVO
+    dia_corte: int | None = Field(default=None, ge=1, le=31)  # <-- Opcional
+    dia_pago: int | None = Field(default=None, ge=1, le=31)  # <-- Opcional
     red: str | None = Field(default=None, max_length=20)
     tema: str | None = Field(default="clasico", max_length=30)
+    cuenta_id: int | None = None  # <-- NUEVO
 
     @field_validator("nombre")
     @classmethod
     def _nombre_valido(cls, v):
         return _validar_texto_no_vacio(v)
+
+    @field_validator("tipo")  # <-- NUEVO
+    @classmethod
+    def _tipo_valido(cls, v):
+        if v not in TIPOS_TARJETA_VALIDOS:
+            raise ValueError("el tipo debe ser 'credito' o 'debito'")
+        return v
 
     @field_validator("red")
     @classmethod
@@ -96,10 +107,12 @@ class TarjetaCreate(TarjetaBase):
 
 class TarjetaUpdate(BaseModel):
     nombre: str | None = Field(default=None, max_length=50)
+    tipo: str | None = Field(default=None, max_length=10)  # <-- NUEVO
     dia_corte: int | None = Field(default=None, ge=1, le=31)
-    dia_pago: int | None = Field(default=None, ge=1, le=31)  # <-- NUEVO
+    dia_pago: int | None = Field(default=None, ge=1, le=31)
     red: str | None = Field(default=None, max_length=20)
     tema: str | None = Field(default=None, max_length=30)
+    cuenta_id: int | None = None  # <-- NUEVO
 
     @field_validator("nombre")
     @classmethod
@@ -107,6 +120,13 @@ class TarjetaUpdate(BaseModel):
         if v is None:
             return v
         return _validar_texto_no_vacio(v)
+
+    @field_validator("tipo")  # <-- NUEVO
+    @classmethod
+    def _tipo_valido(cls, v):
+        if v is not None and v not in TIPOS_TARJETA_VALIDOS:
+            raise ValueError("el tipo debe ser 'credito' o 'debito'")
+        return v
 
     @field_validator("red")
     @classmethod
@@ -173,10 +193,12 @@ class Gasto(GastoBase):
 class ResumenTarjeta(BaseModel):
     id: int
     nombre: str
-    dia_corte: int
+    tipo: str = "credito"  # <-- NUEVO
+    dia_corte: int | None = None  # <-- Opcional
     dia_pago: int | None = None
     red: str | None = None
     tema: str | None = None
+    cuenta_id: int | None = None 
     dias_para_corte: int
     gastado_mes: Decimal
     en_rojo: bool

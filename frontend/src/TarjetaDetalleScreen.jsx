@@ -1,8 +1,5 @@
 import { useEffect, useState, useCallback } from "react";
-import {
-  ArrowLeft, Plus, ChevronLeft, ChevronRight, CreditCard,
-  MoreVertical, Pencil, Trash2, CheckCircle2, X
-} from "lucide-react";
+import { ArrowLeft, Plus, ChevronLeft, ChevronRight, CreditCard, MoreVertical, Pencil, Trash2, CheckCircle2, X } from "lucide-react";
 import { api } from "./api.js";
 import CardNetworkLogo from "./CardNetworkLogo.jsx";
 import EditarGastoModal from "./EditarGastoModal.jsx";
@@ -60,6 +57,8 @@ export default function TarjetaDetalleScreen({ tarjeta, onVolver, onCambio }) {
     categoria: leerUltima(ULTIMA_CATEGORIA_KEY),
   });
 
+  const esDebito = tarjeta.tipo === "debito";
+
   function mostrarExito(mensaje) {
     setExito(mensaje);
     setTimeout(() => setExito(""), 2500);
@@ -68,22 +67,29 @@ export default function TarjetaDetalleScreen({ tarjeta, onVolver, onCambio }) {
   const cargar = useCallback(async () => {
     setCargando(true);
     try {
-      const [gastosData, estadoData, categoriasData] = await Promise.all([
+      const promesas = [
         api.getGastos(periodo.anio, periodo.mes, null, tarjeta.id),
-        api.getEstadoPagoTarjeta(tarjeta.id, periodo.anio, periodo.mes),
         categorias.length > 0 ? Promise.resolve({ categorias }) : api.getCategorias(),
-      ]);
-      setGastos(gastosData || []);
-      setEstado(estadoData);
-      if (categorias.length === 0 && categoriasData?.categorias) {
-        setCategorias(categoriasData.categorias);
+      ];
+      // Solo pedir estado de pago si es crédito
+      if (!esDebito) {
+        promesas.push(api.getEstadoPagoTarjeta(tarjeta.id, periodo.anio, periodo.mes));
+      }
+
+      const resultados = await Promise.all(promesas);
+      setGastos(resultados[0] || []);
+      if (categorias.length === 0 && resultados[1]?.categorias) {
+        setCategorias(resultados[1].categorias);
+      }
+      if (!esDebito) {
+        setEstado(resultados[2]);
       }
     } catch (err) {
       setError(err.message);
     } finally {
       setCargando(false);
     }
-  }, [periodo, tarjeta.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [periodo, tarjeta.id, esDebito]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     cargar();
@@ -154,328 +160,337 @@ export default function TarjetaDetalleScreen({ tarjeta, onVolver, onCambio }) {
 
   const gradiente = GRADIENTES[tarjeta.tema || "clasico"];
   const totalMes = gastos.reduce((acc, g) => acc + Number(g.monto || 0), 0);
-  // Calcular la fecha límite de pago para el ciclo actual
-  const { fechaLimite, diasRestantes, urgente } = calcularVencimiento(
-    tarjeta.dia_corte,
-    tarjeta.dia_pago || 15
-  );
+
+  // Solo calcular vencimiento si es crédito (débito no tiene corte/pago)
+  const vencimiento = !esDebito
+    ? calcularVencimiento(tarjeta.dia_corte, tarjeta.dia_pago || 15)
+    : { fechaLimite: null, diasRestantes: 0, urgente: false };
+  const { fechaLimite, diasRestantes, urgente } = vencimiento;
 
   return (
     <div className="fixed inset-0 z-40 bg-cream overflow-y-auto">
       <div className="max-w-md mx-auto px-4 pb-28 pt-6">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-4">
-        <button
-          onClick={onVolver}
-          className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-carbon"
+        {/* Header */}
+        <div className="flex items-center justify-between mb-4">
+          <button
+            onClick={onVolver}
+            className="flex items-center gap-1.5 text-sm text-gray-500 hover:text-carbon"
+          >
+            <ArrowLeft size={16} /> Volver
+          </button>
+        </div>
+
+        {/* Card de tarjeta */}
+        <div
+          className="rounded-3xl p-5 text-white shadow-xl mb-5"
+          style={{ background: gradiente }}
         >
-          <ArrowLeft size={16} /> Volver
-        </button>
-      </div>
-
-      {/* Card de tarjeta */}
-      <div
-        className="rounded-3xl p-5 text-white shadow-xl mb-5"
-        style={{ background: gradiente }}
-      >
-        <div className="flex justify-between items-start mb-3">
-          <div>
-            <p className="text-xs opacity-75 mb-1">Gastado este ciclo</p>
-            <p className="text-3xl font-bold">${totalMes.toFixed(2)}</p>
-          </div>
-          {tarjeta.red && (
-            <CardNetworkLogo red={tarjeta.red} size={32} color="#ffffff" />
-          )}
-        </div>
-        <div className="flex justify-between items-end text-xs opacity-90">
-          <span className="font-medium">{tarjeta.nombre}</span>
-          <span>Corte día {tarjeta.dia_corte}</span>
-        </div>
-      </div>
-
-      {/* Estado de pago */}
-      {estado && estado.total_gastos > 0 && (
-        <div className="bg-white rounded-2xl p-4 shadow-sm mb-4">
-          <div className="flex items-center justify-between mb-3">
-            <p className="text-sm font-semibold text-carbon">
-              Estado de pago
-            </p>
-            {estado.cerrado && (
-              <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
-                <CheckCircle2 size={12} /> Pagado
-              </span>
+          <div className="flex justify-between items-start mb-3">
+            <div>
+              <p className="text-xs opacity-75 mb-1">
+                {esDebito ? "Gastado este mes" : "Gastado este ciclo"}
+              </p>
+              <p className="text-3xl font-bold">${totalMes.toFixed(2)}</p>
+            </div>
+            {tarjeta.red && (
+              <CardNetworkLogo red={tarjeta.red} size={32} color="#ffffff" />
             )}
           </div>
-
-                    <div className="flex justify-between text-xs mb-3">
-            <div>
-              <p className="text-gray-400">Pagado</p>
-              <p className="font-semibold text-emerald-600">
-                ${Number(estado.total_pagado).toFixed(2)}
-              </p>
-            </div>
-            <div className="text-right">
-              <p className="text-gray-400">Pendiente</p>
-              <p className="font-semibold text-coral">
-                ${Number(estado.pendiente).toFixed(2)}
-              </p>
-            </div>
+          <div className="flex justify-between items-end text-xs opacity-90">
+            <span className="font-medium">{tarjeta.nombre}</span>
+            <span>
+              {esDebito ? "Tarjeta de débito" : `Corte día ${tarjeta.dia_corte}`}
+            </span>
           </div>
-
-          {/* Fecha límite de pago */}
-          {estado.pendiente > 0 && (
-            <div
-              className={`rounded-xl px-3 py-2 mb-3 flex items-center justify-between text-xs font-medium ${
-                urgente
-                  ? "bg-red-50 text-red-600 border border-red-200"
-                  : "bg-blue-50 text-blue-600 border border-blue-200"
-              }`}
-            >
-              <span>
-                {diasRestantes < 0
-                  ? `Venció hace ${Math.abs(diasRestantes)} día${Math.abs(diasRestantes) !== 1 ? "s" : ""}`
-                  : diasRestantes === 0
-                  ? "Vence hoy"
-                  : `Pagar hasta el ${fechaLimite.toLocaleDateString("es-ES", {
-                      day: "numeric",
-                      month: "long",
-                    })}`}
-              </span>
-              <span className="font-bold">
-                {diasRestantes >= 0 && `${diasRestantes}d`}
-              </span>
-            </div>
-          )}
-
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-3">
-            <div
-              className="h-full bg-emerald-500 transition-all"
-              style={{ width: `${Math.min(estado.porcentaje_pagado, 100)}%` }}
-            />
-          </div>
-
-          {!estado.cerrado && (
-            <button
-              onClick={() => setPagarAbierto(true)}
-              className="w-full bg-coral text-white font-semibold py-2.5 rounded-xl hover:bg-coral-dark transition-colors text-sm"
-            >
-              Pagar esta tarjeta
-            </button>
-          )}
         </div>
-      )}
 
-      {/* Navegación mes */}
-      <div className="flex items-center justify-between mb-3">
-        <button
-          onClick={() => cambiarMes(-1)}
-          className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50"
-        >
-          <ChevronLeft size={14} />
-        </button>
-        <p className="text-sm font-medium text-carbon capitalize">
-          {NOMBRES_MES[periodo.mes - 1]} {periodo.anio}
-        </p>
-        <button
-          onClick={() => cambiarMes(1)}
-          className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50"
-        >
-          <ChevronRight size={14} />
-        </button>
-      </div>
+        {/* Estado de pago (solo crédito) */}
+        {!esDebito && estado && estado.total_gastos > 0 && (
+          <div className="bg-white rounded-2xl p-4 shadow-sm mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-semibold text-carbon">
+                Estado de pago
+              </p>
+              {estado.cerrado && (
+                <span className="text-xs font-semibold text-emerald-600 flex items-center gap-1">
+                  <CheckCircle2 size={12} /> Pagado
+                </span>
+              )}
+            </div>
 
-      {/* Botón agregar gasto */}
-      <button
-        onClick={() => setFormAbierto((v) => !v)}
-        className="w-full bg-carbon text-white font-semibold py-3 rounded-2xl hover:bg-carbon-light transition-colors flex items-center justify-center gap-2 mb-4"
-      >
-        {formAbierto ? <X size={16} /> : <Plus size={16} />}
-        {formAbierto ? "Cancelar" : "Agregar gasto a esta tarjeta"}
-      </button>
-
-      {/* Formulario */}
-      {formAbierto && (
-        <div className="bg-white rounded-2xl p-4 shadow-sm mb-4">
-          <form onSubmit={handleSubmit} className="space-y-3">
-            <div className="grid grid-cols-2 gap-3">
+            <div className="flex justify-between text-xs mb-3">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Fecha</label>
-                <input
-                  type="date"
-                  value={form.fecha}
-                  max={todayISO()}
-                  min="2000-01-01"
-                  onChange={(e) => setForm({ ...form, fecha: e.target.value })}
-                  className="w-full px-2.5 py-2 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm"
-                />
+                <p className="text-gray-400">Pagado</p>
+                <p className="font-semibold text-emerald-600">
+                  ${Number(estado.total_pagado).toFixed(2)}
+                </p>
               </div>
-              <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1">Monto</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  placeholder="0.00"
-                  value={form.monto}
-                  onChange={(e) => setForm({ ...form, monto: e.target.value })}
-                  className="w-full px-2.5 py-2 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm"
-                  autoFocus
-                />
+              <div className="text-right">
+                <p className="text-gray-400">Pendiente</p>
+                <p className="font-semibold text-coral">
+                  ${Number(estado.pendiente).toFixed(2)}
+                </p>
               </div>
             </div>
 
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Categoría</label>
-              <select
-                value={form.categoria}
-                onChange={(e) => setForm({ ...form, categoria: e.target.value })}
-                className="w-full px-2.5 py-2 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm bg-white"
+            {/* Fecha límite de pago */}
+            {estado.pendiente > 0 && (
+              <div
+                className={`rounded-xl px-3 py-2 mb-3 flex items-center justify-between text-xs font-medium ${
+                  urgente
+                    ? "bg-red-50 text-red-600 border border-red-200"
+                    : "bg-blue-50 text-blue-600 border border-blue-200"
+                }`}
               >
-                <option value="">Sin categoría</option>
-                {categorias.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
-            </div>
+                <span>
+                  {diasRestantes < 0
+                    ? `Venció hace ${Math.abs(diasRestantes)} día${Math.abs(diasRestantes) !== 1 ? "s" : ""}`
+                    : diasRestantes === 0
+                    ? "Vence hoy"
+                    : `Pagar hasta el ${fechaLimite.toLocaleDateString("es-ES", {
+                        day: "numeric",
+                        month: "long",
+                      })}`}
+                </span>
+                <span className="font-bold">
+                  {diasRestantes >= 0 && `${diasRestantes}d`}
+                </span>
+              </div>
+            )}
 
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1">Descripción (opcional)</label>
-              <input
-                type="text"
-                placeholder="ej. almuerzo"
-                value={form.descripcion}
-                onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
-                className="w-full px-2.5 py-2 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm"
+            <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-3">
+              <div
+                className="h-full bg-emerald-500 transition-all"
+                style={{ width: `${Math.min(estado.porcentaje_pagado, 100)}%` }}
               />
             </div>
 
-            {error && (
-              <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>
+            {!estado.cerrado && (
+              <button
+                onClick={() => setPagarAbierto(true)}
+                className="w-full bg-coral text-white font-semibold py-2.5 rounded-xl hover:bg-coral-dark transition-colors text-sm"
+              >
+                Pagar esta tarjeta
+              </button>
             )}
-            {exito && (
-              <p className="text-sm text-emerald-600 bg-emerald-50 rounded-xl px-3 py-2">{exito}</p>
-            )}
+          </div>
+        )}
 
-            <button
-              type="submit"
-              disabled={enviando}
-              className="w-full bg-coral text-white font-semibold py-2.5 rounded-xl hover:bg-coral-dark transition-colors disabled:opacity-60"
-            >
-              {enviando ? "Agregando..." : "Agregar gasto"}
-            </button>
-          </form>
-        </div>
-      )}
-
-      {/* Lista de gastos */}
-      <p className="text-sm font-semibold text-carbon mb-2">
-        Gastos del mes ({gastos.length})
-      </p>
-
-      {cargando ? (
-        <p className="text-sm text-gray-400 text-center py-8">Cargando...</p>
-      ) : gastos.length === 0 ? (
-        <div className="border-2 border-dashed border-gray-300 rounded-2xl p-6 text-center">
-          <CreditCard size={24} className="text-gray-300 mx-auto mb-2" />
-          <p className="text-sm text-gray-500">
-            Sin gastos en {NOMBRES_MES[periodo.mes - 1]}
+        {/* Navegación mes */}
+        <div className="flex items-center justify-between mb-3">
+          <button
+            onClick={() => cambiarMes(-1)}
+            className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50"
+          >
+            <ChevronLeft size={14} />
+          </button>
+          <p className="text-sm font-medium text-carbon capitalize">
+            {NOMBRES_MES[periodo.mes - 1]} {periodo.anio}
           </p>
+          <button
+            onClick={() => cambiarMes(1)}
+            className="w-8 h-8 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50"
+          >
+            <ChevronRight size={14} />
+          </button>
         </div>
-      ) : (
-        <div className="space-y-2">
-          {gastos.map((g) => (
-            <div
-              key={g.id}
-              className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3"
-            >
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-carbon text-sm truncate">
-                  {g.descripcion || "Sin descripción"}
-                </p>
-                <p className="text-xs text-gray-500 truncate">
-                  {g.fecha}
-                  {g.categoria && ` · ${g.categoria}`}
-                </p>
+
+        {/* Botón agregar gasto */}
+        <button
+        onClick={() => setFormAbierto((v) => !v)}
+        className={`w-full font-semibold py-3 rounded-2xl transition-colors flex items-center justify-center gap-2 mb-4 ${
+          formAbierto
+            ? "bg-gray-200 text-carbon hover:bg-gray-300"
+            : "bg-coral text-white hover:bg-coral-dark"
+        }`}
+      >
+          {formAbierto ? <X size={16} /> : <Plus size={16} />}
+          {formAbierto ? "Cancelar" : "Agregar gasto a esta tarjeta"}
+        </button>
+
+        {/* Formulario */}
+        {formAbierto && (
+          <div className="bg-white rounded-2xl p-4 shadow-sm mb-4">
+            <form onSubmit={handleSubmit} className="space-y-3">
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Fecha</label>
+                  <input
+                    type="date"
+                    value={form.fecha}
+                    max={todayISO()}
+                    min="2000-01-01"
+                    onChange={(e) => setForm({ ...form, fecha: e.target.value })}
+                    className="w-full px-2.5 py-2 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium text-gray-500 mb-1">Monto</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    placeholder="0.00"
+                    value={form.monto}
+                    onChange={(e) => setForm({ ...form, monto: e.target.value })}
+                    className="w-full px-2.5 py-2 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm"
+                    autoFocus
+                  />
+                </div>
               </div>
-              <p className="font-bold text-carbon">
-                ${Number(g.monto).toFixed(2)}
-              </p>
-              <div className="relative acciones-menu-detalle">
-                <button
-                  className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setMenuAbiertoId(menuAbiertoId === g.id ? null : g.id);
-                  }}
+
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Categoría</label>
+                <select
+                  value={form.categoria}
+                  onChange={(e) => setForm({ ...form, categoria: e.target.value })}
+                  className="w-full px-2.5 py-2 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm bg-white"
                 >
-                  <MoreVertical size={16} />
-                </button>
-                {menuAbiertoId === g.id && (
-                  <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg min-w-[140px] overflow-hidden z-10">
-                    <button
-                      className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-sm text-carbon hover:bg-gray-50"
-                      onClick={() => {
-                        setGastoEditando(g);
-                        setMenuAbiertoId(null);
-                      }}
-                    >
-                      <Pencil size={14} /> Editar
-                    </button>
-                    <button
-                      className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
-                      onClick={() => {
-                        setGastoAEliminar(g);
-                        setMenuAbiertoId(null);
-                      }}
-                    >
-                      <Trash2 size={14} /> Eliminar
-                    </button>
-                  </div>
-                )}
+                  <option value="">Sin categoría</option>
+                  {categorias.map((c) => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
               </div>
-            </div>
-          ))}
-        </div>
-      )}
 
-      {/* Modales */}
-      {gastoEditando && (
-        <EditarGastoModal
-          gasto={gastoEditando}
-          tarjetas={[{ id: tarjeta.id, nombre: tarjeta.nombre }]}
-          categorias={categorias}
-          onCerrar={() => setGastoEditando(null)}
-          onGuardado={() => {
-            setGastoEditando(null);
-            cargar();
-            onCambio?.();
-          }}
-        />
-      )}
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">Descripción (opcional)</label>
+                <input
+                  type="text"
+                  placeholder="ej. almuerzo"
+                  value={form.descripcion}
+                  onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
+                  className="w-full px-2.5 py-2 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm"
+                />
+              </div>
 
-      {gastoAEliminar && (
-        <ConfirmModal
-          titulo="Eliminar gasto"
-          mensaje={`¿Eliminar el gasto de $${Number(gastoAEliminar.monto).toFixed(2)}? Esta acción no se puede deshacer.`}
-          textoConfirmar="Sí, eliminar"
-          onConfirmar={async () => {
-            await handleDelete(gastoAEliminar.id);
-            setGastoAEliminar(null);
-          }}
-          onCancelar={() => setGastoAEliminar(null)}
-        />
-      )}
+              {error && (
+                <p className="text-sm text-red-600 bg-red-50 rounded-xl px-3 py-2">{error}</p>
+              )}
+              {exito && (
+                <p className="text-sm text-emerald-600 bg-emerald-50 rounded-xl px-3 py-2">{exito}</p>
+              )}
 
-      {pagarAbierto && (
-        <PagarTarjetaModal
-          tarjeta={tarjeta}
-          onCerrar={() => setPagarAbierto(false)}
-          onPagado={() => {
-            setPagarAbierto(false);
-            cargar();
-            onCambio?.();
-          }}
-        />
-      )}
+              <button
+                type="submit"
+                disabled={enviando}
+                className="w-full bg-coral text-white font-semibold py-2.5 rounded-xl hover:bg-coral-dark transition-colors disabled:opacity-60"
+              >
+                {enviando ? "Agregando..." : "Agregar gasto"}
+              </button>
+            </form>
+          </div>
+        )}
+
+        {/* Lista de gastos */}
+        <p className="text-sm font-semibold text-carbon mb-2">
+          Gastos del mes ({gastos.length})
+        </p>
+
+        {cargando ? (
+          <p className="text-sm text-gray-400 text-center py-8">Cargando...</p>
+        ) : gastos.length === 0 ? (
+          <div className="border-2 border-dashed border-gray-300 rounded-2xl p-6 text-center">
+            <CreditCard size={24} className="text-gray-300 mx-auto mb-2" />
+            <p className="text-sm text-gray-500">
+              Sin gastos en {NOMBRES_MES[periodo.mes - 1]}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {gastos.map((g) => (
+              <div
+                key={g.id}
+                className="bg-white rounded-2xl p-4 shadow-sm flex items-center gap-3"
+              >
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-carbon text-sm truncate">
+                    {g.descripcion || "Sin descripción"}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">
+                    {g.fecha}
+                    {g.categoria && ` · ${g.categoria}`}
+                  </p>
+                </div>
+                <p className="font-bold text-carbon">
+                  ${Number(g.monto).toFixed(2)}
+                </p>
+                <div className="relative acciones-menu-detalle">
+                  <button
+                    className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setMenuAbiertoId(menuAbiertoId === g.id ? null : g.id);
+                    }}
+                  >
+                    <MoreVertical size={16} />
+                  </button>
+                  {menuAbiertoId === g.id && (
+                    <div className="absolute top-full right-0 mt-1 bg-white border border-gray-200 rounded-xl shadow-lg min-w-[140px] overflow-hidden z-10">
+                      <button
+                        className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-sm text-carbon hover:bg-gray-50"
+                        onClick={() => {
+                          setGastoEditando(g);
+                          setMenuAbiertoId(null);
+                        }}
+                      >
+                        <Pencil size={14} /> Editar
+                      </button>
+                      <button
+                        className="flex items-center gap-2 w-full px-3 py-2.5 text-left text-sm text-red-600 hover:bg-red-50"
+                        onClick={() => {
+                          setGastoAEliminar(g);
+                          setMenuAbiertoId(null);
+                        }}
+                      >
+                        <Trash2 size={14} /> Eliminar
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Modales */}
+        {gastoEditando && (
+          <EditarGastoModal
+            gasto={gastoEditando}
+            tarjetas={[{ id: tarjeta.id, nombre: tarjeta.nombre }]}
+            categorias={categorias}
+            onCerrar={() => setGastoEditando(null)}
+            onGuardado={() => {
+              setGastoEditando(null);
+              cargar();
+              onCambio?.();
+            }}
+          />
+        )}
+
+        {gastoAEliminar && (
+          <ConfirmModal
+            titulo="Eliminar gasto"
+            mensaje={`¿Eliminar el gasto de $${Number(gastoAEliminar.monto).toFixed(2)}? Esta acción no se puede deshacer.`}
+            textoConfirmar="Sí, eliminar"
+            onConfirmar={async () => {
+              await handleDelete(gastoAEliminar.id);
+              setGastoAEliminar(null);
+            }}
+            onCancelar={() => setGastoAEliminar(null)}
+          />
+        )}
+
+        {pagarAbierto && !esDebito && (
+          <PagarTarjetaModal
+            tarjeta={tarjeta}
+            onCerrar={() => setPagarAbierto(false)}
+            onPagado={() => {
+              setPagarAbierto(false);
+              cargar();
+              onCambio?.();
+            }}
+          />
+        )}
       </div>
     </div>
   );
