@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback } from "react";
+import { createContext, useContext, useState, useCallback, useMemo, useRef } from "react";
 import { CheckCircle2, AlertCircle, Info, X } from "lucide-react";
 
 const ToastContext = createContext(null);
@@ -9,12 +9,31 @@ export function useToast() {
   return ctx;
 }
 
+const MAX_TOASTS = 3;
+const DEBOUNCE_MS = 800;
+
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
+  const ultimosMensajes = useRef({}); // { mensaje: timestamp }
 
   const showToast = useCallback((mensaje, tipo = "exito") => {
-    const id = Date.now() + Math.random();
-    setToasts((prev) => [...prev, { id, mensaje, tipo }]);
+    const ahora = Date.now();
+    const ultimo = ultimosMensajes.current[mensaje] || 0;
+
+    // Si el mismo mensaje se mostró hace menos de DEBOUNCE_MS, lo ignoramos
+    if (ahora - ultimo < DEBOUNCE_MS) {
+      return;
+    }
+    ultimosMensajes.current[mensaje] = ahora;
+
+    const id = `${ahora}-${Math.random()}`;
+
+    setToasts((prev) => {
+      // Limitar a MAX_TOASTS
+      const nuevos = [...prev, { id, mensaje, tipo }];
+      return nuevos.slice(-MAX_TOASTS);
+    });
+
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
     }, 3000);
@@ -24,8 +43,10 @@ export function ToastProvider({ children }) {
     setToasts((prev) => prev.filter((t) => t.id !== id));
   }, []);
 
+  const value = useMemo(() => ({ showToast }), [showToast]);
+
   return (
-    <ToastContext.Provider value={{ showToast }}>
+    <ToastContext.Provider value={value}>
       {children}
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </ToastContext.Provider>
