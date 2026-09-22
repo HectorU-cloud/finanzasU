@@ -221,6 +221,8 @@ export const api = {
     request(`/divisiones/${divisionId}/pagar`, { method: "PATCH" }),
   salirDeGrupo: (grupoId) => request(`/grupos/${grupoId}/salir`, { method: "POST" }),
   eliminarGrupo: (grupoId) => request(`/grupos/${grupoId}`, { method: "DELETE" }),
+  getReporteMensual: (anio, mes, meses = 6) =>
+    request(`/reportes/mensual?anio=${anio}&mes=${mes}&meses=${meses}`),
 
   exportarGastos: async (desde, hasta, categoria = null) => {
     const headers = {};

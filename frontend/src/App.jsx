@@ -26,6 +26,7 @@ import TarjetasScreen from "./TarjetasScreen.jsx";
 import MovimientosScreen from "./MovimientosScreen.jsx";
 import PlanificarScreen from "./PlanificarScreen.jsx";
 import CuentaDetalleScreen from "./CuentaDetalleScreen.jsx";
+import ReportesScreen from "./ReportesScreen.jsx";
 
 
 function todayISO() {
@@ -444,7 +445,7 @@ export default function App() {
     );
   }
 
-  const VISTAS_CON_NAV = ["home", "cuentas", "movimientos", "planificar", "perfil", "potes", "grupos", "deudas"];
+  const VISTAS_CON_NAV = ["home", "cuentas", "movimientos", "planificar", "perfil", "potes", "grupos", "deudas", "reportes"];
 
   if (VISTAS_CON_NAV.includes(vista)) {
     return (
@@ -463,6 +464,7 @@ export default function App() {
             onIrAMovimientos={() => setVista("movimientos")} // <-- NUEVO
             onVerCuenta={(c) => setCuentaDetalle(c)}
             onIrADeudas={() => { setVista("planificar"); }}   // <-- NUEVA
+            onIrAReportes={() => setVista("reportes")}        // <-- NUEVA
           />
         )}
         {vista === "cuentas" && <CuentasScreen onCambiarVista={setVista} />}
@@ -479,6 +481,9 @@ export default function App() {
         )}
         {vista === "potes" && <PotesScreen onVolver={() => setVista("planificar")} />}
         {vista === "deudas" && <DeudasScreen onVolver={() => setVista("planificar")} />}
+        {vista === "reportes" && (
+          <ReportesScreen onVolver={() => setVista("home")} />
+        )}
         {vista === "grupos" && (
           <div className="max-w-md mx-auto p-6">
             <GruposPanel 

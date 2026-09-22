@@ -2793,3 +2793,102 @@ def exportar_tarjeta(
         media_type="text/csv",
         headers={"Content-Disposition": f'attachment; filename="{nombre}"'},
     )
+
+# ============================================================
+# REPORTES MENSUALES
+# ============================================================
+
+@app.get("/api/reportes/mensual")
+def reporte_mensual(
+    anio: int | None = None,
+    mes: int | None = None,
+    meses: int = 6,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """
+    Devuelve los totales de ingresos, gastos y balance para los últimos N meses.
+    Si no se pasa anio/mes, se usa el mes actual como referencia.
+    """
+    hoy = date.today()
+    anio = anio or hoy.year
+    mes = mes or hoy.month
+
+    # Limitar a un máximo razonable
+    meses = max(1, min(meses, 24))
+
+    resultado = []
+
+    for i in range(meses - 1, -1, -1):
+        # Retroceder i meses desde la referencia
+        mes_ref = mes - i
+        anio_ref = anio
+        while mes_ref < 1:
+            mes_ref += 12
+            anio_ref -= 1
+
+        ingresos = (
+            db.query(func.coalesce(func.sum(models.Ingreso.monto), 0))
+            .filter(models.Ingreso.usuario_id == usuario.id)
+            .filter(extract("year", models.Ingreso.fecha) == anio_ref)
+            .filter(extract("month", models.Ingreso.fecha) == mes_ref)
+            .scalar()
+        )
+        ingresos = Decimal(ingresos)
+
+        # Gastos de tarjetas (crédito y débito)
+        gastos_tarjetas = (
+            db.query(func.coalesce(func.sum(models.Gasto.monto), 0))
+            .join(models.Tarjeta)
+            .filter(models.Tarjeta.usuario_id == usuario.id)
+            .filter(extract("year", models.Gasto.fecha) == anio_ref)
+            .filter(extract("month", models.Gasto.fecha) == mes_ref)
+            .scalar()
+        )
+        gastos_tarjetas = Decimal(gastos_tarjetas)
+
+        egresos_directos = (
+            db.query(func.coalesce(func.sum(models.EgresoCuenta.monto), 0))
+            .filter(models.EgresoCuenta.usuario_id == usuario.id)
+            .filter(extract("year", models.EgresoCuenta.fecha) == anio_ref)
+            .filter(extract("month", models.EgresoCuenta.fecha) == mes_ref)
+            .scalar()
+        )
+        egresos_directos = Decimal(egresos_directos)
+
+        total_gastos = gastos_tarjetas + egresos_directos
+        balance = ingresos - total_gastos
+
+        resultado.append({
+            "anio": anio_ref,
+            "mes": mes_ref,
+            "nombre_mes": _nombre_mes(mes_ref),
+            "ingresos": float(ingresos),
+            "gastos_tarjetas": float(gastos_tarjetas),
+            "egresos_directos": float(egresos_directos),
+            "total_gastos": float(total_gastos),
+            "balance": float(balance),
+        })
+
+    total_ingresos = sum(m["ingresos"] for m in resultado)
+    total_gastos = sum(m["total_gastos"] for m in resultado)
+    total_balance = total_ingresos - total_gastos
+
+    # Mes con más gasto
+    mes_max = max(resultado, key=lambda m: m["total_gastos"]) if resultado else None
+
+    return {
+        "meses": resultado,
+        "total_ingresos": round(total_ingresos, 2),
+        "total_gastos": round(total_gastos, 2),
+        "total_balance": round(total_balance, 2),
+        "mes_mayor_gasto": mes_max,
+    }
+
+
+def _nombre_mes(mes: int) -> str:
+    nombres = [
+        "", "Enero", "Febrero", "Marzo", "Abril", "Mayo", "Junio",
+        "Julio", "Agosto", "Septiembre", "Octubre", "Noviembre", "Diciembre",
+    ]
+    return nombres[mes] if 1 <= mes <= 12 else ""

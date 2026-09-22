@@ -49,7 +49,8 @@ export default function Home({
   onIrAPotes,
   onIrAMovimientos,
   onVerCuenta,
-  onIrADeudas,   // <-- NUEVA
+  onIrADeudas,
+  onIrAReportes,   // <-- NUEVA
 }) {
   const [cuentas, setCuentas] = useState([]);
   const [cargandoCuentas, setCargandoCuentas] = useState(true);
@@ -135,7 +136,11 @@ export default function Home({
       <header className="flex items-center justify-between mb-5">
         <h1 className="text-3xl font-bold text-carbon">{formatearFecha()}</h1>
         <div className="flex items-center gap-3">
-          <button className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500">
+          <button
+            onClick={onIrAReportes}
+            className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-coral/10 hover:text-coral transition-colors"
+            title="Ver reportes"
+          >
             <TrendingUp size={18} />
           </button>
           <div className="w-10 h-10 rounded-full bg-coral text-white flex items-center justify-center font-semibold text-sm">
