@@ -124,9 +124,10 @@ export default function Home({
   onVerCuenta,
   onIrADeudas,
   onIrAReportes,
-  onIrARecurrentes,   // <-- NUEVA
-  onIrAPerfil,        // <-- NUEVA
-  onCerrarSesion,     // <-- NUEVA
+  onIrARecurrentes,
+  onIrAPerfil,
+  onCerrarSesion,
+  onIrACalendario,   // <-- NUEVA
 }) {
   const [cuentas, setCuentas] = useState([]);
   const [cargandoCuentas, setCargandoCuentas] = useState(true);
@@ -285,6 +286,17 @@ export default function Home({
                 >
                   <Calendar size={16} className="text-gray-500" />
                   Transacciones recurrentes
+                </button>
+
+                <button
+                  onClick={() => {
+                    setMenuUsuarioAbierto(false);
+                    onIrACalendario?.();
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-carbon hover:bg-gray-50 transition-colors"
+                >
+                  <Calendar size={16} className="text-gray-500" />
+                  Calendario
                 </button>
 
                 <div style={{ borderTop: "1px solid var(--border)" }}>

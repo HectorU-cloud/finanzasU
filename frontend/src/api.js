@@ -174,6 +174,10 @@ export const api = {
   getMovimientosPote: (id) => request(`/potes/${id}/movimientos`),
   getEmojisPote: () => request("/emojis-pote"),
 
+  // Calendario financiero
+  getCalendario: (anio, mes) =>
+    request(`/calendario?anio=${anio}&mes=${mes}`),
+
 
   getTarjetas: () => request("/tarjetas"),
     getGastos: (anio, mes, categoria = null, tarjetaId = null) => {

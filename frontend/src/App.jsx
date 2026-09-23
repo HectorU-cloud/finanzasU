@@ -31,7 +31,7 @@ import { useToast } from "./ToastContext.jsx";
 import OnboardingScreen from "./OnboardingScreen.jsx";
 import RecurrentesScreen from "./RecurrentesScreen.jsx";
 import CategoriasPanel from "./CategoriasPanel.jsx";
-
+import CalendarioScreen from "./CalendarioScreen.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -470,7 +470,7 @@ export default function App() {
     );
   }
 
-  const VISTAS_CON_NAV = ["home", "cuentas", "movimientos", "planificar", "perfil", "potes", "grupos", "deudas", "reportes", "recurrentes"];
+  const VISTAS_CON_NAV = ["home", "cuentas", "movimientos", "planificar", "perfil", "potes", "grupos", "deudas", "reportes", "recurrentes", "calendario"];
 
   if (VISTAS_CON_NAV.includes(vista)) {
     return (
@@ -492,7 +492,8 @@ export default function App() {
             onIrAReportes={() => setVista("reportes")}
             onIrARecurrentes={() => setVista("recurrentes")}    // <-- NUEVA
             onIrAPerfil={() => setVista("perfil")}                // <-- NUEVA
-            onCerrarSesion={handleLogout}                          // <-- NUEVA
+            onCerrarSesion={handleLogout}
+            onIrACalendario={() => setVista("calendario")}        // <-- NUEVA
           />
         )}
         {vista === "cuentas" && <CuentasScreen onCambiarVista={setVista} />}
@@ -514,6 +515,9 @@ export default function App() {
         )}
         {vista === "recurrentes" && (
           <RecurrentesScreen onVolver={() => setVista("home")} />
+        )}
+        {vista === "calendario" && (
+          <CalendarioScreen onVolver={() => setVista("home")} />
         )}
         {vista === "grupos" && (
           <div className="max-w-md mx-auto p-6">
