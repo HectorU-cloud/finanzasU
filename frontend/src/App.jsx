@@ -30,6 +30,7 @@ import ReportesScreen from "./ReportesScreen.jsx";
 import { useToast } from "./ToastContext.jsx";
 import OnboardingScreen from "./OnboardingScreen.jsx";
 import RecurrentesScreen from "./RecurrentesScreen.jsx";
+import CategoriasPanel from "./CategoriasPanel.jsx";
 
 
 function todayISO() {
@@ -589,6 +590,8 @@ export default function App() {
                     </button>
                   </div>
                 </div>
+
+                <CategoriasPanel />
 
                 <button
                   onClick={handleLogout}

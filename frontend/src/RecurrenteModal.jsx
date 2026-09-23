@@ -33,11 +33,12 @@ export default function RecurrenteModal({ recurrente, onCerrar, onGuardado }) {
     Promise.all([
       api.getCuentas().catch(() => []),
       api.getTarjetas().catch(() => []),
-      api.getCategorias().catch(() => ({ categorias: [] })),
-    ]).then(([c, t, cats]) => {
+      api.getCategorias("gasto").catch(() => ({ categorias: [] })),
+      api.getCategorias("ingreso").catch(() => ({ categorias: [] })),
+    ]).then(([c, t, gastosCats, ingresosCats]) => {
       setCuentas(Array.isArray(c) ? c : []);
       setTarjetas(Array.isArray(t) ? t : []);
-      setCategorias(cats?.categorias || []);
+      setCategorias([...new Set([...(gastosCats?.categorias || []), ...(ingresosCats?.categorias || [])])]);
     });
   }, []);
 

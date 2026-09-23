@@ -194,7 +194,13 @@ export const api = {
   getResumen: (anio, mes) => request(`/resumen?anio=${anio}&mes=${mes}`),
   getResumenCategorias: (anio, mes) =>
     request(`/resumen/categorias?anio=${anio}&mes=${mes}`),
-  getCategorias: () => request("/categorias"),
+  getCategorias: (tipo = "gasto") => request(`/categorias?tipo=${tipo}`),
+  getCategoriasPersonalizadas: (tipo = null) =>
+    request(`/categorias/personalizadas${tipo ? `?tipo=${tipo}` : ""}`),
+  crearCategoriaPersonalizada: (datos) =>
+    request("/categorias/personalizadas", { method: "POST", body: JSON.stringify(datos) }),
+  eliminarCategoriaPersonalizada: (id) =>
+    request(`/categorias/personalizadas/${id}`, { method: "DELETE" }),
   getResumenCategoriasGrupo: (grupoId, anio, mes) =>
     request(`/grupos/${grupoId}/resumen-categorias?anio=${anio}&mes=${mes}`),
   crearGasto: (gasto) =>

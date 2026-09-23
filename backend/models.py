@@ -17,6 +17,19 @@ class Usuario(Base):
     tarjetas = relationship("Tarjeta", back_populates="usuario", cascade="all, delete-orphan")
 
 
+
+
+class CategoriaPersonalizada(Base):
+    __tablename__ = "categorias_personalizadas"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False, index=True)
+    nombre = Column(String(50), nullable=False)
+    tipo = Column(String(10), nullable=False, default="gasto")  # gasto | ingreso
+    creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    usuario = relationship("Usuario")
+
 class Tarjeta(Base):
     __tablename__ = "tarjetas"
 

@@ -77,6 +77,46 @@ def enviar_email_reset(destinatario: str, nombre: str, token: str) -> bool:
         print(f"✗ Error enviando email: {e}")
         return False
 
+
+
+def enviar_email_recurrentes_procesadas(usuario: models.Usuario, fecha: date, procesadas: list[dict]) -> bool:
+    """Notifica por email cuando se crean transacciones recurrentes."""
+    if not RESEND_API_KEY or not procesadas or os.getenv("NOTIFY_RECURRENTES_EMAIL", "true").lower() != "true":
+        return False
+
+    filas = "".join(
+        f"<tr><td style='padding:8px;border-bottom:1px solid #eee'>{p['recurrente']}</td>"
+        f"<td style='padding:8px;border-bottom:1px solid #eee'>{p['pago']}</td>"
+        f"<td style='padding:8px;border-bottom:1px solid #eee'>${p['monto']:.2f}</td>"
+        f"<td style='padding:8px;border-bottom:1px solid #eee'>{p['tipo']}</td></tr>"
+        for p in procesadas
+    )
+    html = f"""
+    <div style="font-family:Arial,sans-serif;max-width:620px;margin:auto;padding:24px;color:#222">
+      <h2 style="margin-bottom:4px">Recurrentes procesadas</h2>
+      <p style="color:#666">Hola {usuario.nombre}, estas transacciones recurrentes se registraron el {fecha.strftime('%d/%m/%Y')}.</p>
+      <table style="width:100%;border-collapse:collapse;font-size:14px">
+        <thead><tr style="text-align:left;background:#f7f7f7">
+          <th style="padding:8px">Recurrente</th><th style="padding:8px">Pago</th>
+          <th style="padding:8px">Monto</th><th style="padding:8px">Tipo</th>
+        </tr></thead>
+        <tbody>{filas}</tbody>
+      </table>
+      <p style="font-size:12px;color:#999;margin-top:24px">Control de gastos</p>
+    </div>
+    """
+    try:
+        resend.Emails.send({
+            "from": FROM_EMAIL,
+            "to": [usuario.email],
+            "subject": f"Recurrentes procesadas · {fecha.strftime('%d/%m/%Y')}",
+            "html": html,
+        })
+        return True
+    except Exception as e:
+        print(f"✗ Error enviando notificación de recurrentes a {usuario.email}: {e}")
+        return False
+
 app = FastAPI(title="API Finanzas Personales")
 
 
@@ -720,6 +760,7 @@ def crear_pago_tarjeta(
     if tarjeta.tipo == "debito":
         raise HTTPException(status_code=400, detail="Las tarjetas de débito no se pagan")
 
+    _validar_categoria_usuario(db, usuario, datos.categoria, "ingreso")
     cuenta = (
         db.query(models.Cuenta)
         .filter(models.Cuenta.id == datos.cuenta_id, models.Cuenta.usuario_id == usuario.id)
@@ -861,6 +902,7 @@ def actualizar_ingreso(
     if not ingreso:
         raise HTTPException(status_code=404, detail="Ingreso no encontrado")
 
+    _validar_categoria_usuario(db, usuario, payload.categoria, "ingreso")
     if payload.cuenta_id is not None:
         cuenta = (
             db.query(models.Cuenta)
@@ -923,8 +965,11 @@ def resumen_ingresos(
 
 
 @app.get("/api/categorias-ingreso", response_model=schemas.CategoriasDisponibles)
-def listar_categorias_ingreso():
-    return schemas.CategoriasDisponibles(categorias=schemas.CATEGORIAS_INGRESO)
+def listar_categorias_ingreso(
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    return schemas.CategoriasDisponibles(categorias=_categorias_disponibles(db, usuario, "ingreso"))
 
 
 # ============================================================
@@ -1256,6 +1301,7 @@ def crear_gasto(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
+    _validar_categoria_usuario(db, usuario, gasto.categoria, "gasto")
     tarjeta = tarjeta_del_usuario(db, gasto.tarjeta_id, usuario)
 
     # Si es tarjeta de débito, validar saldo de la cuenta asociada
@@ -1294,6 +1340,7 @@ def actualizar_gasto(
     if not gasto:
         raise HTTPException(status_code=404, detail="Gasto no encontrado")
 
+    _validar_categoria_usuario(db, usuario, payload.categoria, "gasto")
     if payload.tarjeta_id is not None and payload.tarjeta_id != gasto.tarjeta_id:
         tarjeta_del_usuario(db, payload.tarjeta_id, usuario)
         gasto.tarjeta_id = payload.tarjeta_id
@@ -1980,9 +2027,97 @@ def eliminar_nota(
 # CATEGORÍAS Y RESÚMENES
 # ============================================================
 
+def _categorias_disponibles(db: Session, usuario: models.Usuario, tipo: str = "gasto") -> list[str]:
+    base = schemas.CATEGORIAS_VALIDAS if tipo == "gasto" else schemas.CATEGORIAS_INGRESO
+    custom = (
+        db.query(models.CategoriaPersonalizada.nombre)
+        .filter(
+            models.CategoriaPersonalizada.usuario_id == usuario.id,
+            models.CategoriaPersonalizada.tipo == tipo,
+        )
+        .order_by(models.CategoriaPersonalizada.nombre.asc())
+        .all()
+    )
+    return list(base) + [nombre for (nombre,) in custom if nombre not in base]
+
+
+def _validar_categoria_usuario(
+    db: Session, usuario: models.Usuario, categoria: str | None, tipo: str
+):
+    if categoria is None or not categoria.strip():
+        return
+    disponibles = _categorias_disponibles(db, usuario, tipo)
+    if categoria not in disponibles:
+        raise HTTPException(status_code=400, detail="La categoría seleccionada no es válida")
+
+
 @app.get("/api/categorias", response_model=schemas.CategoriasDisponibles)
-def listar_categorias():
-    return schemas.CategoriasDisponibles(categorias=schemas.CATEGORIAS_VALIDAS)
+def listar_categorias(
+    tipo: str = "gasto",
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    if tipo not in {"gasto", "ingreso"}:
+        raise HTTPException(status_code=400, detail="Tipo de categoría inválido")
+    return schemas.CategoriasDisponibles(categorias=_categorias_disponibles(db, usuario, tipo))
+
+
+@app.get("/api/categorias/personalizadas", response_model=list[schemas.CategoriaPersonalizadaOut])
+def listar_categorias_personalizadas(
+    tipo: str | None = None,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    q = db.query(models.CategoriaPersonalizada).filter(
+        models.CategoriaPersonalizada.usuario_id == usuario.id
+    )
+    if tipo:
+        if tipo not in {"gasto", "ingreso"}:
+            raise HTTPException(status_code=400, detail="Tipo de categoría inválido")
+        q = q.filter(models.CategoriaPersonalizada.tipo == tipo)
+    return q.order_by(models.CategoriaPersonalizada.tipo, models.CategoriaPersonalizada.nombre).all()
+
+
+@app.post("/api/categorias/personalizadas", response_model=schemas.CategoriaPersonalizadaOut)
+def crear_categoria_personalizada(
+    datos: schemas.CategoriaPersonalizadaCreate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    nombre = datos.nombre.strip()
+    base = schemas.CATEGORIAS_VALIDAS if datos.tipo == "gasto" else schemas.CATEGORIAS_INGRESO
+    if nombre in base:
+        raise HTTPException(status_code=400, detail="Esa categoría ya existe en las categorías predeterminadas")
+    existe = db.query(models.CategoriaPersonalizada).filter(
+        models.CategoriaPersonalizada.usuario_id == usuario.id,
+        models.CategoriaPersonalizada.tipo == datos.tipo,
+        models.CategoriaPersonalizada.nombre.ilike(nombre),
+    ).first()
+    if existe:
+        raise HTTPException(status_code=400, detail="Ya tienes una categoría con ese nombre")
+    nueva = models.CategoriaPersonalizada(
+        usuario_id=usuario.id, nombre=nombre, tipo=datos.tipo
+    )
+    db.add(nueva)
+    db.commit()
+    db.refresh(nueva)
+    return nueva
+
+
+@app.delete("/api/categorias/personalizadas/{categoria_id}", status_code=204)
+def eliminar_categoria_personalizada(
+    categoria_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    categoria = db.query(models.CategoriaPersonalizada).filter(
+        models.CategoriaPersonalizada.id == categoria_id,
+        models.CategoriaPersonalizada.usuario_id == usuario.id,
+    ).first()
+    if not categoria:
+        raise HTTPException(status_code=404, detail="Categoría no encontrada")
+    db.delete(categoria)
+    db.commit()
 
 
 @app.get("/api/resumen/categorias", response_model=list[schemas.ResumenCategoria])
@@ -3135,6 +3270,7 @@ def crear_recurrente(
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
     # Validar según el tipo
+    _validar_categoria_usuario(db, usuario, datos.categoria, "ingreso" if datos.tipo == "ingreso" else "gasto")
     if datos.tipo == "ingreso":
         if not datos.cuenta_id:
             raise HTTPException(status_code=400, detail="Los ingresos necesitan una cuenta")
@@ -3214,6 +3350,7 @@ def actualizar_recurrente(
 ):
     rec = _recurrente_del_usuario(db, rec_id, usuario)
 
+    _validar_categoria_usuario(db, usuario, payload.categoria, "gasto" if rec.tipo != "ingreso" else "ingreso")
     if payload.nombre is not None:
         rec.nombre = payload.nombre.strip()
     if payload.monto_total is not None:
@@ -3409,12 +3546,14 @@ def procesar_recurrentes(
     hoy = fecha or date.today()
     resultado = _procesar_recurrentes_de_usuario(db, usuario, hoy)
     db.commit()
+    email_enviado = enviar_email_recurrentes_procesadas(usuario, hoy, resultado["procesadas"])
 
     return {
         "fecha": hoy.isoformat(),
         "procesadas": resultado["procesadas"],
         "cantidad": len(resultado["procesadas"]),
         "errores": resultado["errores"],
+        "email_enviado": email_enviado,
     }
 
 
@@ -3454,6 +3593,8 @@ def procesar_recurrentes_todos(
                     resumen["transacciones_creadas"] += len(resultado["procesadas"])
                 for err in resultado["errores"]:
                     resumen["errores"].append(f"{usuario.email}: {err}")
+                if resultado["procesadas"]:
+                    enviar_email_recurrentes_procesadas(usuario, hoy, resultado["procesadas"])
             except Exception as e:
                 resumen["errores"].append(f"{usuario.email}: {str(e)}")
                 continue

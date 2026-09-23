@@ -148,12 +148,6 @@ class GastoBase(BaseModel):
     descripcion: str | None = Field(default=None, max_length=150)
     categoria: str | None = Field(default=None, max_length=50)
 
-    @field_validator("categoria")
-    @classmethod
-    def _categoria_valida(cls, v):
-        if v is not None and v not in CATEGORIAS_VALIDAS:
-            raise ValueError("la categoría no es válida")
-        return v
 
 
 class GastoCreate(GastoBase):
@@ -177,12 +171,6 @@ class GastoUpdate(BaseModel):
             return v
         return _validar_fecha(v)
 
-    @field_validator("categoria")
-    @classmethod
-    def _categoria_valida(cls, v):
-        if v is not None and v not in CATEGORIAS_VALIDAS:
-            raise ValueError("la categoría no es válida")
-        return v
 
 
 class Gasto(GastoBase):
@@ -221,6 +209,31 @@ class ResumenCategoria(BaseModel):
 
 class CategoriasDisponibles(BaseModel):
     categorias: list[str]
+
+
+class CategoriaPersonalizadaCreate(BaseModel):
+    nombre: str = Field(min_length=1, max_length=50)
+    tipo: str = Field(default="gasto", max_length=10)
+
+    @field_validator("nombre")
+    @classmethod
+    def _nombre_valido(cls, v):
+        return _validar_texto_no_vacio(v)
+
+    @field_validator("tipo")
+    @classmethod
+    def _tipo_valido(cls, v):
+        if v not in {"gasto", "ingreso"}:
+            raise ValueError("el tipo debe ser gasto o ingreso")
+        return v
+
+
+class CategoriaPersonalizadaOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    nombre: str
+    tipo: str
+    creado_en: datetime | None = None
 
 
 class GrupoCreate(BaseModel):
@@ -263,12 +276,6 @@ class GastoCompartidoCreate(BaseModel):
     def _fecha_valida(cls, v):
         return _validar_fecha(v)
 
-    @field_validator("categoria")
-    @classmethod
-    def _categoria_valida(cls, v):
-        if v is not None and v not in CATEGORIAS_VALIDAS:
-            raise ValueError("la categoría no es válida")
-        return v
 
     @field_validator("divisiones")
     @classmethod
@@ -297,12 +304,6 @@ class GastoCompartidoUpdate(BaseModel):
             return v
         return _validar_fecha(v)
 
-    @field_validator("categoria")
-    @classmethod
-    def _categoria_valida(cls, v):
-        if v is not None and v not in CATEGORIAS_VALIDAS:
-            raise ValueError("la categoría no es válida")
-        return v
 
 
 class GastoCompartidoOut(BaseModel):
@@ -450,12 +451,6 @@ class IngresoBase(BaseModel):
     def _fecha_valida(cls, v):
         return _validar_fecha(v)
 
-    @field_validator("categoria")
-    @classmethod
-    def _categoria_valida(cls, v):
-        if v is not None and v not in CATEGORIAS_INGRESO:
-            raise ValueError("la categoría no es válida")
-        return v
 
 
 class IngresoCreate(IngresoBase):
@@ -476,12 +471,6 @@ class IngresoUpdate(BaseModel):
             return v
         return _validar_fecha(v)
 
-    @field_validator("categoria")
-    @classmethod
-    def _categoria_valida(cls, v):
-        if v is not None and v not in CATEGORIAS_INGRESO:
-            raise ValueError("la categoría no es válida")
-        return v
 
 
 class IngresoOut(BaseModel):
@@ -741,12 +730,6 @@ class EgresoCuentaCreate(BaseModel):
     def _fecha_valida(cls, v):
         return _validar_fecha(v)
 
-    @field_validator("categoria")
-    @classmethod
-    def _categoria_valida(cls, v):
-        if v is not None and v not in CATEGORIAS_VALIDAS:
-            raise ValueError("la categoría no es válida")
-        return v
 
 
 class EgresoCuentaUpdate(BaseModel):
@@ -763,12 +746,6 @@ class EgresoCuentaUpdate(BaseModel):
             return v
         return _validar_fecha(v)
 
-    @field_validator("categoria")
-    @classmethod
-    def _categoria_valida(cls, v):
-        if v is not None and v not in CATEGORIAS_VALIDAS:
-            raise ValueError("la categoría no es válida")
-        return v
 
 
 class EgresoCuentaOut(BaseModel):
@@ -834,12 +811,6 @@ class TransaccionRecurrenteBase(BaseModel):
             raise ValueError("frecuencia inválida")
         return v
 
-    @field_validator("categoria")
-    @classmethod
-    def _categoria_valida(cls, v):
-        if v is not None and v not in CATEGORIAS_VALIDAS:
-            raise ValueError("la categoría no es válida")
-        return v
 
     @field_validator("fecha_inicio")
     @classmethod

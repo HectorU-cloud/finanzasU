@@ -57,3 +57,13 @@ App de finanzas personales y familiares con soporte para cuentas, ingresos, tarj
 ```bash
 git clone https://github.com/HectorU-cloud/finanzasU.git
 cd finanzasU
+
+## Nuevas funciones
+
+### Notificaciones de recurrentes por email
+Cuando una recurrente crea una o más transacciones, el backend puede enviar un resumen al correo del usuario mediante Resend. Configura `RESEND_API_KEY`, `FROM_EMAIL`, `FRONTEND_URL` y `NOTIFY_RECURRENTES_EMAIL=true` en el backend.
+
+### Categorías personalizadas
+Cada usuario puede crear y eliminar sus propias categorías de gastos e ingresos desde **Perfil → Mis categorías**. Las categorías predeterminadas siguen disponibles y las personalizadas se incluyen automáticamente en los formularios y recurrentes.
+
+Después de desplegar esta versión, ejecuta las migraciones de Alembic para crear `categorias_personalizadas`.
