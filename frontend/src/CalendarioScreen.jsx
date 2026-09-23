@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight, TrendingUp, TrendingDown, Scale } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Scale, X } from "lucide-react";
 import { api } from "./api.js";
 import { SkeletonList } from "./Skeleton.jsx";
 import EmptyState from "./EmptyState.jsx";
@@ -24,6 +24,7 @@ export default function CalendarioScreen({ onVolver }) {
   const [data, setData] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
+  const [diaSeleccionado, setDiaSeleccionado] = useState(null);
 
   useEffect(() => {
     setCargando(true);
@@ -152,14 +153,12 @@ export default function CalendarioScreen({ onVolver }) {
 
           {/* Grid del calendario */}
           <div className="grid grid-cols-7 gap-1">
-            {/* Celdas vacías al inicio */}
             {Array.from({ length: primerDiaSemana }).map((_, i) => (
               <div key={`empty-${i}`} />
             ))}
 
-            {/* Días del mes */}
             {data.dias.map((d) => (
-              <DiaCelda key={d.dia} dia={d} />
+              <DiaCelda key={d.dia} dia={d} onClick={() => setDiaSeleccionado(d)} />
             ))}
           </div>
 
@@ -197,11 +196,21 @@ export default function CalendarioScreen({ onVolver }) {
           </div>
         </>
       )}
+
+      {/* Modal de detalle del día */}
+      {diaSeleccionado && (
+        <DetalleDia
+          dia={diaSeleccionado}
+          nombreMes={data?.nombre_mes}
+          anio={periodo.anio}
+          onCerrar={() => setDiaSeleccionado(null)}
+        />
+      )}
     </div>
   );
 }
 
-function DiaCelda({ dia }) {
+function DiaCelda({ dia, onClick }) {
   const tieneMovs = dia.movimientos.length > 0;
 
   // Tomar hasta 4 colores únicos
@@ -213,8 +222,9 @@ function DiaCelda({ dia }) {
   }
 
   return (
-    <div
-      className={`aspect-square rounded-lg p-1 flex flex-col items-center justify-start text-[10px] relative transition-all ${
+    <button
+      onClick={onClick}
+      className={`aspect-square rounded-lg p-1 flex flex-col items-center justify-start text-[10px] relative transition-all active:scale-95 ${
         dia.es_hoy ? "ring-2 ring-coral font-bold" : ""
       }`}
       style={{
@@ -229,7 +239,7 @@ function DiaCelda({ dia }) {
       title={
         tieneMovs
           ? dia.movimientos.map((m) => m.titulo).join(", ")
-          : undefined
+          : `Ver ${dia.dia}`
       }
     >
       <span
@@ -253,6 +263,184 @@ function DiaCelda({ dia }) {
           ))}
         </div>
       )}
+    </button>
+  );
+}
+
+function DetalleDia({ dia, nombreMes, anio, onCerrar }) {
+  // Agrupar movimientos por categoría visual
+  const grupos = {
+    ingreso: [],
+    gasto: [],
+    pago_tarjeta: [],
+    pote: [],
+    abono_deuda: [],
+    recurrente_ingreso: [],
+    recurrente_gasto: [],
+  };
+
+  dia.movimientos.forEach((m) => {
+    const cat = m.categoria_visual;
+    if (grupos[cat]) {
+      grupos[cat].push(m);
+    } else {
+      grupos.gasto.push(m);
+    }
+  });
+
+  const tituloSeccion = {
+    ingreso: "Ingresos",
+    gasto: "Gastos",
+    pago_tarjeta: "Pagos de tarjeta",
+    pote: "Movimientos de pote",
+    abono_deuda: "Deudas",
+    recurrente_ingreso: "Recurrentes próximas (ingreso)",
+    recurrente_gasto: "Recurrentes próximas (gasto)",
+  };
+
+  const colorSeccion = {
+    ingreso: "text-emerald-600",
+    gasto: "text-coral",
+    pago_tarjeta: "text-blue-600",
+    pote: "text-purple-600",
+    abono_deuda: "text-orange-500",
+    recurrente_ingreso: "text-emerald-500",
+    recurrente_gasto: "text-amber-500",
+  };
+
+  return (
+    <div
+      className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      onClick={onCerrar}
+    >
+      <div
+        className="rounded-t-3xl sm:rounded-3xl p-6 w-full max-w-md shadow-2xl max-h-[85vh] overflow-y-auto"
+        style={{ background: "var(--surface)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header del modal */}
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <p className="text-xs text-gray-500 uppercase tracking-wider">
+              {nombreMes} {anio}
+            </p>
+            <h3 className="text-2xl font-bold text-carbon">
+              {dia.dia} {nombreMes?.toLowerCase()}
+            </h3>
+          </div>
+          <button
+            onClick={onCerrar}
+            className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500 shrink-0"
+          >
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Si no hay movimientos */}
+        {dia.movimientos.length === 0 ? (
+          <div className="text-center py-10">
+            <p className="text-4xl mb-3">📭</p>
+            <p className="text-sm text-gray-500">
+              Sin movimientos este día
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Secciones */}
+            <div className="space-y-5">
+              {Object.keys(grupos).map((cat) => {
+                const lista = grupos[cat];
+                if (lista.length === 0) return null;
+
+                return (
+                  <div key={cat}>
+                    <p
+                      className={`text-[10px] font-bold uppercase tracking-wider mb-2 ${colorSeccion[cat]}`}
+                    >
+                      {tituloSeccion[cat]}
+                    </p>
+                    <div className="space-y-1.5">
+                      {lista.map((m, i) => (
+                        <div
+                          key={`${m.referencia_id}-${i}`}
+                          className="flex items-start gap-3 rounded-xl p-3"
+                          style={{
+                            background: "var(--surface-alt)",
+                            opacity: m.tipo === "recurrente_proximo" ? 0.85 : 1,
+                          }}
+                        >
+                          <div
+                            className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${
+                              COLORES[m.color] || "bg-gray-400"
+                            }`}
+                          />
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium text-carbon truncate">
+                              {m.titulo}
+                            </p>
+                            {m.descripcion && (
+                              <p className="text-[11px] text-gray-500 truncate">
+                                {m.descripcion}
+                              </p>
+                            )}
+                            {m.tipo === "recurrente_proximo" && (
+                              <p className="text-[10px] text-amber-500 font-semibold mt-0.5">
+                                Próximo a ejecutarse
+                              </p>
+                            )}
+                          </div>
+                          <p
+                            className={`text-sm font-bold whitespace-nowrap ${
+                              m.monto >= 0 ? "text-emerald-600" : "text-coral"
+                            }`}
+                          >
+                            {m.monto >= 0 ? "+" : ""}$
+                            {Number(m.monto).toFixed(2)}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Balance del día */}
+            <div
+              className="mt-5 pt-4 flex items-center justify-between"
+              style={{ borderTop: "2px solid var(--border)" }}
+            >
+              <span className="text-sm font-semibold text-carbon">
+                Balance del día
+              </span>
+              <span
+                className={`text-2xl font-bold ${
+                  dia.balance >= 0 ? "text-emerald-600" : "text-coral"
+                }`}
+              >
+                {dia.balance >= 0 ? "+" : ""}$
+                {Number(dia.balance).toFixed(2)}
+              </span>
+            </div>
+
+            {/* Totales ingresos/gastos */}
+            <div className="mt-3 flex justify-between text-xs text-gray-500">
+              <span>
+                Ingresos:{" "}
+                <span className="text-emerald-600 font-semibold">
+                  +${Number(dia.total_ingresos).toFixed(2)}
+                </span>
+              </span>
+              <span>
+                Gastos:{" "}
+                <span className="text-coral font-semibold">
+                  -${Number(dia.total_gastos).toFixed(2)}
+                </span>
+              </span>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   );
 }
