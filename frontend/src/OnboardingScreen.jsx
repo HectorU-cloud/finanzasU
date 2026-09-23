@@ -1,17 +1,20 @@
 import { useState } from "react";
-import { Wallet, Sparkles, CheckCircle2, ChevronRight, SkipForward, Plus, ArrowLeft } from "lucide-react";
+import { Wallet, Sparkles, CheckCircle2, ChevronRight, SkipForward, Plus, ArrowLeft, CreditCard } from "lucide-react";
 import CuentaModal from "./CuentaModal.jsx";
+import TarjetasPanel from "./TarjetasPanel.jsx";
 
 export default function OnboardingScreen({ usuario, onCompletado }) {
   const [paso, setPaso] = useState(0);
   const [modalCuenta, setModalCuenta] = useState(false);
   const [cuentaCreada, setCuentaCreada] = useState(false);
+  const [tarjetaCreada, setTarjetaCreada] = useState(false);
 
-  const totalPasos = 3;
+  const totalPasos = 4;
 
   const siguiente = () => setPaso((p) => Math.min(p + 1, totalPasos - 1));
   const anterior = () => setPaso((p) => Math.max(p - 1, 0));
   const saltar = () => onCompletado();
+  const saltarPaso = () => siguiente();
 
   return (
     <div className="min-h-screen flex flex-col" style={{ background: "var(--bg)" }}>
@@ -32,7 +35,7 @@ export default function OnboardingScreen({ usuario, onCompletado }) {
             onClick={saltar}
             className="text-xs text-gray-500 hover:text-carbon flex items-center gap-1"
           >
-            Saltar <SkipForward size={12} />
+            Saltar todo <SkipForward size={12} />
           </button>
         </div>
 
@@ -58,11 +61,17 @@ export default function OnboardingScreen({ usuario, onCompletado }) {
             onAbrirModal={() => setModalCuenta(true)}
           />
         )}
-        {paso === 2 && <PasoListo cuentaCreada={cuentaCreada} />}
+        {paso === 2 && (
+          <PasoCrearTarjeta
+            tarjetaCreada={tarjetaCreada}
+            onChange={() => setTarjetaCreada(true)}
+          />
+        )}
+        {paso === 3 && <PasoListo cuentaCreada={cuentaCreada} tarjetaCreada={tarjetaCreada} />}
       </div>
 
-      {/* Botón inferior */}
-      <div className="max-w-md mx-auto w-full px-6 pb-8">
+      {/* Botones inferiores */}
+      <div className="max-w-md mx-auto w-full px-6 pb-8 space-y-2">
         <button
           onClick={paso === totalPasos - 1 ? onCompletado : siguiente}
           className="w-full py-3.5 rounded-2xl bg-coral text-white font-semibold flex items-center justify-center gap-2 hover:bg-coral-dark transition-colors shadow-lg shadow-coral/30"
@@ -70,6 +79,16 @@ export default function OnboardingScreen({ usuario, onCompletado }) {
           {paso === totalPasos - 1 ? "Ir a la app" : "Siguiente"}
           <ChevronRight size={18} />
         </button>
+
+        {/* Botón "Saltar paso" en los pasos opcionales */}
+        {(paso === 1 && !cuentaCreada) || (paso === 2 && !tarjetaCreada) ? (
+          <button
+            onClick={saltarPaso}
+            className="w-full py-2.5 text-xs text-gray-500 hover:text-carbon transition-colors"
+          >
+            Saltar este paso por ahora
+          </button>
+        ) : null}
       </div>
 
       {/* Modal para crear cuenta */}
@@ -101,7 +120,7 @@ function PasoBienvenida({ usuario }) {
         Te vamos a acompañar a configurar tu app en menos de 2 minutos.
       </p>
       <p className="text-sm text-gray-400">
-        Solo son 3 pasos rápidos. ¡Vamos!
+        Solo son 4 pasos rápidos. ¡Vamos!
       </p>
     </div>
   );
@@ -142,7 +161,45 @@ function PasoCrearCuenta({ cuentaCreada, onAbrirModal }) {
   );
 }
 
-function PasoListo({ cuentaCreada }) {
+function PasoCrearTarjeta({ tarjetaCreada, onChange }) {
+  return (
+    <div className="animate-toast">
+      <div className="text-center mb-6">
+        <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center shadow-2xl shadow-blue-500/40 mb-6">
+          <CreditCard size={44} className="text-white" />
+        </div>
+        <h1 className="text-2xl font-bold text-carbon mb-3">
+          {tarjetaCreada ? "¡Tarjeta agregada!" : "¿Tienes alguna tarjeta?"}
+        </h1>
+        <p className="text-base text-gray-600 max-w-xs mx-auto">
+          {tarjetaCreada
+            ? "Ya puedes registrar tus gastos en ella."
+            : "Crédito o débito. Puedes agregar más después desde la app."}
+        </p>
+      </div>
+
+      {!tarjetaCreada && (
+        <div className="bg-white rounded-2xl p-4 shadow-sm" style={{ border: "1px solid var(--border)" }}>
+          <TarjetasPanel
+            tarjetas={[]}
+            onChange={onChange}
+            abierto={true}
+            onToggle={() => {}}
+          />
+        </div>
+      )}
+
+      {tarjetaCreada && (
+        <div className="flex items-center justify-center gap-2 text-emerald-600 font-semibold">
+          <CheckCircle2 size={20} />
+          <span>¡Perfecto!</span>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function PasoListo({ cuentaCreada, tarjetaCreada }) {
   return (
     <div className="text-center animate-toast">
       <div className="w-24 h-24 mx-auto rounded-full bg-gradient-to-br from-emerald-500 to-teal-600 flex items-center justify-center shadow-2xl shadow-emerald-500/40 mb-6">
@@ -155,13 +212,18 @@ function PasoListo({ cuentaCreada }) {
         Ya puedes empezar a registrar tus gastos, ingresos y organizar tus finanzas.
       </p>
 
-      {cuentaCreada && (
-        <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-4 max-w-xs mx-auto">
-          <p className="text-sm text-emerald-700">
-            ✅ Tu primera cuenta está configurada
-          </p>
-        </div>
-      )}
+      <div className="space-y-2 max-w-xs mx-auto">
+        {cuentaCreada && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3">
+            <p className="text-sm text-emerald-700">✅ Cuenta configurada</p>
+          </div>
+        )}
+        {tarjetaCreada && (
+          <div className="bg-emerald-50 border border-emerald-200 rounded-2xl p-3">
+            <p className="text-sm text-emerald-700">✅ Tarjeta configurada</p>
+          </div>
+        )}
+      </div>
 
       <p className="text-xs text-gray-400 mt-6">
         Puedes cambiar estos datos en cualquier momento desde la app
