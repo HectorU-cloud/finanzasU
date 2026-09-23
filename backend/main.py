@@ -3385,6 +3385,32 @@ def _ultimo_dia_mes(anio: int, mes: int) -> int:
     """Devuelve el último día del mes."""
     return calendar.monthrange(anio, mes)[1]
 
+def _pago_fechas_en_mes(
+    pago: models.RecurrentePago,
+    rec: models.TransaccionRecurrente,
+    anio: int,
+    mes: int,
+) -> list[date]:
+    """Devuelve las fechas del mes en las que el pago se dispara."""
+    fechas = []
+    ultimo_dia = _ultimo_dia_mes(anio, mes)
+
+    if rec.frecuencia == "mensual":
+        if pago.dia_del_mes == 0:
+            dia = ultimo_dia
+        else:
+            dia = min(pago.dia_del_mes, ultimo_dia)
+        fechas.append(date(anio, mes, dia))
+
+    elif rec.frecuencia == "anual":
+        if rec.fecha_inicio.month == mes:
+            if pago.dia_del_mes == 0:
+                dia = ultimo_dia
+            else:
+                dia = min(pago.dia_del_mes, ultimo_dia)
+            fechas.append(date(anio, mes, dia))
+
+    return fechas
 
 def _pago_aplica_hoy(
     pago: models.RecurrentePago,
@@ -3638,3 +3664,227 @@ def historial_recurrente(
         }
         for r in registros
     ]
+# ============================================================
+# CALENDARIO FINANCIERO
+# ============================================================
+
+@app.get("/api/calendario", response_model=schemas.CalendarioMes)
+def obtener_calendario(
+    anio: int | None = None,
+    mes: int | None = None,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """Devuelve todos los movimientos de un mes, agrupados por día."""
+    hoy = date.today()
+    anio = anio or hoy.year
+    mes = mes or hoy.month
+
+    if not (1 <= mes <= 12):
+        raise HTTPException(status_code=400, detail="Mes inválido")
+    if not (2000 <= anio <= 2100):
+        raise HTTPException(status_code=400, detail="Año inválido")
+
+    primer_dia = date(anio, mes, 1)
+    ultimo_dia = date(anio, mes, _ultimo_dia_mes(anio, mes))
+
+    # Diccionario por día
+    por_dia: dict[str, list[dict]] = {}
+
+    def agregar(fecha: date, mov: dict):
+        key = fecha.isoformat()
+        por_dia.setdefault(key, []).append(mov)
+
+    # === 1. Ingresos ===
+    for i in db.query(models.Ingreso).filter(
+        models.Ingreso.usuario_id == usuario.id,
+        models.Ingreso.fecha >= primer_dia,
+        models.Ingreso.fecha <= ultimo_dia,
+    ).all():
+        cuenta = db.query(models.Cuenta).get(i.cuenta_id)
+        agregar(i.fecha, {
+            "tipo": "ingreso",
+            "categoria_visual": "ingreso",
+            "color": "verde",
+            "titulo": i.descripcion or i.categoria or "Ingreso",
+            "descripcion": f"→ {cuenta.nombre}" if cuenta else None,
+            "monto": i.monto,
+            "referencia_id": i.id,
+        })
+
+    # === 2. Gastos de tarjeta ===
+    for g in db.query(models.Gasto).join(models.Tarjeta).filter(
+        models.Tarjeta.usuario_id == usuario.id,
+        models.Gasto.fecha >= primer_dia,
+        models.Gasto.fecha <= ultimo_dia,
+    ).all():
+        tarjeta = g.tarjeta
+        agregar(g.fecha, {
+            "tipo": "gasto",
+            "categoria_visual": "gasto",
+            "color": "rojo",
+            "titulo": g.descripcion or g.categoria or "Gasto",
+            "descripcion": f"→ {tarjeta.nombre}" if tarjeta else None,
+            "monto": -Decimal(g.monto),
+            "referencia_id": g.id,
+        })
+
+    # === 3. Egresos directos de cuenta ===
+    for e in db.query(models.EgresoCuenta).filter(
+        models.EgresoCuenta.usuario_id == usuario.id,
+        models.EgresoCuenta.fecha >= primer_dia,
+        models.EgresoCuenta.fecha <= ultimo_dia,
+    ).all():
+        cuenta = db.query(models.Cuenta).get(e.cuenta_id)
+        agregar(e.fecha, {
+            "tipo": "egreso_cuenta",
+            "categoria_visual": "gasto",
+            "color": "rojo",
+            "titulo": e.descripcion or e.categoria or "Gasto directo",
+            "descripcion": f"→ {cuenta.nombre}" if cuenta else None,
+            "monto": -Decimal(e.monto),
+            "referencia_id": e.id,
+        })
+
+    # === 4. Pagos de tarjeta ===
+    for p in db.query(models.PagoTarjeta).filter(
+        models.PagoTarjeta.usuario_id == usuario.id,
+        models.PagoTarjeta.fecha_pago >= primer_dia,
+        models.PagoTarjeta.fecha_pago <= ultimo_dia,
+    ).all():
+        tarjeta = db.query(models.Tarjeta).get(p.tarjeta_id)
+        agregar(p.fecha_pago, {
+            "tipo": "pago_tarjeta",
+            "categoria_visual": "pago_tarjeta",
+            "color": "azul",
+            "titulo": f"Pago a {tarjeta.nombre if tarjeta else 'tarjeta'}",
+            "descripcion": f"Cierre {p.mes_cerrado}/{p.anio_cerrado}",
+            "monto": -Decimal(p.monto),
+            "referencia_id": p.id,
+        })
+
+    # === 5. Movimientos de pote ===
+    potes = db.query(models.Pote).filter(models.Pote.usuario_id == usuario.id).all()
+    pote_ids = [p.id for p in potes]
+    if pote_ids:
+        for mp in db.query(models.MovimientoPote).filter(
+            models.MovimientoPote.pote_id.in_(pote_ids),
+            models.MovimientoPote.fecha >= primer_dia,
+            models.MovimientoPote.fecha <= ultimo_dia,
+        ).all():
+            pote = next((p for p in potes if p.id == mp.pote_id), None)
+            es_dep = Decimal(mp.monto) > 0
+            agregar(mp.fecha, {
+                "tipo": "deposito_pote" if es_dep else "retiro_pote",
+                "categoria_visual": "pote",
+                "color": "morado",
+                "titulo": f"{'Depósito' if es_dep else 'Retiro'} {pote.emoji} {pote.nombre}" if pote else "Movimiento pote",
+                "descripcion": mp.descripcion,
+                "monto": -Decimal(mp.monto),
+                "referencia_id": mp.id,
+            })
+
+    # === 6. Abonos de deuda ===
+    for abono, deuda in db.query(models.AbonoDeuda, models.Deuda).join(
+        models.Deuda, models.AbonoDeuda.deuda_id == models.Deuda.id
+    ).filter(
+        models.Deuda.usuario_id == usuario.id,
+        models.AbonoDeuda.fecha >= primer_dia,
+        models.AbonoDeuda.fecha <= ultimo_dia,
+    ).all():
+        es_salida = deuda.tipo == "debo"
+        agregar(abono.fecha, {
+            "tipo": "abono_deuda",
+            "categoria_visual": "abono_deuda",
+            "color": "naranja",
+            "titulo": f"{'Abono a' if es_salida else 'Cobro de'} {deuda.persona}",
+            "descripcion": abono.nota,
+            "monto": -Decimal(abono.monto) if es_salida else Decimal(abono.monto),
+            "referencia_id": abono.id,
+        })
+
+    # === 7. Recurrentes futuras (no procesadas) ===
+    recurrentes = db.query(models.TransaccionRecurrente).filter(
+        models.TransaccionRecurrente.usuario_id == usuario.id,
+        models.TransaccionRecurrente.activa == 1,
+    ).all()
+
+    for rec in recurrentes:
+        if rec.fecha_inicio > ultimo_dia:
+            continue
+        if rec.fecha_fin and rec.fecha_fin < primer_dia:
+            continue
+
+        for pago in rec.pagos:
+            for f in _pago_fechas_en_mes(pago, rec, anio, mes):
+                if f < primer_dia or f > ultimo_dia:
+                    continue
+                if f < rec.fecha_inicio:
+                    continue
+                if rec.fecha_fin and f > rec.fecha_fin:
+                    continue
+
+                # ¿Ya se procesó?
+                procesado = db.query(models.RegistroRecurrente).filter(
+                    models.RegistroRecurrente.recurrente_id == rec.id,
+                    models.RegistroRecurrente.pago_id == pago.id,
+                    extract("year", models.RegistroRecurrente.fecha_procesado) == anio,
+                    extract("month", models.RegistroRecurrente.fecha_procesado) == mes,
+                ).first()
+                if procesado:
+                    continue  # el movimiento real ya está listado
+
+                monto_pago = (
+                    Decimal(rec.monto_total) * Decimal(pago.porcentaje) / Decimal("100")
+                ).quantize(Decimal("0.01"))
+                es_ingreso = rec.tipo == "ingreso"
+
+                agregar(f, {
+                    "tipo": "recurrente_proximo",
+                    "categoria_visual": "recurrente_ingreso" if es_ingreso else "recurrente_gasto",
+                    "color": "amarillo",
+                    "titulo": rec.nombre,
+                    "descripcion": pago.etiqueta or f"Próximo ({pago.porcentaje}%)",
+                    "monto": monto_pago if es_ingreso else -monto_pago,
+                    "referencia_id": rec.id,
+                })
+
+    # === Construir respuesta por día ===
+    dias_lista = []
+    total_ing_mes = Decimal("0")
+    total_gas_mes = Decimal("0")
+
+    for i in range(1, _ultimo_dia_mes(anio, mes) + 1):
+        fecha = date(anio, mes, i)
+        key = fecha.isoformat()
+        movs_dicts = por_dia.get(key, [])
+
+        movs = [schemas.CalendarioMovimiento(**m) for m in movs_dicts]
+
+        total_ing = sum((m.monto for m in movs if m.monto > 0), Decimal("0"))
+        total_gas = sum((m.monto for m in movs if m.monto < 0), Decimal("0"))
+        balance = total_ing + total_gas
+
+        total_ing_mes += total_ing
+        total_gas_mes += total_gas
+
+        dias_lista.append(schemas.CalendarioDia(
+            fecha=fecha,
+            dia=i,
+            es_hoy=(fecha == hoy),
+            es_futuro=(fecha > hoy),
+            movimientos=movs,
+            total_ingresos=total_ing,
+            total_gastos=abs(total_gas),
+            balance=balance,
+        ))
+
+    return schemas.CalendarioMes(
+        anio=anio,
+        mes=mes,
+        nombre_mes=_nombre_mes(mes),
+        dias=dias_lista,
+        total_ingresos=total_ing_mes,
+        total_gastos=abs(total_gas_mes),
+        balance=total_ing_mes + total_gas_mes,
+    )

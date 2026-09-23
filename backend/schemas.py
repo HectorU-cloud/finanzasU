@@ -849,3 +849,37 @@ class TransaccionRecurrenteOut(TransaccionRecurrenteBase):
     @classmethod
     def _activa_bool(cls, v):
         return bool(v)
+
+# ============================================================
+# CALENDARIO FINANCIERO
+# ============================================================
+
+class CalendarioMovimiento(BaseModel):
+    tipo: str
+    categoria_visual: str
+    color: str
+    titulo: str
+    descripcion: str | None = None
+    monto: Decimal
+    referencia_id: int | None = None
+
+
+class CalendarioDia(BaseModel):
+    fecha: date
+    dia: int
+    es_hoy: bool
+    es_futuro: bool
+    movimientos: list[CalendarioMovimiento]
+    total_ingresos: Decimal
+    total_gastos: Decimal
+    balance: Decimal
+
+
+class CalendarioMes(BaseModel):
+    anio: int
+    mes: int
+    nombre_mes: str
+    dias: list[CalendarioDia]
+    total_ingresos: Decimal
+    total_gastos: Decimal
+    balance: Decimal
