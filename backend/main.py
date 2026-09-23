@@ -7,7 +7,7 @@ import resend
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
-from fastapi import FastAPI, Depends, HTTPException, Request
+from fastapi import FastAPI, Depends, HTTPException, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.exceptions import RequestValidationError
@@ -26,6 +26,7 @@ LIMITE_MENSUAL = Decimal("350")
 RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 FROM_EMAIL = os.getenv("FROM_EMAIL", "noreply@vectoraec.app")
+CRON_API_KEY = os.getenv("CRON_API_KEY")
 
 if RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
@@ -3276,17 +3277,12 @@ def _pago_aplica_hoy(
 
     return False
 
-@app.post("/api/recurrentes/procesar")
-def procesar_recurrentes(
-    fecha: date | None = None,
-    db: Session = Depends(get_db),
-    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
-):
-    """
-    Procesa las recurrentes activas del usuario que correspondan a la fecha dada
-    (por defecto, hoy). Crea las transacciones reales y las marca como procesadas.
-    """
-    hoy = fecha or date.today()
+def _procesar_recurrentes_de_usuario(
+    db: Session,
+    usuario: models.Usuario,
+    hoy: date,
+) -> dict:
+    """Procesa las recurrentes de UN usuario. Devuelve el resumen."""
     procesadas = []
     errores = []
 
@@ -3300,7 +3296,6 @@ def procesar_recurrentes(
     )
 
     for rec in recurrentes:
-        # Rango de fechas
         if rec.fecha_inicio > hoy:
             continue
         if rec.fecha_fin and rec.fecha_fin < hoy:
@@ -3310,7 +3305,6 @@ def procesar_recurrentes(
             if not _pago_aplica_hoy(pago, hoy, rec):
                 continue
 
-            # ¿Ya se procesó este pago este mes/año?
             ya_existe = (
                 db.query(models.RegistroRecurrente)
                 .filter(
@@ -3324,7 +3318,6 @@ def procesar_recurrentes(
             if ya_existe:
                 continue
 
-            # Calcular el monto del pago según su porcentaje
             monto_pago = (
                 Decimal(rec.monto_total) * Decimal(pago.porcentaje) / Decimal("100")
             ).quantize(Decimal("0.01"))
@@ -3348,7 +3341,6 @@ def procesar_recurrentes(
                     ingreso_id = nuevo.id
 
                 elif rec.tipo == "gasto_cuenta":
-                    # Validar saldo suficiente
                     cuenta = db.query(models.Cuenta).get(rec.cuenta_id)
                     if cuenta:
                         saldo = _calcular_saldo_cuenta(db, cuenta)
@@ -3383,7 +3375,6 @@ def procesar_recurrentes(
                     db.flush()
                     gasto_id = nuevo.id
 
-                # Registrar el procesamiento
                 registro = models.RegistroRecurrente(
                     recurrente_id=rec.id,
                     pago_id=pago.id,
@@ -3405,14 +3396,70 @@ def procesar_recurrentes(
                 errores.append(f"{rec.nombre}: {str(e)}")
                 continue
 
+    return {"procesadas": procesadas, "errores": errores}
+
+
+@app.post("/api/recurrentes/procesar")
+def procesar_recurrentes(
+    fecha: date | None = None,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """Procesa las recurrentes del usuario actual (para pruebas o desde la app)."""
+    hoy = fecha or date.today()
+    resultado = _procesar_recurrentes_de_usuario(db, usuario, hoy)
     db.commit()
 
     return {
         "fecha": hoy.isoformat(),
-        "procesadas": procesadas,
-        "cantidad": len(procesadas),
-        "errores": errores,
+        "procesadas": resultado["procesadas"],
+        "cantidad": len(resultado["procesadas"]),
+        "errores": resultado["errores"],
     }
+
+
+@app.post("/api/recurrentes/procesar-todos")
+def procesar_recurrentes_todos(
+    x_cron_key: str | None = Header(default=None),
+    fecha: date | None = None,
+    db: Session = Depends(get_db),
+):
+    """
+    Procesa las recurrentes de TODOS los usuarios.
+    Requiere el header X-Cron-Key con la clave secreta.
+    Este endpoint lo llama el cron externo (cron-job.org) 1 vez al día.
+    """
+    if not CRON_API_KEY:
+        raise HTTPException(status_code=500, detail="CRON_API_KEY no configurada")
+
+    if x_cron_key != CRON_API_KEY:
+        raise HTTPException(status_code=403, detail="API key inválida")
+
+    hoy = fecha or date.today()
+    usuarios = db.query(models.Usuario).all()
+
+    resumen = {
+        "fecha": hoy.isoformat(),
+        "usuarios_totales": len(usuarios),
+        "usuarios_con_procesos": 0,
+        "transacciones_creadas": 0,
+        "errores": [],
+    }
+
+    for usuario in usuarios:
+        try:
+            resultado = _procesar_recurrentes_de_usuario(db, usuario, hoy)
+            if resultado["procesadas"]:
+                resumen["usuarios_con_procesos"] += 1
+                resumen["transacciones_creadas"] += len(resultado["procesadas"])
+            for err in resultado["errores"]:
+                resumen["errores"].append(f"{usuario.email}: {err}")
+        except Exception as e:
+            resumen["errores"].append(f"{usuario.email}: {str(e)}")
+            continue
+
+    db.commit()
+    return resumen
 
 @app.get("/api/recurrentes/{rec_id}/historial")
 def historial_recurrente(
