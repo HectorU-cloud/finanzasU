@@ -779,3 +779,102 @@ class EgresoCuentaOut(BaseModel):
     fecha: date
     categoria: str | None
     descripcion: str | None
+
+# ============================================================
+# TRANSACCIONES RECURRENTES
+# ============================================================
+
+TIPOS_RECURRENTE = {"ingreso", "gasto_cuenta", "gasto_tarjeta"}
+FRECUENCIAS_RECURRENTE = {"mensual", "semanal", "anual"}
+
+
+class RecurrentePagoBase(BaseModel):
+    dia_del_mes: int = Field(ge=0, le=31)  # 0 = último día
+    porcentaje: Decimal = Field(gt=0, le=100, decimal_places=2)
+    etiqueta: str | None = Field(default=None, max_length=50)
+
+
+class RecurrentePagoCreate(RecurrentePagoBase):
+    pass
+
+
+class RecurrentePagoOut(RecurrentePagoBase):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+
+
+class TransaccionRecurrenteBase(BaseModel):
+    nombre: str = Field(min_length=1, max_length=80)
+    tipo: str
+    cuenta_id: int | None = None
+    tarjeta_id: int | None = None
+    monto_total: Decimal = Field(gt=0, le=MONTO_MAXIMO, decimal_places=2)
+    frecuencia: str = "mensual"
+    categoria: str | None = Field(default=None, max_length=50)
+    descripcion: str | None = Field(default=None, max_length=150)
+    fecha_inicio: date
+    fecha_fin: date | None = None
+
+    @field_validator("nombre")
+    @classmethod
+    def _nombre_valido(cls, v):
+        return _validar_texto_no_vacio(v)
+
+    @field_validator("tipo")
+    @classmethod
+    def _tipo_valido(cls, v):
+        if v not in TIPOS_RECURRENTE:
+            raise ValueError("tipo inválido")
+        return v
+
+    @field_validator("frecuencia")
+    @classmethod
+    def _frecuencia_valida(cls, v):
+        if v not in FRECUENCIAS_RECURRENTE:
+            raise ValueError("frecuencia inválida")
+        return v
+
+    @field_validator("categoria")
+    @classmethod
+    def _categoria_valida(cls, v):
+        if v is not None and v not in CATEGORIAS_VALIDAS:
+            raise ValueError("la categoría no es válida")
+        return v
+
+    @field_validator("fecha_inicio")
+    @classmethod
+    def _fecha_inicio_valida(cls, v):
+        return _validar_fecha(v)
+
+
+class TransaccionRecurrenteCreate(TransaccionRecurrenteBase):
+    pagos: list[RecurrentePagoCreate]
+
+
+class TransaccionRecurrenteUpdate(BaseModel):
+    nombre: str | None = Field(default=None, max_length=80)
+    monto_total: Decimal | None = Field(default=None, gt=0, le=MONTO_MAXIMO, decimal_places=2)
+    categoria: str | None = Field(default=None, max_length=50)
+    descripcion: str | None = Field(default=None, max_length=150)
+    activa: bool | None = None
+    fecha_fin: date | None = None
+
+    @field_validator("nombre")
+    @classmethod
+    def _nombre_valido(cls, v):
+        if v is None:
+            return v
+        return _validar_texto_no_vacio(v)
+
+
+class TransaccionRecurrenteOut(TransaccionRecurrenteBase):
+    model_config = ConfigDict(from_attributes=True)
+    id: int
+    activa: bool
+    creado_en: datetime | None = None
+    pagos: list[RecurrentePagoOut] = []
+
+    @field_validator("activa", mode="before")
+    @classmethod
+    def _activa_bool(cls, v):
+        return bool(v)

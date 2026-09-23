@@ -3095,3 +3095,348 @@ def obtener_insights(
         })
 
     return {"insights": insights}
+
+# ============================================================
+# TRANSACCIONES RECURRENTES
+# ============================================================
+
+def _recurrente_del_usuario(db: Session, rec_id: int, usuario: models.Usuario) -> models.TransaccionRecurrente:
+    rec = (
+        db.query(models.TransaccionRecurrente)
+        .filter(
+            models.TransaccionRecurrente.id == rec_id,
+            models.TransaccionRecurrente.usuario_id == usuario.id,
+        )
+        .first()
+    )
+    if not rec:
+        raise HTTPException(status_code=404, detail="Recurrente no encontrada")
+    return rec
+
+
+@app.get("/api/recurrentes", response_model=list[schemas.TransaccionRecurrenteOut])
+def listar_recurrentes(
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    return (
+        db.query(models.TransaccionRecurrente)
+        .filter(models.TransaccionRecurrente.usuario_id == usuario.id)
+        .order_by(models.TransaccionRecurrente.creado_en.desc())
+        .all()
+    )
+
+
+@app.post("/api/recurrentes", response_model=schemas.TransaccionRecurrenteOut)
+def crear_recurrente(
+    datos: schemas.TransaccionRecurrenteCreate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    # Validar según el tipo
+    if datos.tipo == "ingreso":
+        if not datos.cuenta_id:
+            raise HTTPException(status_code=400, detail="Los ingresos necesitan una cuenta")
+        cuenta = (
+            db.query(models.Cuenta)
+            .filter(models.Cuenta.id == datos.cuenta_id, models.Cuenta.usuario_id == usuario.id)
+            .first()
+        )
+        if not cuenta:
+            raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+
+    elif datos.tipo == "gasto_cuenta":
+        if not datos.cuenta_id:
+            raise HTTPException(status_code=400, detail="Los gastos de cuenta necesitan una cuenta")
+        cuenta = (
+            db.query(models.Cuenta)
+            .filter(models.Cuenta.id == datos.cuenta_id, models.Cuenta.usuario_id == usuario.id)
+            .first()
+        )
+        if not cuenta:
+            raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+
+    elif datos.tipo == "gasto_tarjeta":
+        if not datos.tarjeta_id:
+            raise HTTPException(status_code=400, detail="Los gastos de tarjeta necesitan una tarjeta")
+        tarjeta = tarjeta_del_usuario(db, datos.tarjeta_id, usuario)
+
+    # Validar los pagos
+    if not datos.pagos:
+        raise HTTPException(status_code=400, detail="Debes agregar al menos un pago")
+    
+    suma_porcentajes = sum((p.porcentaje for p in datos.pagos), Decimal("0"))
+    if abs(suma_porcentajes - Decimal("100")) > Decimal("0.01"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Los porcentajes deben sumar 100%. Actual: {suma_porcentajes}%",
+        )
+
+    # Crear la recurrente
+    nueva = models.TransaccionRecurrente(
+        usuario_id=usuario.id,
+        nombre=datos.nombre.strip(),
+        tipo=datos.tipo,
+        cuenta_id=datos.cuenta_id,
+        tarjeta_id=datos.tarjeta_id,
+        monto_total=datos.monto_total,
+        frecuencia=datos.frecuencia,
+        categoria=datos.categoria,
+        descripcion=datos.descripcion,
+        fecha_inicio=datos.fecha_inicio,
+        fecha_fin=datos.fecha_fin,
+        activa=1,
+    )
+    db.add(nueva)
+    db.flush()
+
+    for p in datos.pagos:
+        pago = models.RecurrentePago(
+            recurrente_id=nueva.id,
+            dia_del_mes=p.dia_del_mes,
+            porcentaje=p.porcentaje,
+            etiqueta=p.etiqueta,
+        )
+        db.add(pago)
+
+    db.commit()
+    db.refresh(nueva)
+    return nueva
+
+
+@app.put("/api/recurrentes/{rec_id}", response_model=schemas.TransaccionRecurrenteOut)
+def actualizar_recurrente(
+    rec_id: int,
+    payload: schemas.TransaccionRecurrenteUpdate,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    rec = _recurrente_del_usuario(db, rec_id, usuario)
+
+    if payload.nombre is not None:
+        rec.nombre = payload.nombre.strip()
+    if payload.monto_total is not None:
+        rec.monto_total = payload.monto_total
+    if payload.categoria is not None:
+        rec.categoria = payload.categoria
+    if payload.descripcion is not None:
+        rec.descripcion = payload.descripcion
+    if payload.activa is not None:
+        rec.activa = 1 if payload.activa else 0
+    if payload.fecha_fin is not None:
+        rec.fecha_fin = payload.fecha_fin
+
+    db.commit()
+    db.refresh(rec)
+    return rec
+
+
+@app.delete("/api/recurrentes/{rec_id}", status_code=204)
+def eliminar_recurrente(
+    rec_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    rec = _recurrente_del_usuario(db, rec_id, usuario)
+    db.delete(rec)
+    db.commit()
+
+
+
+def _ultimo_dia_mes(anio: int, mes: int) -> int:
+    """Devuelve el último día del mes."""
+    return calendar.monthrange(anio, mes)[1]
+
+
+def _pago_aplica_hoy(
+    pago: models.RecurrentePago,
+    hoy: date,
+    rec: models.TransaccionRecurrente,
+) -> bool:
+    """Verifica si un pago específico cae hoy."""
+    if rec.frecuencia == "mensual":
+        # dia_del_mes = 0 significa "último día del mes"
+        if pago.dia_del_mes == 0:
+            return hoy.day == _ultimo_dia_mes(hoy.year, hoy.month)
+
+        ultimo_dia = _ultimo_dia_mes(hoy.year, hoy.month)
+        if pago.dia_del_mes > ultimo_dia:
+            # Si pide día 31 y el mes tiene 30, cae en el último día
+            return hoy.day == ultimo_dia
+        return hoy.day == pago.dia_del_mes
+
+    elif rec.frecuencia == "anual":
+        if hoy.month != rec.fecha_inicio.month:
+            return False
+        if pago.dia_del_mes == 0:
+            return hoy.day == _ultimo_dia_mes(hoy.year, hoy.month)
+        ultimo_dia = _ultimo_dia_mes(hoy.year, hoy.month)
+        dia_valido = min(pago.dia_del_mes, ultimo_dia)
+        return hoy.day == dia_valido
+
+    return False
+
+@app.post("/api/recurrentes/procesar")
+def procesar_recurrentes(
+    fecha: date | None = None,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """
+    Procesa las recurrentes activas del usuario que correspondan a la fecha dada
+    (por defecto, hoy). Crea las transacciones reales y las marca como procesadas.
+    """
+    hoy = fecha or date.today()
+    procesadas = []
+    errores = []
+
+    recurrentes = (
+        db.query(models.TransaccionRecurrente)
+        .filter(
+            models.TransaccionRecurrente.usuario_id == usuario.id,
+            models.TransaccionRecurrente.activa == 1,
+        )
+        .all()
+    )
+
+    for rec in recurrentes:
+        # Rango de fechas
+        if rec.fecha_inicio > hoy:
+            continue
+        if rec.fecha_fin and rec.fecha_fin < hoy:
+            continue
+
+        for pago in rec.pagos:
+            if not _pago_aplica_hoy(pago, hoy, rec):
+                continue
+
+            # ¿Ya se procesó este pago este mes/año?
+            ya_existe = (
+                db.query(models.RegistroRecurrente)
+                .filter(
+                    models.RegistroRecurrente.recurrente_id == rec.id,
+                    models.RegistroRecurrente.pago_id == pago.id,
+                    extract("year", models.RegistroRecurrente.fecha_procesado) == hoy.year,
+                    extract("month", models.RegistroRecurrente.fecha_procesado) == hoy.month,
+                )
+                .first()
+            )
+            if ya_existe:
+                continue
+
+            # Calcular el monto del pago según su porcentaje
+            monto_pago = (
+                Decimal(rec.monto_total) * Decimal(pago.porcentaje) / Decimal("100")
+            ).quantize(Decimal("0.01"))
+
+            ingreso_id = None
+            gasto_id = None
+            egreso_id = None
+
+            try:
+                if rec.tipo == "ingreso":
+                    nuevo = models.Ingreso(
+                        usuario_id=usuario.id,
+                        cuenta_id=rec.cuenta_id,
+                        fecha=hoy,
+                        monto=monto_pago,
+                        descripcion=rec.descripcion or rec.nombre,
+                        categoria=rec.categoria,
+                    )
+                    db.add(nuevo)
+                    db.flush()
+                    ingreso_id = nuevo.id
+
+                elif rec.tipo == "gasto_cuenta":
+                    # Validar saldo suficiente
+                    cuenta = db.query(models.Cuenta).get(rec.cuenta_id)
+                    if cuenta:
+                        saldo = _calcular_saldo_cuenta(db, cuenta)
+                        if monto_pago > saldo:
+                            errores.append(
+                                f"{rec.nombre}: saldo insuficiente en '{cuenta.nombre}' "
+                                f"(disponible ${saldo:.2f}, requiere ${monto_pago:.2f})"
+                            )
+                            continue
+
+                    nuevo = models.EgresoCuenta(
+                        usuario_id=usuario.id,
+                        cuenta_id=rec.cuenta_id,
+                        monto=monto_pago,
+                        fecha=hoy,
+                        categoria=rec.categoria,
+                        descripcion=rec.descripcion or rec.nombre,
+                    )
+                    db.add(nuevo)
+                    db.flush()
+                    egreso_id = nuevo.id
+
+                elif rec.tipo == "gasto_tarjeta":
+                    nuevo = models.Gasto(
+                        tarjeta_id=rec.tarjeta_id,
+                        fecha=hoy,
+                        monto=monto_pago,
+                        descripcion=rec.descripcion or rec.nombre,
+                        categoria=rec.categoria,
+                    )
+                    db.add(nuevo)
+                    db.flush()
+                    gasto_id = nuevo.id
+
+                # Registrar el procesamiento
+                registro = models.RegistroRecurrente(
+                    recurrente_id=rec.id,
+                    pago_id=pago.id,
+                    fecha_procesado=hoy,
+                    monto=monto_pago,
+                    ingreso_id=ingreso_id,
+                    gasto_id=gasto_id,
+                    egreso_id=egreso_id,
+                )
+                db.add(registro)
+
+                procesadas.append({
+                    "recurrente": rec.nombre,
+                    "pago": pago.etiqueta or f"Día {pago.dia_del_mes}",
+                    "monto": float(monto_pago),
+                    "tipo": rec.tipo,
+                })
+            except Exception as e:
+                errores.append(f"{rec.nombre}: {str(e)}")
+                continue
+
+    db.commit()
+
+    return {
+        "fecha": hoy.isoformat(),
+        "procesadas": procesadas,
+        "cantidad": len(procesadas),
+        "errores": errores,
+    }
+
+@app.get("/api/recurrentes/{rec_id}/historial")
+def historial_recurrente(
+    rec_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """Devuelve los últimos procesamientos de una recurrente."""
+    rec = _recurrente_del_usuario(db, rec_id, usuario)
+
+    registros = (
+        db.query(models.RegistroRecurrente)
+        .filter(models.RegistroRecurrente.recurrente_id == rec.id)
+        .order_by(models.RegistroRecurrente.fecha_procesado.desc())
+        .limit(50)
+        .all()
+    )
+
+    return [
+        {
+            "id": r.id,
+            "fecha_procesado": r.fecha_procesado.isoformat(),
+            "monto": float(r.monto),
+            "pago_id": r.pago_id,
+        }
+        for r in registros
+    ]

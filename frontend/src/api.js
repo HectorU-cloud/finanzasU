@@ -91,6 +91,19 @@ export const api = {
       body: JSON.stringify({ token, password_nueva: passwordNueva }),
     }),
 
+  // Transacciones recurrentes
+  getRecurrentes: () => request("/recurrentes"),
+  crearRecurrente: (datos) =>
+    request("/recurrentes", { method: "POST", body: JSON.stringify(datos) }),
+  actualizarRecurrente: (id, cambios) =>
+    request(`/recurrentes/${id}`, { method: "PUT", body: JSON.stringify(cambios) }),
+  eliminarRecurrente: (id) => request(`/recurrentes/${id}`, { method: "DELETE" }),
+  procesarRecurrentes: (fecha = null) => {
+    const qs = fecha ? `?fecha=${fecha}` : "";
+    return request(`/recurrentes/procesar${qs}`, { method: "POST" });
+  },
+  getHistorialRecurrente: (id) => request(`/recurrentes/${id}/historial`),
+
   // Cuentas
   crearIngreso: (ingreso) =>
     request("/ingresos", { method: "POST", body: JSON.stringify(ingreso) }),

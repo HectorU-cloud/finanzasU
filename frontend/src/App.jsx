@@ -29,6 +29,7 @@ import CuentaDetalleScreen from "./CuentaDetalleScreen.jsx";
 import ReportesScreen from "./ReportesScreen.jsx";
 import { useToast } from "./ToastContext.jsx";
 import OnboardingScreen from "./OnboardingScreen.jsx";
+import RecurrentesScreen from "./RecurrentesScreen.jsx";
 
 
 function todayISO() {
@@ -468,7 +469,7 @@ export default function App() {
     );
   }
 
-  const VISTAS_CON_NAV = ["home", "cuentas", "movimientos", "planificar", "perfil", "potes", "grupos", "deudas", "reportes"];
+  const VISTAS_CON_NAV = ["home", "cuentas", "movimientos", "planificar", "perfil", "potes", "grupos", "deudas", "reportes", "recurrentes"];
 
   if (VISTAS_CON_NAV.includes(vista)) {
     return (
@@ -483,11 +484,14 @@ export default function App() {
             onVerTarjeta={(t) => {setOrigenDetalle(null);setTarjetaDetalle(t);}}
             onVerTodasTarjetas={() => setVistaTarjetas(true)}
             onAgregarTarjeta={() => setModalTarjetas(true)}
-            onIrAPotes={() => setVista("planificar")}          // <-- NUEVO
-            onIrAMovimientos={() => setVista("movimientos")} // <-- NUEVO
+            onIrAPotes={() => setVista("planificar")}
+            onIrAMovimientos={() => setVista("movimientos")}
             onVerCuenta={(c) => setCuentaDetalle(c)}
-            onIrADeudas={() => { setVista("planificar"); }}   // <-- NUEVA
-            onIrAReportes={() => setVista("reportes")}        // <-- NUEVA
+            onIrADeudas={() => setVista("deudas")}
+            onIrAReportes={() => setVista("reportes")}
+            onIrARecurrentes={() => setVista("recurrentes")}    // <-- NUEVA
+            onIrAPerfil={() => setVista("perfil")}                // <-- NUEVA
+            onCerrarSesion={handleLogout}                          // <-- NUEVA
           />
         )}
         {vista === "cuentas" && <CuentasScreen onCambiarVista={setVista} />}
@@ -506,6 +510,9 @@ export default function App() {
         {vista === "deudas" && <DeudasScreen onVolver={() => setVista("planificar")} />}
         {vista === "reportes" && (
           <ReportesScreen onVolver={() => setVista("home")} />
+        )}
+        {vista === "recurrentes" && (
+          <RecurrentesScreen onVolver={() => setVista("home")} />
         )}
         {vista === "grupos" && (
           <div className="max-w-md mx-auto p-6">

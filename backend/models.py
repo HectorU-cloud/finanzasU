@@ -253,3 +253,54 @@ class EgresoCuenta(Base):
 
     usuario = relationship("Usuario")
     cuenta = relationship("Cuenta")
+class TransaccionRecurrente(Base):
+    __tablename__ = "transacciones_recurrentes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
+    nombre = Column(String(80), nullable=False)
+    # tipo: "ingreso" | "gasto_cuenta" | "gasto_tarjeta"
+    tipo = Column(String(20), nullable=False)
+    cuenta_id = Column(Integer, ForeignKey("cuentas.id"), nullable=True)
+    tarjeta_id = Column(Integer, ForeignKey("tarjetas.id"), nullable=True)
+    monto_total = Column(Numeric(12, 2), nullable=False)
+    # frecuencia: "mensual" | "semanal" | "anual"
+    frecuencia = Column(String(20), nullable=False, default="mensual")
+    categoria = Column(String(50), nullable=True)
+    descripcion = Column(String(150), nullable=True)
+    fecha_inicio = Column(Date, nullable=False)
+    fecha_fin = Column(Date, nullable=True)
+    activa = Column(Integer, default=1)
+    creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
+
+    usuario = relationship("Usuario")
+    cuenta = relationship("Cuenta")
+    tarjeta = relationship("Tarjeta")
+    pagos = relationship("RecurrentePago", back_populates="recurrente", cascade="all, delete-orphan")
+
+
+class RecurrentePago(Base):
+    __tablename__ = "recurrentes_pagos"
+
+    id = Column(Integer, primary_key=True, index=True)
+    recurrente_id = Column(Integer, ForeignKey("transacciones_recurrentes.id"), nullable=False)
+    dia_del_mes = Column(Integer, nullable=False)  # 1-31, 0 = último día del mes
+    porcentaje = Column(Numeric(5, 2), nullable=False)  # 40.00 = 40%
+    etiqueta = Column(String(50), nullable=True)
+
+    recurrente = relationship("TransaccionRecurrente", back_populates="pagos")
+
+
+class RegistroRecurrente(Base):
+    """Guarda los registros ya procesados para no duplicar."""
+    __tablename__ = "registros_recurrentes"
+
+    id = Column(Integer, primary_key=True, index=True)
+    recurrente_id = Column(Integer, ForeignKey("transacciones_recurrentes.id"), nullable=False)
+    pago_id = Column(Integer, ForeignKey("recurrentes_pagos.id"), nullable=False)
+    fecha_procesado = Column(Date, nullable=False)
+    monto = Column(Numeric(12, 2), nullable=False)
+    ingreso_id = Column(Integer, ForeignKey("ingresos.id"), nullable=True)
+    gasto_id = Column(Integer, ForeignKey("gastos.id"), nullable=True)
+    egreso_id = Column(Integer, ForeignKey("egresos_cuenta.id"), nullable=True)
+    creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))

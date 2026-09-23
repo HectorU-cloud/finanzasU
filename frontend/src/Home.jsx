@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, TrendingUp, TrendingDown, Wallet, Eye, EyeOff, ArrowRightLeft, PiggyBank, CreditCard, StickyNote, Trash2, HandCoins, Palette, PieChart, Calendar, Target, Sparkles, AlertCircle } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, Wallet, Eye, EyeOff, ArrowRightLeft, PiggyBank, CreditCard, StickyNote, Trash2, HandCoins, Palette, PieChart, Calendar, Target, Sparkles, AlertCircle, User, LogOut, Menu } from "lucide-react";
 import { api } from "./api.js";
 import AlertasBanner from "./AlertasBanner.jsx";
 import TarjetasScreen from "./TarjetasScreen.jsx";
@@ -124,6 +124,9 @@ export default function Home({
   onVerCuenta,
   onIrADeudas,
   onIrAReportes,
+  onIrARecurrentes,   // <-- NUEVA
+  onIrAPerfil,        // <-- NUEVA
+  onCerrarSesion,     // <-- NUEVA
 }) {
   const [cuentas, setCuentas] = useState([]);
   const [cargandoCuentas, setCargandoCuentas] = useState(true);
@@ -136,6 +139,18 @@ export default function Home({
   const [cargandoDeudas, setCargandoDeudas] = useState(true);
   const [insights, setInsights] = useState([]);
   const [cargandoInsights, setCargandoInsights] = useState(true);
+  const [menuUsuarioAbierto, setMenuUsuarioAbierto] = useState(false);
+
+
+  useEffect(() => {
+    function cerrarSiEsFuera(e) {
+      if (!e.target.closest(".menu-usuario")) {
+        setMenuUsuarioAbierto(false);
+      }
+    }
+    document.addEventListener("click", cerrarSiEsFuera);
+    return () => document.removeEventListener("click", cerrarSiEsFuera);
+  }, []);
 
   useEffect(() => {
     api.getCuentas()
@@ -222,8 +237,70 @@ export default function Home({
           >
             <TrendingUp size={18} />
           </button>
-          <div className="w-10 h-10 rounded-full bg-coral text-white flex items-center justify-center font-semibold text-sm">
-            {usuario?.nombre?.[0]?.toUpperCase() || "?"}
+
+          {/* Avatar con menú desplegable */}
+          <div className="relative menu-usuario">
+            <button
+              onClick={() => setMenuUsuarioAbierto(!menuUsuarioAbierto)}
+              className="w-10 h-10 rounded-full bg-coral text-white flex items-center justify-center font-semibold text-sm hover:opacity-90 transition-opacity"
+              title="Menú de usuario"
+            >
+              {usuario?.nombre?.[0]?.toUpperCase() || "?"}
+            </button>
+
+            {menuUsuarioAbierto && (
+              <div
+                className="absolute top-full right-0 mt-2 w-56 rounded-2xl shadow-2xl overflow-hidden z-50 animate-toast"
+                style={{
+                  background: "var(--surface)",
+                  border: "1px solid var(--border)",
+                }}
+              >
+                {/* Header con nombre y email */}
+                <div className="px-4 py-3" style={{ borderBottom: "1px solid var(--border)" }}>
+                  <p className="text-sm font-semibold text-carbon truncate">
+                    {usuario?.nombre}
+                  </p>
+                  <p className="text-xs text-gray-500 truncate">{usuario?.email}</p>
+                </div>
+
+                {/* Opciones */}
+                <button
+                  onClick={() => {
+                    setMenuUsuarioAbierto(false);
+                    onIrAPerfil?.();
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-carbon hover:bg-gray-50 transition-colors"
+                >
+                  <User size={16} className="text-gray-500" />
+                  Mi perfil
+                </button>
+
+                <button
+                  onClick={() => {
+                    setMenuUsuarioAbierto(false);
+                    onIrARecurrentes?.();
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-carbon hover:bg-gray-50 transition-colors"
+                >
+                  <Calendar size={16} className="text-gray-500" />
+                  Transacciones recurrentes
+                </button>
+
+                <div style={{ borderTop: "1px solid var(--border)" }}>
+                  <button
+                    onClick={() => {
+                      setMenuUsuarioAbierto(false);
+                      onCerrarSesion?.();
+                    }}
+                    className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-red-600 hover:bg-red-50 transition-colors"
+                  >
+                    <LogOut size={16} />
+                    Cerrar sesión
+                  </button>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </header>
