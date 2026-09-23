@@ -28,6 +28,7 @@ import PlanificarScreen from "./PlanificarScreen.jsx";
 import CuentaDetalleScreen from "./CuentaDetalleScreen.jsx";
 import ReportesScreen from "./ReportesScreen.jsx";
 import { useToast } from "./ToastContext.jsx";
+import OnboardingScreen from "./OnboardingScreen.jsx";
 
 
 function todayISO() {
@@ -125,6 +126,21 @@ export default function App() {
   const [exportando, setExportando] = useState(false);
 
   const peticionIdRef = useRef(0);
+
+  const [mostrarOnboarding, setMostrarOnboarding] = useState(() => {
+    try {
+      return !localStorage.getItem("finanzas_onboarding_completado");
+    } catch {
+      return false;
+    }
+  });
+
+  function completarOnboarding() {
+    try {
+      localStorage.setItem("finanzas_onboarding_completado", "true");
+    } catch {}
+    setMostrarOnboarding(false);
+  }
 
 
   useEffect(() => {
@@ -382,6 +398,15 @@ export default function App() {
           window.history.replaceState({}, "", "/");
           setVistaAuth("solicitar-reset");
         }}
+      />
+    );
+  }
+
+  if (mostrarOnboarding) {
+    return (
+      <OnboardingScreen
+        usuario={usuario}
+        onCompletado={completarOnboarding}
       />
     );
   }
