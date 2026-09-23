@@ -3427,39 +3427,49 @@ def procesar_recurrentes_todos(
     """
     Procesa las recurrentes de TODOS los usuarios.
     Requiere el header X-Cron-Key con la clave secreta.
-    Este endpoint lo llama el cron externo (cron-job.org) 1 vez al día.
     """
-    if not CRON_API_KEY:
-        raise HTTPException(status_code=500, detail="CRON_API_KEY no configurada")
+    try:
+        if not CRON_API_KEY:
+            raise HTTPException(status_code=500, detail="CRON_API_KEY no configurada")
 
-    if x_cron_key != CRON_API_KEY:
-        raise HTTPException(status_code=403, detail="API key inválida")
+        if x_cron_key != CRON_API_KEY:
+            raise HTTPException(status_code=403, detail="API key inválida")
 
-    hoy = fecha or date.today()
-    usuarios = db.query(models.Usuario).all()
+        hoy = fecha or date.today()
+        usuarios = db.query(models.Usuario).all()
 
-    resumen = {
-        "fecha": hoy.isoformat(),
-        "usuarios_totales": len(usuarios),
-        "usuarios_con_procesos": 0,
-        "transacciones_creadas": 0,
-        "errores": [],
-    }
+        resumen = {
+            "fecha": hoy.isoformat(),
+            "usuarios_totales": len(usuarios),
+            "usuarios_con_procesos": 0,
+            "transacciones_creadas": 0,
+            "errores": [],
+        }
 
-    for usuario in usuarios:
-        try:
-            resultado = _procesar_recurrentes_de_usuario(db, usuario, hoy)
-            if resultado["procesadas"]:
-                resumen["usuarios_con_procesos"] += 1
-                resumen["transacciones_creadas"] += len(resultado["procesadas"])
-            for err in resultado["errores"]:
-                resumen["errores"].append(f"{usuario.email}: {err}")
-        except Exception as e:
-            resumen["errores"].append(f"{usuario.email}: {str(e)}")
-            continue
+        for usuario in usuarios:
+            try:
+                resultado = _procesar_recurrentes_de_usuario(db, usuario, hoy)
+                if resultado["procesadas"]:
+                    resumen["usuarios_con_procesos"] += 1
+                    resumen["transacciones_creadas"] += len(resultado["procesadas"])
+                for err in resultado["errores"]:
+                    resumen["errores"].append(f"{usuario.email}: {err}")
+            except Exception as e:
+                resumen["errores"].append(f"{usuario.email}: {str(e)}")
+                continue
 
-    db.commit()
-    return resumen
+        db.commit()
+        return resumen
+
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        tb = traceback.format_exc()
+        raise HTTPException(
+            status_code=500,
+            detail=f"Error interno: {type(e).__name__}: {str(e)}\n\nTraceback:\n{tb[:1500]}",
+        )
 
 @app.get("/api/recurrentes/{rec_id}/historial")
 def historial_recurrente(
