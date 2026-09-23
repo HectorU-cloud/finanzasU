@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
 import { Plus, Trash2, Tags } from "lucide-react";
 import { api } from "./api.js";
+import ConfirmModal from "./ConfirmModal.jsx";
 
-export default function CategoriasPanel() {
+export default function CategoriasPanel({ onCambio }) {
   const [tipo, setTipo] = useState("gasto");
   const [categorias, setCategorias] = useState([]);
   const [nombre, setNombre] = useState("");
   const [cargando, setCargando] = useState(false);
   const [error, setError] = useState("");
+  const [catAEliminar, setCatAEliminar] = useState(null);
 
   async function cargar() {
     setError("");
@@ -29,6 +31,7 @@ export default function CategoriasPanel() {
       await api.crearCategoriaPersonalizada({ nombre: nombre.trim(), tipo });
       setNombre("");
       await cargar();
+      onCambio?.();
     } catch (err) {
       setError(err.message);
     } finally {
@@ -37,12 +40,14 @@ export default function CategoriasPanel() {
   }
 
   async function eliminar(id) {
-    if (!window.confirm("¿Eliminar esta categoría? Los movimientos existentes conservarán su nombre.")) return;
     try {
       await api.eliminarCategoriaPersonalizada(id);
+      setCatAEliminar(null);
       await cargar();
+      onCambio?.();
     } catch (err) {
       setError(err.message);
+      setCatAEliminar(null);
     }
   }
 
@@ -60,11 +65,15 @@ export default function CategoriasPanel() {
         <button
           onClick={() => setTipo("gasto")}
           className={`py-2 rounded-lg text-xs font-semibold border ${tipo === "gasto" ? "bg-coral text-white border-coral" : "border-gray-200 text-gray-600"}`}
-        >Gastos</button>
+        >
+          Gastos
+        </button>
         <button
           onClick={() => setTipo("ingreso")}
           className={`py-2 rounded-lg text-xs font-semibold border ${tipo === "ingreso" ? "bg-emerald-600 text-white border-emerald-600" : "border-gray-200 text-gray-600"}`}
-        >Ingresos</button>
+        >
+          Ingresos
+        </button>
       </div>
 
       <form onSubmit={crear} className="flex gap-2 mb-3">
@@ -79,24 +88,46 @@ export default function CategoriasPanel() {
           disabled={cargando || !nombre.trim()}
           className="w-10 rounded-lg bg-coral text-white flex items-center justify-center disabled:opacity-50"
           title="Agregar categoría"
-        ><Plus size={16} /></button>
+        >
+          <Plus size={16} />
+        </button>
       </form>
 
       {error && <p className="text-xs text-red-500 mb-2">{error}</p>}
 
       {categorias.length === 0 ? (
-        <p className="text-[11px] text-gray-400">Todavía no tienes categorías personalizadas.</p>
+        <p className="text-[11px] text-gray-400">
+          Todavía no tienes categorías personalizadas.
+        </p>
       ) : (
         <div className="space-y-1.5">
           {categorias.map((cat) => (
-            <div key={cat.id} className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2">
+            <div
+              key={cat.id}
+              className="flex items-center justify-between rounded-lg bg-gray-50 px-3 py-2"
+            >
               <span className="text-xs text-carbon">{cat.nombre}</span>
-              <button onClick={() => eliminar(cat.id)} className="text-gray-400 hover:text-red-500 p-1" title="Eliminar">
+              <button
+                onClick={() => setCatAEliminar(cat.id)}
+                className="text-gray-400 hover:text-red-500 p-1"
+                title="Eliminar"
+              >
                 <Trash2 size={14} />
               </button>
             </div>
           ))}
         </div>
+      )}
+
+      {/* Modal de confirmación (siempre disponible) */}
+      {catAEliminar && (
+        <ConfirmModal
+          titulo="Eliminar categoría"
+          mensaje="¿Eliminar esta categoría? Los movimientos existentes conservarán su nombre."
+          textoConfirmar="Sí, eliminar"
+          onConfirmar={() => eliminar(catAEliminar)}
+          onCancelar={() => setCatAEliminar(null)}
+        />
       )}
     </div>
   );

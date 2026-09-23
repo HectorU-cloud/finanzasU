@@ -10,7 +10,8 @@ export default function RecurrenteModal({ recurrente, onCerrar, onGuardado }) {
   const editando = Boolean(recurrente);
   const [cuentas, setCuentas] = useState([]);
   const [tarjetas, setTarjetas] = useState([]);
-  const [categorias, setCategorias] = useState([]);
+  const [categoriasGasto, setCategoriasGasto] = useState([]);
+  const [categoriasIngreso, setCategoriasIngreso] = useState([]);
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
 
@@ -38,7 +39,8 @@ export default function RecurrenteModal({ recurrente, onCerrar, onGuardado }) {
     ]).then(([c, t, gastosCats, ingresosCats]) => {
       setCuentas(Array.isArray(c) ? c : []);
       setTarjetas(Array.isArray(t) ? t : []);
-      setCategorias([...new Set([...(gastosCats?.categorias || []), ...(ingresosCats?.categorias || [])])]);
+      setCategoriasGasto(gastosCats?.categorias || []);
+      setCategoriasIngreso(ingresosCats?.categorias || []);
     });
   }, []);
 
@@ -453,7 +455,7 @@ export default function RecurrenteModal({ recurrente, onCerrar, onGuardado }) {
               className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm bg-white"
             >
               <option value="">Sin categoría</option>
-              {categorias.map((c) => (
+              {(form.tipo === "ingreso" ? categoriasIngreso : categoriasGasto).map((c) => (
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>

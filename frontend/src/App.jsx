@@ -591,7 +591,7 @@ export default function App() {
                   </div>
                 </div>
 
-                <CategoriasPanel />
+                <CategoriasPanel onCambio={cargarDatos} />
 
                 <button
                   onClick={handleLogout}
