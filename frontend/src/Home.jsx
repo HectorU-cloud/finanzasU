@@ -4,6 +4,8 @@ import { api } from "./api.js";
 import AlertasBanner from "./AlertasBanner.jsx";
 import TarjetasScreen from "./TarjetasScreen.jsx";
 import { calcularVencimiento } from "./utils/fechas.js";
+import { SkeletonLine, SkeletonList } from "./Skeleton.jsx";
+import EmptyState from "./EmptyState.jsx";
 
 const TIPO_ICONOS = {
   efectivo: Wallet,
@@ -440,7 +442,10 @@ export default function Home({
             </div>
             <div className="p-3 grid grid-cols-2 gap-2" style={{ background: "var(--surface)" }}>
               {cargandoNotas ? (
-                <p className="text-xs text-gray-400 text-center py-2">Cargando...</p>
+                <>
+                  <SkeletonLine width="100%" height="60px" />
+                  <SkeletonLine width="100%" height="60px" />
+                </>
               ) : notas.length === 0 ? (
                 <button
                   onClick={() => crearNota("rosa")}
@@ -484,12 +489,12 @@ export default function Home({
           {cargandoInsights ? (
             <p className="text-sm text-gray-400 text-center py-8">Cargando...</p>
           ) : !Array.isArray(insights) || insights.length === 0 ? (
-            <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center">
-              <Sparkles size={32} className="text-gray-300 mx-auto mb-3" />
-              <p className="text-sm text-gray-500">
-                Aún no hay insights disponibles
-              </p>
-            </div>
+            <EmptyState
+              icon={Sparkles}
+              titulo="Aún no hay insights"
+              mensaje="Registra tus primeros gastos e ingresos para ver análisis personalizados."
+              colorIcono="morado"
+            />
           ) : (
             insights.map((insight, i) => (
               <InsightCard key={i} insight={insight} />

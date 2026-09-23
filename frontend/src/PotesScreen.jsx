@@ -5,6 +5,8 @@ import PoteModal from "./PoteModal.jsx";
 import MovimientoPoteModal from "./MovimientoPoteModal.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
 import VerMovimientosPoteModal from "./VerMovimientosPoteModal.jsx";
+import { SkeletonList } from "./Skeleton.jsx";
+import EmptyState from "./EmptyState.jsx";
 
 export default function PotesScreen({ onVolver }) {
   const [potes, setPotes] = useState([]);
@@ -84,32 +86,19 @@ export default function PotesScreen({ onVolver }) {
       {/* ... aquí sigue todo el resto del contenido que ya tenías ... */}
 
       {cargando ? (
-        <p className="text-sm text-gray-400 text-center py-8">Cargando...</p>
-      ) : potes.length === 0 ? (
-        <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center">
-          <div className="w-12 h-12 rounded-full bg-coral/10 text-coral flex items-center justify-center mx-auto mb-3">
-            <Target size={22} />
-          </div>
-          <p className="text-sm text-gray-600 mb-1 font-medium">Sin potes todavía</p>
-          <p className="text-xs text-gray-400 mb-4">
-            Crea uno para empezar a ahorrar
-          </p>
-          <button
-            onClick={() => {
-              setPoteEditando(null);
-              setModalAbierto(true);
-            }}
-            className="text-coral font-semibold text-sm"
-            disabled={cuentas.length === 0}
-          >
-            + Crear mi primer pot
-          </button>
-          {cuentas.length === 0 && (
-            <p className="text-xs text-amber-600 mt-2">
-              Primero crea una cuenta
-            </p>
-          )}
-        </div>
+        <SkeletonList count={4} variant="grid" />
+            ) : potes.length === 0 ? (
+        <EmptyState
+          icon={Target}
+          titulo="Sin potes todavía"
+          mensaje="Crea uno para empezar a ahorrar hacia tus metas."
+          accion="+ Crear mi primer Pot"
+          onAccion={() => {
+            setPoteEditando(null);
+            setModalAbierto(true);
+          }}
+          colorIcono="morado"
+        />
       ) : (
         <div className="grid grid-cols-2 gap-3">
           {potes.map((p) => {

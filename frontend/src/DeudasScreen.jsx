@@ -5,6 +5,8 @@ import { api } from "./api.js";
 import DeudaModal from "./DeudaModal.jsx";
 import AbonarDeudaModal from "./AbonarDeudaModal.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
+import { SkeletonList } from "./Skeleton.jsx";
+import EmptyState from "./EmptyState.jsx";
 
 export default function DeudasScreen({ onVolver }) {
   const [tab, setTab] = useState("debo"); // "debo" | "me_deben" | "saldadas"
@@ -130,27 +132,23 @@ export default function DeudasScreen({ onVolver }) {
       </div>
 
       {cargando ? (
-        <p className="text-sm text-gray-400 text-center py-8">Cargando...</p>
+        <SkeletonList count={3} variant="card" />
       ) : visibles.length === 0 ? (
-        <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center">
-          <div className="w-12 h-12 rounded-full bg-coral/10 text-coral flex items-center justify-center mx-auto mb-3">
-            <HandCoins size={22} />
-          </div>
-          <p className="text-sm text-gray-600 mb-1 font-medium">
-            {tab === "saldadas" ? "Nada saldado todavía" : "Nada por aquí"}
-          </p>
-          {tab !== "saldadas" && (
-            <button
-              onClick={() => {
-                setDeudaEditando(null);
-                setModalAbierto(true);
-              }}
-              className="text-coral font-semibold text-sm mt-2"
-            >
-              + Agregar deuda
-            </button>
-          )}
-        </div>
+        <EmptyState
+          icon={HandCoins}
+          titulo={tab === "saldadas" ? "Nada saldado todavía" : "Nada por aquí"}
+          mensaje={
+            tab === "saldadas"
+              ? "Cuando saldes una deuda aparecerá aquí."
+              : "Registra deudas para llevar el control de quién te debe y a quién le debes."
+          }
+          accion={tab !== "saldadas" ? "+ Agregar deuda" : null}
+          onAccion={tab !== "saldadas" ? () => {
+            setDeudaEditando(null);
+            setModalAbierto(true);
+          } : null}
+          colorIcono="ambar"
+        />
       ) : (
         <div className="space-y-3">
           {visibles.map((d) => {

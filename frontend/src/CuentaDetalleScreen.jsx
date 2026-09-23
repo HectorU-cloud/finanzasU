@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, TrendingUp, CreditCard, Target, Wallet, HandCoins, Receipt, Download } from "lucide-react";
 import { descargarArchivo } from "./utils/descargas.js";
 import { api } from "./api.js";
+import { SkeletonList } from "./Skeleton.jsx";
+import EmptyState from "./EmptyState.jsx";
 
 const ICONOS_TIPO = {
   ingreso: TrendingUp,
@@ -79,13 +81,14 @@ export default function CuentaDetalleScreen({ cuenta, onVolver }) {
       </h2>
 
       {cargando ? (
-        <p className="text-sm text-gray-400 text-center py-8">Cargando...</p>
+        <SkeletonList count={4} variant="card" />
       ) : movimientos.length === 0 ? (
-        <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center">
-          <p className="text-sm text-gray-500">
-            Sin movimientos todavía
-          </p>
-        </div>
+        <EmptyState
+          icon={Wallet}
+          titulo="Sin movimientos todavía"
+          mensaje="Aquí verás los ingresos, pagos y gastos de esta cuenta."
+          colorIcono="morado"
+        />
       ) : (
         <div className="space-y-2">
           {movimientos.map((m, i) => {

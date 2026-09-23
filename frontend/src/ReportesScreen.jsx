@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, TrendingUp, TrendingDown, BarChart3, Calendar } from "lucide-react";
 import { api } from "./api.js";
+import { SkeletonList } from "./Skeleton.jsx";
 
 export default function ReportesScreen({ onVolver }) {
   const hoy = new Date();
@@ -8,6 +9,21 @@ export default function ReportesScreen({ onVolver }) {
   const [data, setData] = useState(null);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
+
+    const [tema, setTema] = useState(
+    () => document.documentElement.getAttribute("data-theme") || "light"
+  );
+
+  useEffect(() => {
+    const observer = new MutationObserver(() => {
+      setTema(document.documentElement.getAttribute("data-theme") || "light");
+    });
+    observer.observe(document.documentElement, {
+      attributes: true,
+      attributeFilter: ["data-theme"],
+    });
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     setCargando(true);
@@ -26,7 +42,7 @@ export default function ReportesScreen({ onVolver }) {
         >
           <ArrowLeft size={16} /> Volver
         </button>
-        <p className="text-sm text-gray-400 text-center py-12">Cargando...</p>
+        <SkeletonList count={6} variant="card" />
       </div>
     );
   }
@@ -83,9 +99,15 @@ export default function ReportesScreen({ onVolver }) {
       </div>
 
       {/* Resumen general */}
-      <div className="bg-[#2a2a2a] rounded-3xl p-5 text-white mb-6 shadow-lg">
+            <div
+        className="rounded-3xl p-5 mb-6 shadow-lg"
+        style={{
+          background: tema === "dark" ? "#252030" : "#2a2a2a",
+          border: tema === "dark" ? "1px solid var(--border)" : "none",
+        }}
+      >
         <div className="flex items-center gap-2 mb-4">
-          <BarChart3 size={18} className="text-coral" />
+          <BarChart3 size={18} className="text-coral" style={{ color: "#ff5f4f" }} />
           <p className="text-xs uppercase tracking-wider opacity-75">
             Resumen {meses} meses
           </p>
@@ -125,9 +147,9 @@ export default function ReportesScreen({ onVolver }) {
         </div>
 
         {mes_mayor_gasto && mes_mayor_gasto.total_gastos > 0 && (
-          <div className="mt-4 pt-4 border-t border-white/20 text-xs opacity-75">
+          <div className="mt-4 pt-4 border-t border-white/20 text-xs text-white/90">
             💡 Mes con más gastos:{" "}
-            <span className="font-semibold">
+            <span className="font-semibold text-white">
               {mes_mayor_gasto.nombre_mes} {mes_mayor_gasto.anio}
             </span>{" "}
             (${mes_mayor_gasto.total_gastos.toFixed(2)})
@@ -165,8 +187,8 @@ function MesCard({ mes, maxValor }) {
         <span
           className={`text-xs font-bold px-2 py-0.5 rounded-full ${
             mes.balance >= 0
-              ? "bg-emerald-50 text-emerald-600"
-              : "bg-red-50 text-red-600"
+              ? "bg-emerald-500/15 text-emerald-600"
+              : "bg-red-500/15 text-red-600"
           }`}
         >
           {mes.balance >= 0 ? "+" : ""}${mes.balance.toFixed(2)}

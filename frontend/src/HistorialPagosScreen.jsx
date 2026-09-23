@@ -4,6 +4,8 @@ import { descargarArchivo } from "./utils/descargas.js";
 import { api } from "./api.js";
 import ConfirmModal from "./ConfirmModal.jsx";
 import EgresoCuentaModal from "./EgresoCuentaModal.jsx";
+import { SkeletonList } from "./Skeleton.jsx";
+import EmptyState from "./EmptyState.jsx";
 
 const NOMBRES_MES = [
   "enero", "febrero", "marzo", "abril", "mayo", "junio",
@@ -150,17 +152,14 @@ export default function HistorialPagosScreen({ onVolver, ocultarHeader = false }
       </button>
 
       {cargando ? (
-        <p className="text-sm text-gray-400 text-center py-8">Cargando...</p>
+      <SkeletonList count={3} variant="card" />
       ) : movimientos.length === 0 ? (
-        <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center">
-          <div className="w-12 h-12 rounded-full bg-coral/10 text-coral flex items-center justify-center mx-auto mb-3">
-            <Receipt size={22} />
-          </div>
-          <p className="text-sm text-gray-600 mb-1 font-medium">Aún no hay pagos</p>
-          <p className="text-xs text-gray-400">
-            Cuando pagues una tarjeta o registres un gasto directo, aparecerá aquí
-          </p>
-        </div>
+        <EmptyState
+          icon={Receipt}
+          titulo="Aún no hay pagos"
+          mensaje="Cuando pagues una tarjeta o registres un gasto directo, aparecerá aquí."
+          colorIcono="coral"
+        />
       ) : (
         <div className="space-y-3">
           {movimientos.map((m) => (

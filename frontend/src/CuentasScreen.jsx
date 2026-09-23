@@ -4,6 +4,8 @@ import { api } from "./api.js";
 import CuentaModal from "./CuentaModal.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
 import CuentaDetalleScreen from "./CuentaDetalleScreen.jsx";
+import { SkeletonList } from "./Skeleton.jsx";
+import EmptyState from "./EmptyState.jsx";
 
 const TIPO_ICONOS = {
   efectivo: Wallet,
@@ -101,26 +103,19 @@ export default function CuentasScreen({ onCambiarVista }) {
       </header>
 
       {cargando ? (
-        <p className="text-sm text-gray-400 text-center py-8">Cargando...</p>
-      ) : cuentas.length === 0 ? (
-        <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center">
-          <div className="w-12 h-12 rounded-full bg-coral/10 text-coral flex items-center justify-center mx-auto mb-3">
-            <Wallet size={22} />
-          </div>
-          <p className="text-sm text-gray-600 mb-1 font-medium">Sin cuentas todavía</p>
-          <p className="text-xs text-gray-400 mb-4">
-            Crea tu primera cuenta para llevar el control
-          </p>
-          <button
-            onClick={() => {
-              setCuentaEditando(null);
-              setModalAbierto(true);
-            }}
-            className="text-coral font-semibold text-sm"
-          >
-            + Crear primera cuenta
-          </button>
-        </div>
+        <SkeletonList count={3} variant="card" />
+            ) : cuentas.length === 0 ? (
+        <EmptyState
+          icon={Wallet}
+          titulo="Sin cuentas todavía"
+          mensaje="Crea tu primera cuenta para llevar el control de tu dinero."
+          accion="+ Crear primera cuenta"
+          onAccion={() => {
+            setCuentaEditando(null);
+            setModalAbierto(true);
+          }}
+          colorIcono="coral"
+        />
       ) : (
         <div className="space-y-3">
           {cuentas.map((c) => {

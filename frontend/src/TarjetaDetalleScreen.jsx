@@ -8,6 +8,8 @@ import ConfirmModal from "./ConfirmModal.jsx";
 import PagarTarjetaModal from "./PagarTarjetaModal.jsx";
 import { calcularVencimiento } from "./utils/fechas.js";
 import { useToast } from "./ToastContext.jsx";
+import { SkeletonList } from "./Skeleton.jsx";
+import EmptyState from "./EmptyState.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -405,15 +407,17 @@ export default function TarjetaDetalleScreen({ tarjeta, onVolver, onCambio }) {
         </p>
 
         {cargando ? (
-          <p className="text-sm text-gray-400 text-center py-8">Cargando...</p>
+        <SkeletonList count={4} variant="card" />
         ) : gastos.length === 0 ? (
-          <div className="border-2 border-dashed border-gray-300 rounded-2xl p-6 text-center">
-            <CreditCard size={24} className="text-gray-300 mx-auto mb-2" />
-            <p className="text-sm text-gray-500">
-              Sin gastos en {NOMBRES_MES[periodo.mes - 1]}
-            </p>
-          </div>
-        ) : (
+        <EmptyState
+          icon={CreditCard}
+          titulo={`Sin gastos en ${NOMBRES_MES[periodo.mes - 1]}`}
+          mensaje="Registra tu primer gasto para verlo aquí."
+          accion="+ Agregar gasto"
+          onAccion={() => setFormAbierto(true)}
+          colorIcono="coral"
+        />
+      ) : (
           <div className="space-y-2">
             {gastos.map((g) => (
               <div

@@ -4,6 +4,8 @@ import { descargarArchivo } from "./utils/descargas.js";
 import { api } from "./api.js";
 import IngresoModal from "./IngresoModal.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
+import { SkeletonList } from "./Skeleton.jsx";
+import EmptyState from "./EmptyState.jsx";
 
 const NOMBRES_MES = [
   "enero", "febrero", "marzo", "abril", "mayo", "junio",
@@ -147,30 +149,19 @@ export default function IngresosScreen({ ocultarHeader = false }) {
       </button>
 
       {cargando ? (
-        <p className="text-sm text-gray-400 text-center py-8">Cargando...</p>
-      ) : ingresos.length === 0 ? (
-        <div className="border-2 border-dashed border-gray-300 rounded-2xl p-8 text-center">
-          <div className="w-12 h-12 rounded-full bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto mb-3">
-            <TrendingUp size={22} />
-          </div>
-          <p className="text-sm text-gray-600 mb-1 font-medium">Sin ingresos este mes</p>
-          <p className="text-xs text-gray-400 mb-4">Registra tu primer ingreso</p>
-          <button
-            onClick={() => {
-              setIngresoEditando(null);
-              setModalAbierto(true);
-            }}
-            className="text-emerald-600 font-semibold text-sm"
-            disabled={cuentas.length === 0}
-          >
-            + Registrar ingreso
-          </button>
-          {cuentas.length === 0 && (
-            <p className="text-xs text-amber-600 mt-2">
-              Primero crea una cuenta en la sección Cuentas
-            </p>
-          )}
-        </div>
+        <SkeletonList count={3} variant="card" />
+            ) : ingresos.length === 0 ? (
+        <EmptyState
+          icon={TrendingUp}
+          titulo="Sin ingresos este mes"
+          mensaje="Registra tu primer ingreso para verlo aquí."
+          accion="+ Registrar ingreso"
+          onAccion={() => {
+            setIngresoEditando(null);
+            setModalAbierto(true);
+          }}
+          colorIcono="emerald"
+        />
       ) : (
         <div className="space-y-2">
           {ingresos.map((i) => (

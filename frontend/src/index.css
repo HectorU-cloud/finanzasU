@@ -1827,3 +1827,214 @@ input:-webkit-autofill:active {
 .animate-toast {
   animation: toast-slide-down 0.3s ease-out;
 }
+
+/* ============================================================
+   MODO OSCURO - Overrides para pantallas nuevas
+   ============================================================ */
+
+/* Modales: fondo blanco → surface oscuro */
+[data-theme="dark"] .bg-white {
+  background-color: var(--surface) !important;
+}
+
+/* Textos oscuros en modo oscuro */
+[data-theme="dark"] .text-carbon {
+  color: var(--ink) !important;
+}
+
+[data-theme="dark"] .text-gray-500 {
+  color: var(--ink-soft) !important;
+}
+
+[data-theme="dark"] .text-gray-400 {
+  color: var(--ink-faint) !important;
+}
+
+[data-theme="dark"] .text-gray-600 {
+  color: var(--ink-soft) !important;
+}
+
+[data-theme="dark"] .text-gray-700 {
+  color: var(--ink) !important;
+}
+
+/* Bordes grises claros → bordes oscuros */
+[data-theme="dark"] .border-gray-100,
+[data-theme="dark"] .border-gray-200 {
+  border-color: var(--border) !important;
+}
+
+/* Fondos grises claros → surface-alt */
+[data-theme="dark"] .bg-gray-50,
+[data-theme="dark"] .bg-gray-100 {
+  background-color: var(--surface-alt) !important;
+}
+
+[data-theme="dark"] .hover\:bg-gray-50:hover,
+[data-theme="dark"] .hover\:bg-gray-100:hover,
+[data-theme="dark"] .hover\:bg-gray-200:hover {
+  background-color: var(--surface-alt) !important;
+}
+
+/* Inputs y selects con fondo blanco */
+[data-theme="dark"] input.bg-white,
+[data-theme="dark"] select.bg-white {
+  background-color: var(--surface) !important;
+  color: var(--ink) !important;
+}
+
+/* Tarjetas de deudas y similares (bg-white sobre fondo oscuro) */
+[data-theme="dark"] .bg-white\/60,
+[data-theme="dark"] .bg-white\/70,
+[data-theme="dark"] .bg-white\/80 {
+  background-color: var(--surface) !important;
+}
+
+/* --- Insights: colores semánticos en oscuro --- */
+
+/* Insight rojo */
+[data-theme="dark"] .bg-red-50 {
+  background-color: rgba(239, 68, 68, 0.12) !important;
+}
+[data-theme="dark"] .border-red-200 {
+  border-color: rgba(239, 68, 68, 0.35) !important;
+}
+[data-theme="dark"] .text-red-700 {
+  color: #fca5a5 !important;
+}
+[data-theme="dark"] .bg-red-100 {
+  background-color: rgba(239, 68, 68, 0.2) !important;
+}
+[data-theme="dark"] .text-red-500 {
+  color: #f87171 !important;
+}
+
+/* Insight verde */
+[data-theme="dark"] .bg-emerald-50 {
+  background-color: rgba(16, 185, 129, 0.12) !important;
+}
+[data-theme="dark"] .border-emerald-200 {
+  border-color: rgba(16, 185, 129, 0.35) !important;
+}
+[data-theme="dark"] .text-emerald-700 {
+  color: #6ee7b7 !important;
+}
+[data-theme="dark"] .bg-emerald-100 {
+  background-color: rgba(16, 185, 129, 0.2) !important;
+}
+[data-theme="dark"] .text-emerald-500,
+[data-theme="dark"] .text-emerald-600 {
+  color: #34d399 !important;
+}
+
+/* Insight azul */
+[data-theme="dark"] .bg-blue-50 {
+  background-color: rgba(59, 130, 246, 0.12) !important;
+}
+[data-theme="dark"] .border-blue-200 {
+  border-color: rgba(59, 130, 246, 0.35) !important;
+}
+[data-theme="dark"] .text-blue-700 {
+  color: #93c5fd !important;
+}
+[data-theme="dark"] .bg-blue-100 {
+  background-color: rgba(59, 130, 246, 0.2) !important;
+}
+[data-theme="dark"] .text-blue-500,
+[data-theme="dark"] .text-blue-600 {
+  color: #60a5fa !important;
+}
+
+/* Insight amarillo */
+[data-theme="dark"] .bg-amber-50,
+[data-theme="dark"] .bg-yellow-50 {
+  background-color: rgba(245, 158, 11, 0.12) !important;
+}
+[data-theme="dark"] .border-amber-200,
+[data-theme="dark"] .border-amber-300 {
+  border-color: rgba(245, 158, 11, 0.35) !important;
+}
+[data-theme="dark"] .text-amber-700 {
+  color: #fcd34d !important;
+}
+[data-theme="dark"] .bg-amber-100 {
+  background-color: rgba(245, 158, 11, 0.2) !important;
+}
+[data-theme="dark"] .text-amber-500,
+[data-theme="dark"] .text-amber-600 {
+  color: #fbbf24 !important;
+}
+
+/* Insight morado */
+[data-theme="dark"] .bg-purple-50 {
+  background-color: rgba(168, 85, 247, 0.12) !important;
+}
+[data-theme="dark"] .border-purple-200 {
+  border-color: rgba(168, 85, 247, 0.35) !important;
+}
+[data-theme="dark"] .text-purple-700 {
+  color: #d8b4fe !important;
+}
+[data-theme="dark"] .bg-purple-100 {
+  background-color: rgba(168, 85, 247, 0.2) !important;
+}
+[data-theme="dark"] .text-purple-500 {
+  color: #c084fc !important;
+}
+
+/* Superficies blancas en pantallas de modales */
+[data-theme="dark"] .bg-white\/50 {
+  background-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+/* Textos secundarios en widgets oscuros */
+[data-theme="dark"] .text-gray-300 {
+  color: var(--ink-soft) !important;
+}
+
+/* Fondo de "grid" en las barras vacías */
+[data-theme="dark"] .bg-gray-100.rounded-full,
+[data-theme="dark"] .h-1\.5.bg-gray-100,
+[data-theme="dark"] .h-2.bg-gray-100 {
+  background-color: var(--surface-alt) !important;
+}
+
+/* Botones grises */
+[data-theme="dark"] .bg-gray-200 {
+  background-color: var(--surface-alt) !important;
+}
+
+/* Cajas punteadas de estado vacío */
+[data-theme="dark"] .border-dashed.border-gray-300 {
+  border-color: var(--border) !important;
+}
+
+/* Hover de botones con bg-gray-100 */
+[data-theme="dark"] .hover\:bg-gray-100:hover {
+  background-color: var(--surface-alt) !important;
+}
+
+/* Sombra más discreta en modo oscuro */
+[data-theme="dark"] .shadow-sm,
+[data-theme="dark"] .shadow-lg,
+[data-theme="dark"] .shadow-xl {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4) !important;
+}
+
+/* Arreglar badges semánticos con opacidad */
+[data-theme="dark"] .bg-emerald-500\/15 {
+  background-color: rgba(16, 185, 129, 0.18) !important;
+}
+[data-theme="dark"] .bg-red-500\/15 {
+  background-color: rgba(239, 68, 68, 0.18) !important;
+}
+
+/* Texto blanco con baja opacidad en widgets oscuros */
+[data-theme="dark"] .text-white\/90 {
+  color: rgba(255, 255, 255, 0.92) !important;
+}
+
+/* BarChart icon en widget oscuro - un poco más visible */
+[data-theme="dark"] .text-coral {
+  color: #ff7b6b !important;
+}
