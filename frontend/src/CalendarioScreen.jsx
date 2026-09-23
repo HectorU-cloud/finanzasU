@@ -25,9 +25,12 @@ export default function CalendarioScreen({ onVolver }) {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [diaSeleccionado, setDiaSeleccionado] = useState(null);
+  const [transicionando, setTransicionando] = useState(false);
 
   useEffect(() => {
     setCargando(true);
+    setTransicionando(true);
+    const timer = setTimeout(() => setTransicionando(false), 350);
     api.getCalendario(periodo.anio, periodo.mes)
       .then((d) => {
         if (d && Array.isArray(d.dias)) {
@@ -38,6 +41,7 @@ export default function CalendarioScreen({ onVolver }) {
       })
       .catch((e) => setError(e.message))
       .finally(() => setCargando(false));
+    return () => clearTimeout(timer);
   }, [periodo]);
 
   function cambiarMes(delta) {
@@ -50,10 +54,9 @@ export default function CalendarioScreen({ onVolver }) {
     });
   }
 
-  // Calcular padding: días vacíos antes del 1
   const primerDiaSemana = (() => {
     const d = new Date(periodo.anio, periodo.mes - 1, 1).getDay();
-    return (d + 6) % 7; // Lunes=0
+    return (d + 6) % 7;
   })();
 
   return (
@@ -74,7 +77,7 @@ export default function CalendarioScreen({ onVolver }) {
       <div className="flex items-center justify-between mb-4">
         <button
           onClick={() => cambiarMes(-1)}
-          className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50"
+          className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 active:scale-90 transition-transform"
         >
           <ChevronLeft size={16} />
         </button>
@@ -83,7 +86,7 @@ export default function CalendarioScreen({ onVolver }) {
         </p>
         <button
           onClick={() => cambiarMes(1)}
-          className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50"
+          className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 active:scale-90 transition-transform"
         >
           <ChevronRight size={16} />
         </button>
@@ -101,7 +104,11 @@ export default function CalendarioScreen({ onVolver }) {
           colorIcono="azul"
         />
       ) : (
-        <>
+        <div
+          className={`transition-all duration-300 ${
+            transicionando ? "opacity-0 translate-y-2" : "opacity-100 translate-y-0"
+          }`}
+        >
           {/* Resumen del mes */}
           <div
             className="rounded-2xl p-4 mb-5 shadow-sm"
@@ -194,7 +201,7 @@ export default function CalendarioScreen({ onVolver }) {
               </div>
             </div>
           </div>
-        </>
+        </div>
       )}
 
       {/* Modal de detalle del día */}
@@ -212,20 +219,32 @@ export default function CalendarioScreen({ onVolver }) {
 
 function DiaCelda({ dia, onClick }) {
   const tieneMovs = dia.movimientos.length > 0;
+  const numMovs = dia.movimientos.length;
+  const balance = Number(dia.balance);
+  const tieneRecurrente = dia.movimientos.some(
+    (m) => m.tipo === "recurrente_proximo"
+  );
 
-  // Tomar hasta 4 colores únicos
+  // Tomar hasta 3 colores únicos
   const colores = [];
   for (const m of dia.movimientos) {
-    if (!colores.includes(m.color) && colores.length < 4) {
+    if (!colores.includes(m.color) && colores.length < 3) {
       colores.push(m.color);
     }
+  }
+
+  // Color del fondo del balance
+  let balanceColor = "text-gray-400";
+  if (tieneMovs) {
+    if (balance > 0) balanceColor = "text-emerald-600";
+    else if (balance < 0) balanceColor = "text-coral";
   }
 
   return (
     <button
       onClick={onClick}
-      className={`aspect-square rounded-lg p-1 flex flex-col items-center justify-start text-[10px] relative transition-all active:scale-95 ${
-        dia.es_hoy ? "ring-2 ring-coral font-bold" : ""
+      className={`aspect-square rounded-lg p-1 flex flex-col items-center justify-between text-[10px] relative transition-all active:scale-95 hover:shadow-md ${
+        dia.es_hoy ? "ring-2 ring-coral" : ""
       }`}
       style={{
         background: tieneMovs
@@ -233,8 +252,12 @@ function DiaCelda({ dia, onClick }) {
             ? "var(--surface-alt)"
             : "var(--surface)"
           : "transparent",
-        border: tieneMovs ? "1px solid var(--border)" : "none",
-        opacity: dia.es_futuro && tieneMovs ? 0.75 : 1,
+        border: tieneMovs
+          ? tieneRecurrente && dia.es_futuro
+            ? "1px dashed var(--border)"
+            : "1px solid var(--border)"
+          : "none",
+        opacity: dia.es_futuro && tieneMovs ? 0.85 : 1,
       }}
       title={
         tieneMovs
@@ -242,33 +265,57 @@ function DiaCelda({ dia, onClick }) {
           : `Ver ${dia.dia}`
       }
     >
+      {/* Número del día */}
       <span
-        className={
+        className={`text-[11px] leading-none ${
           dia.es_hoy
-            ? "text-coral"
+            ? "text-coral font-bold"
             : dia.es_futuro
             ? "text-gray-400"
-            : "text-carbon"
-        }
+            : "text-carbon font-medium"
+        }`}
       >
         {dia.dia}
       </span>
+
+      {/* Balance mini + contador */}
       {tieneMovs && (
-        <div className="flex flex-wrap gap-0.5 justify-center mt-0.5 max-w-full">
-          {colores.map((c, i) => (
-            <span
-              key={i}
-              className={`w-1.5 h-1.5 rounded-full ${COLORES[c] || "bg-gray-400"}`}
-            />
-          ))}
+        <div className="flex flex-col items-center gap-0.5">
+          <span
+            className={`text-[9px] leading-none font-semibold ${balanceColor}`}
+          >
+            {balance > 0 ? "+" : ""}
+            {Math.abs(balance) >= 1000
+              ? `${(balance / 1000).toFixed(1)}k`
+              : balance.toFixed(0)}
+          </span>
+          <div className="flex gap-0.5 justify-center">
+            {colores.map((c, i) => (
+              <span
+                key={i}
+                className={`w-1 h-1 rounded-full ${
+                  COLORES[c] || "bg-gray-400"
+                }`}
+              />
+            ))}
+          </div>
         </div>
+      )}
+
+      {/* Badge de cantidad si hay más de 3 movimientos */}
+      {numMovs > 3 && (
+        <span
+          className="absolute -top-1 -right-1 min-w-[14px] h-[14px] px-1 rounded-full bg-coral text-white text-[8px] font-bold flex items-center justify-center leading-none"
+          style={{ fontSize: 8 }}
+        >
+          {numMovs}
+        </span>
       )}
     </button>
   );
 }
 
 function DetalleDia({ dia, nombreMes, anio, onCerrar }) {
-  // Agrupar movimientos por categoría visual
   const grupos = {
     ingreso: [],
     gasto: [],
@@ -310,7 +357,7 @@ function DetalleDia({ dia, nombreMes, anio, onCerrar }) {
 
   return (
     <div
-      className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-toast"
       onClick={onCerrar}
     >
       <div
@@ -318,7 +365,6 @@ function DetalleDia({ dia, nombreMes, anio, onCerrar }) {
         style={{ background: "var(--surface)" }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Header del modal */}
         <div className="flex items-start justify-between mb-5">
           <div>
             <p className="text-xs text-gray-500 uppercase tracking-wider">
@@ -336,17 +382,13 @@ function DetalleDia({ dia, nombreMes, anio, onCerrar }) {
           </button>
         </div>
 
-        {/* Si no hay movimientos */}
         {dia.movimientos.length === 0 ? (
           <div className="text-center py-10">
             <p className="text-4xl mb-3">📭</p>
-            <p className="text-sm text-gray-500">
-              Sin movimientos este día
-            </p>
+            <p className="text-sm text-gray-500">Sin movimientos este día</p>
           </div>
         ) : (
           <>
-            {/* Secciones */}
             <div className="space-y-5">
               {Object.keys(grupos).map((cat) => {
                 const lista = grupos[cat];
@@ -405,7 +447,6 @@ function DetalleDia({ dia, nombreMes, anio, onCerrar }) {
               })}
             </div>
 
-            {/* Balance del día */}
             <div
               className="mt-5 pt-4 flex items-center justify-between"
               style={{ borderTop: "2px solid var(--border)" }}
@@ -423,7 +464,6 @@ function DetalleDia({ dia, nombreMes, anio, onCerrar }) {
               </span>
             </div>
 
-            {/* Totales ingresos/gastos */}
             <div className="mt-3 flex justify-between text-xs text-gray-500">
               <span>
                 Ingresos:{" "}
