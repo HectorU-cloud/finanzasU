@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, ChevronLeft, ChevronRight, Scale, X } from "lucide-react";
+import { ArrowLeft, ChevronLeft, ChevronRight, Scale, X, Eye, EyeOff } from "lucide-react";
 import { api } from "./api.js";
 import { SkeletonList } from "./Skeleton.jsx";
 import EmptyState from "./EmptyState.jsx";
@@ -54,6 +54,21 @@ export default function CalendarioScreen({ onVolver }) {
     });
   }
 
+  const [mostrarValores, setMostrarValores] = useState(() => {
+    try {
+      return localStorage.getItem("finanzas_calendario_valores") !== "false";
+    } catch {
+      return true;
+    }
+  });
+
+  // Guardar preferencia cuando cambia
+  useEffect(() => {
+    try {
+      localStorage.setItem("finanzas_calendario_valores", mostrarValores ? "true" : "false");
+    } catch {}
+  }, [mostrarValores]);
+
   const primerDiaSemana = (() => {
     const d = new Date(periodo.anio, periodo.mes - 1, 1).getDay();
     return (d + 6) % 7;
@@ -84,12 +99,21 @@ export default function CalendarioScreen({ onVolver }) {
         <p className="text-base font-semibold text-carbon capitalize">
           {data?.nombre_mes || ""} {periodo.anio}
         </p>
-        <button
-          onClick={() => cambiarMes(1)}
-          className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 active:scale-90 transition-transform"
-        >
-          <ChevronRight size={16} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => setMostrarValores((v) => !v)}
+            className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 active:scale-90 transition-transform"
+            title={mostrarValores ? "Ocultar valores" : "Mostrar valores"}
+          >
+            {mostrarValores ? <Eye size={16} /> : <EyeOff size={16} />}
+          </button>
+          <button
+            onClick={() => cambiarMes(1)}
+            className="w-9 h-9 rounded-full border border-gray-200 flex items-center justify-center text-gray-500 hover:bg-gray-50 active:scale-90 transition-transform"
+          >
+            <ChevronRight size={16} />
+          </button>
+        </div>
       </div>
 
       {cargando ? (
@@ -165,7 +189,12 @@ export default function CalendarioScreen({ onVolver }) {
             ))}
 
             {data.dias.map((d) => (
-              <DiaCelda key={d.dia} dia={d} onClick={() => setDiaSeleccionado(d)} />
+              <DiaCelda
+                key={d.dia}
+                dia={d}
+                onClick={() => setDiaSeleccionado(d)}
+                mostrarValores={mostrarValores}
+              />
             ))}
           </div>
 
@@ -217,7 +246,7 @@ export default function CalendarioScreen({ onVolver }) {
   );
 }
 
-function DiaCelda({ dia, onClick }) {
+function DiaCelda({ dia, onClick, mostrarValores = true }) {
   const tieneMovs = dia.movimientos.length > 0;
   const numMovs = dia.movimientos.length;
   const balance = Number(dia.balance);
@@ -281,14 +310,16 @@ function DiaCelda({ dia, onClick }) {
       {/* Balance mini + contador */}
       {tieneMovs && (
         <div className="flex flex-col items-center gap-0.5">
-          <span
-            className={`text-[9px] leading-none font-semibold ${balanceColor}`}
-          >
-            {balance > 0 ? "+" : ""}
-            {Math.abs(balance) >= 1000
-              ? `${(balance / 1000).toFixed(1)}k`
-              : balance.toFixed(0)}
-          </span>
+          {mostrarValores && (
+            <span
+              className={`text-[9px] leading-none font-semibold ${balanceColor}`}
+            >
+              {balance > 0 ? "+" : ""}
+              {Math.abs(balance) >= 1000
+                ? `${(balance / 1000).toFixed(1)}k`
+                : balance.toFixed(0)}
+            </span>
+          )}
           <div className="flex gap-0.5 justify-center">
             {colores.map((c, i) => (
               <span
