@@ -33,6 +33,7 @@ import RecurrentesScreen from "./RecurrentesScreen.jsx";
 import CategoriasPanel from "./CategoriasPanel.jsx";
 import CalendarioScreen from "./CalendarioScreen.jsx";
 import SplashScreen from "./SplashScreen.jsx";
+import GruposScreen from "./GruposScreen.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -536,13 +537,11 @@ export default function App() {
           <CalendarioScreen onVolver={() => setVista("home")} />
         )}
         {vista === "grupos" && (
-          <div className="max-w-md mx-auto p-6">
-            <GruposPanel 
-              usuarioId={usuario.id} 
-              tarjetas={tarjetas} 
-              onVolver={() => setVista("planificar")} 
-            />
-          </div>
+          <GruposScreen 
+            usuarioId={usuario.id} 
+            tarjetas={tarjetas} 
+            onVolver={() => setVista("planificar")} 
+          />
         )}
         
         {vista === "perfil" && (
