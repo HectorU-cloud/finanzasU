@@ -8,7 +8,7 @@ export default function SplashScreen({ usuario, onTerminar }) {
     // Duración total: 1800ms
     const timer = setTimeout(() => {
       setVisible(false);
-      setTimeout(onTerminar, 300); // espera la animación de salida
+      setTimeout(onTerminar, 300);
     }, 1800);
     return () => clearTimeout(timer);
   }, [onTerminar]);
@@ -22,29 +22,29 @@ export default function SplashScreen({ usuario, onTerminar }) {
         visible ? "opacity-100" : "opacity-0"
       }`}
       style={{
-        background: "linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #4338ca 100%)",
+        background: "linear-gradient(135deg, #FEFAF5 0%, #FFE5E2 50%, #FF4F40 100%)",
       }}
     >
-      {/* Logo */}
-      <div className="w-20 h-20 rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center mb-8 shadow-2xl animate-toast">
-        <PiggyBank size={40} className="text-white" />
+      {/* Logo principal (como en AuthScreen) */}
+      <div className="w-20 h-20 mx-auto rounded-full bg-coral flex items-center justify-center shadow-2xl shadow-coral/40 mb-8 animate-toast">
+        <PiggyBank size={38} className="text-white" />
       </div>
 
       {/* Avatar con inicial */}
       <div className="relative mb-6">
-        <div className="w-24 h-24 rounded-full bg-coral flex items-center justify-center text-white text-4xl font-bold shadow-2xl animate-toast">
+        <div className="w-20 h-20 rounded-full bg-white flex items-center justify-center text-coral text-3xl font-bold shadow-xl animate-toast">
           {inicial}
         </div>
-        <div className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-emerald-500 border-4 border-[#312e81] flex items-center justify-center">
-          <span className="text-white text-xs">✓</span>
+        <div className="absolute -bottom-1 -right-1 w-7 h-7 rounded-full bg-emerald-500 border-4 border-[#FEFAF5] flex items-center justify-center">
+          <span className="text-white text-[10px] font-bold">✓</span>
         </div>
       </div>
 
       {/* Bienvenida */}
-      <p className="text-white/70 text-sm uppercase tracking-widest mb-2 animate-toast">
+      <p className="text-gray-600 text-xs uppercase tracking-widest mb-2 animate-toast">
         Bienvenido de vuelta
       </p>
-      <h1 className="text-4xl font-bold text-white text-center mb-12 animate-toast">
+      <h1 className="text-4xl font-bold text-carbon text-center mb-12 animate-toast">
         {primerNombre}
       </h1>
 
@@ -53,7 +53,7 @@ export default function SplashScreen({ usuario, onTerminar }) {
         {[0, 1, 2, 3, 4].map((i) => (
           <span
             key={i}
-            className="w-2 h-2 rounded-full bg-white/70"
+            className="w-2 h-2 rounded-full bg-coral"
             style={{
               animation: `pulse-dot 1.4s infinite ease-in-out`,
               animationDelay: `${i * 0.15}s`,
@@ -62,11 +62,10 @@ export default function SplashScreen({ usuario, onTerminar }) {
         ))}
       </div>
 
-      <p className="text-white/50 text-xs mt-6">
+      <p className="text-gray-500 text-xs mt-6">
         Cargando tus finanzas...
       </p>
 
-      {/* Estilos inline para la animación de los puntos */}
       <style>{`
         @keyframes pulse-dot {
           0%, 100% { opacity: 0.3; transform: scale(0.8); }
