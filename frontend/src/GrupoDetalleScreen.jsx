@@ -364,10 +364,10 @@ export default function GrupoDetalleScreen({ grupo, usuarioId, tarjetas = [], on
       {/* Botón agregar gasto */}
       <button
         onClick={() => setFormAbierto((v) => !v)}
-        className={`w-full font-semibold py-3 rounded-2xl transition-colors flex items-center justify-center gap-2 mb-4 ${
+        className={`w-full font-semibold py-3 rounded-2xl transition-all flex items-center justify-center gap-2 mb-4 active:scale-[0.98] ${
           formAbierto
             ? "bg-gray-200 text-carbon hover:bg-gray-300"
-            : "bg-coral text-white hover:bg-coral-dark"
+            : "bg-coral text-white hover:bg-coral-dark shadow-md"
         }`}
       >
         {formAbierto ? <X size={16} /> : <Plus size={16} />}

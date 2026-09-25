@@ -2,12 +2,23 @@ import { useEffect, useState } from "react";
 import { Target, Users, HandCoins, ChevronRight } from "lucide-react";
 import { api } from "./api.js";
 
-export default function PlanificarScreen({ onIrAPotes, onIrAGrupos, onIrADeudas }) {
-  const [tabActiva, setTabActiva] = useState("potes");
+export default function PlanificarScreen({
+  onIrAPotes,
+  onIrAGrupos,
+  onIrADeudas,
+  tabInicial = "potes",
+  onCambiarTab,
+}) {
+  const [tabActiva, setTabActiva] = useState(tabInicial);
   const [potes, setPotes] = useState([]);
   const [grupos, setGrupos] = useState([]);
   const [deudas, setDeudas] = useState([]);
   const [cargando, setCargando] = useState(true);
+
+  // Sincronizar si el padre cambia el tab
+  useEffect(() => {
+    setTabActiva(tabInicial);
+  }, [tabInicial]);
 
   useEffect(() => {
     Promise.all([
@@ -22,6 +33,11 @@ export default function PlanificarScreen({ onIrAPotes, onIrAGrupos, onIrADeudas 
       })
       .finally(() => setCargando(false));
   }, []);
+
+  function cambiarTab(tab) {
+    setTabActiva(tab);
+    onCambiarTab?.(tab);
+  }
 
   const totalAhorrado = potes.reduce((acc, p) => acc + Number(p.saldo || 0), 0);
   const potesCompletados = potes.filter(
@@ -41,7 +57,7 @@ export default function PlanificarScreen({ onIrAPotes, onIrAGrupos, onIrADeudas 
         ].map((t) => (
           <button
             key={t.id}
-            onClick={() => setTabActiva(t.id)}
+            onClick={() => cambiarTab(t.id)}
             className={`flex-1 py-2 text-xs sm:text-sm font-semibold rounded-xl transition-all whitespace-nowrap ${
               tabActiva === t.id
                 ? "bg-white text-coral shadow-sm"

@@ -128,6 +128,7 @@ export default function App() {
   const [error, setError] = useState("");
   const [rangoExport, setRangoExport] = useState("mes");
   const [exportando, setExportando] = useState(false);
+  const [tabPlanificar, setTabPlanificar] = useState("potes");
 
   const peticionIdRef = useRef(0);
 
@@ -520,9 +521,20 @@ export default function App() {
         
                 {vista === "planificar" && (
           <PlanificarScreen
-            onIrAPotes={() => setVista("potes")}
-            onIrAGrupos={() => setVista("grupos")}
-            onIrADeudas={() => setVista("deudas")}
+            tabInicial={tabPlanificar}
+            onCambiarTab={setTabPlanificar}
+            onIrAPotes={() => {
+              setTabPlanificar("potes");
+              setVista("planificar");
+            }}
+            onIrAGrupos={() => {
+              setTabPlanificar("grupos");
+              setVista("grupos");
+            }}
+            onIrADeudas={() => {
+              setTabPlanificar("deudas");
+              setVista("deudas");
+            }}
           />
         )}
         {vista === "potes" && <PotesScreen onVolver={() => setVista("planificar")} />}

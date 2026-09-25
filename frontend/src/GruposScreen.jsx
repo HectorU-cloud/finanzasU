@@ -120,12 +120,15 @@ export default function GruposScreen({ usuarioId, tarjetas, onVolver }) {
                 <ChevronRight size={18} className="text-gray-400 shrink-0 mt-2" />
               </div>
 
-              {/* Avatares mini */}
-              <div className="flex items-center gap-1.5 mb-3">
+              <div className="flex items-center -space-x-2 mb-3">
                 {g.miembros.slice(0, 5).map((m) => (
                   <div
                     key={m.usuario_id}
-                    className="w-7 h-7 rounded-full bg-coral text-white flex items-center justify-center text-[10px] font-bold"
+                    className="w-8 h-8 rounded-full bg-coral text-white flex items-center justify-center text-[10px] font-bold ring-2 transition-transform hover:scale-110 hover:z-10 relative"
+                    style={{ 
+                      borderColor: "var(--surface)",
+                      borderWidth: 2,
+                    }}
                     title={m.usuario.nombre}
                   >
                     {m.usuario.nombre[0]?.toUpperCase()}
@@ -133,8 +136,12 @@ export default function GruposScreen({ usuarioId, tarjetas, onVolver }) {
                 ))}
                 {g.miembros.length > 5 && (
                   <div
-                    className="w-7 h-7 rounded-full text-gray-600 flex items-center justify-center text-[10px] font-bold"
-                    style={{ background: "var(--surface-alt)" }}
+                    className="w-8 h-8 rounded-full text-gray-600 flex items-center justify-center text-[10px] font-bold ring-2 relative"
+                    style={{ 
+                      background: "var(--surface-alt)",
+                      borderColor: "var(--surface)",
+                      borderWidth: 2,
+                    }}
                   >
                     +{g.miembros.length - 5}
                   </div>
