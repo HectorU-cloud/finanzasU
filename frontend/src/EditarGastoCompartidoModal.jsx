@@ -54,48 +54,75 @@ export default function EditarGastoCompartidoModal({
   }
 
   return (
-    <div className="modal-overlay" onClick={onCerrar}>
-      <div className="modal-card" onClick={(e) => e.stopPropagation()}>
-        <div className="modal-header">
-          <h3><Pencil size={16} /> Editar gasto compartido</h3>
-          <button className="mini-btn" onClick={onCerrar} title="Cerrar">
-            <X size={16} />
+    <div
+      className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4"
+      onClick={onCerrar}
+    >
+      <div
+        className="rounded-t-3xl sm:rounded-3xl p-6 w-full max-w-sm shadow-2xl max-h-[90vh] overflow-y-auto"
+        style={{ background: "var(--surface)" }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between mb-5">
+          <h3 className="flex items-center gap-2 text-lg font-semibold text-carbon">
+            <Pencil size={18} className="text-coral" />
+            Editar gasto
+          </h3>
+          <button
+            onClick={onCerrar}
+            className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center text-gray-500"
+          >
+            <X size={18} />
           </button>
         </div>
+
         <form
           onSubmit={handleSubmit}
-          className="auth-form"
+          className="space-y-4"
           onKeyDown={(e) => {
             if (e.key === "Escape") onCerrar();
           }}
         >
-          <div>
-            <label>Fecha</label>
-            <input
-              type="date"
-              value={form.fecha}
-              max={todayISO()}
-              min="2000-01-01"
-              onChange={(e) => setForm({ ...form, fecha: e.target.value })}
-            />
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Fecha
+              </label>
+              <input
+                type="date"
+                value={form.fecha}
+                max={todayISO()}
+                min="2000-01-01"
+                onChange={(e) => setForm({ ...form, fecha: e.target.value })}
+                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm"
+              />
+            </div>
+            <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">
+                Monto
+              </label>
+              <input
+                type="number"
+                step="0.01"
+                value={form.monto}
+                onChange={(e) => setForm({ ...form, monto: e.target.value })}
+                className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm font-semibold"
+              />
+            </div>
           </div>
+
+          <p className="text-[10px] text-gray-400 -mt-2">
+            Si cambias el monto, las divisiones se recalculan equitativamente.
+          </p>
+
           <div>
-            <label>Monto total</label>
-            <input
-              type="number"
-              step="0.01"
-              value={form.monto}
-              onChange={(e) => setForm({ ...form, monto: e.target.value })}
-            />
-            <p style={{ fontSize: 11, color: "var(--ink-faint)", marginTop: 4 }}>
-              Si cambias el monto, las divisiones se recalculan equitativamente.
-            </p>
-          </div>
-          <div>
-            <label>Pagado con (opcional)</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              Pagado con (opcional)
+            </label>
             <select
               value={form.tarjeta_id}
               onChange={(e) => setForm({ ...form, tarjeta_id: e.target.value })}
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm bg-white"
             >
               <option value="">Sin especificar</option>
               {tarjetas.map((t) => (
@@ -103,11 +130,15 @@ export default function EditarGastoCompartidoModal({
               ))}
             </select>
           </div>
+
           <div>
-            <label>Categoría (opcional)</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              Categoría (opcional)
+            </label>
             <select
               value={form.categoria}
               onChange={(e) => setForm({ ...form, categoria: e.target.value })}
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm bg-white"
             >
               <option value="">Sin categoría</option>
               {categorias.map((c) => (
@@ -115,20 +146,30 @@ export default function EditarGastoCompartidoModal({
               ))}
             </select>
           </div>
+
           <div>
-            <label>Descripción (opcional)</label>
+            <label className="block text-xs font-medium text-gray-500 mb-1">
+              Descripción (opcional)
+            </label>
             <input
               type="text"
               value={form.descripcion}
               onChange={(e) => setForm({ ...form, descripcion: e.target.value })}
+              placeholder="ej. mercado"
+              className="w-full px-3 py-2.5 rounded-xl border border-gray-200 focus:border-coral focus:outline-none text-sm"
             />
           </div>
-          {error && <p className="error">{error}</p>}
+
+          {error && (
+            <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-xl px-3 py-2">
+              {error}
+            </p>
+          )}
+
           <button
-            className="submit"
             type="submit"
             disabled={cargando}
-            style={{ width: "100%", justifyContent: "center" }}
+            className="w-full bg-coral text-white font-semibold py-3 rounded-xl hover:bg-coral-dark transition-colors disabled:opacity-60"
           >
             {cargando ? "Guardando..." : "Guardar cambios"}
           </button>
