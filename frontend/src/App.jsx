@@ -32,6 +32,7 @@ import OnboardingScreen from "./OnboardingScreen.jsx";
 import RecurrentesScreen from "./RecurrentesScreen.jsx";
 import CategoriasPanel from "./CategoriasPanel.jsx";
 import CalendarioScreen from "./CalendarioScreen.jsx";
+import SplashScreen from "./SplashScreen.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -137,11 +138,21 @@ export default function App() {
     }
   });
 
+  // Splash: solo para usuarios que YA completaron el onboarding
+  const [mostrandoSplash, setMostrandoSplash] = useState(() => {
+    try {
+      return localStorage.getItem("finanzas_onboarding_completado") === "true";
+    } catch {
+      return false;
+    }
+  });
+
   function completarOnboarding() {
     try {
       localStorage.setItem("finanzas_onboarding_completado", "true");
     } catch {}
     setMostrarOnboarding(false);
+    setMostrandoSplash(true); // <-- Mostrar splash después del onboarding
   }
 
 
@@ -411,6 +422,11 @@ export default function App() {
         onCompletado={completarOnboarding}
       />
     );
+  }
+
+  // Splash: solo para usuarios existentes (que ya vieron el onboarding)
+  if (mostrandoSplash) {
+    return <SplashScreen usuario={usuario} onTerminar={() => setMostrandoSplash(false)} />;
   }
 
   if (vistaTarjetas) {
