@@ -136,6 +136,14 @@ async def manejar_error_validacion(request: Request, exc: RequestValidationError
         detalle = "Datos inválidos"
     return JSONResponse(status_code=422, content={"detail": detalle})
 
+@app.get("/api/health")
+def health():
+    """Endpoint de salud para Railway, monitores externos y uptime checks."""
+    return {
+        "status": "ok",
+        "service": "finanzasU-backend",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+    }
 
 _origenes_env = os.getenv("ALLOWED_ORIGINS", "")
 ALLOWED_ORIGINS = [o.strip() for o in _origenes_env.split(",") if o.strip()] or [
