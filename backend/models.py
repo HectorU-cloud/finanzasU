@@ -11,7 +11,8 @@ class Usuario(Base):
     id = Column(Integer, primary_key=True, index=True)
     nombre = Column(String(80), nullable=False)
     email = Column(String(120), unique=True, nullable=False, index=True)
-    password_hash = Column(String(200), nullable=False)
+    password_hash = Column(String(200), nullable=True)
+    google_id = Column(String(255), unique=True, nullable=True, index=True)
     creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     tarjetas = relationship("Tarjeta", back_populates="usuario", cascade="all, delete-orphan")

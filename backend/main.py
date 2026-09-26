@@ -7,6 +7,9 @@ import resend
 from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 
+from google.auth.transport import requests as google_requests
+from google.oauth2 import id_token as google_id_token
+
 from fastapi import FastAPI, Depends, HTTPException, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
@@ -27,6 +30,7 @@ RESEND_API_KEY = os.getenv("RESEND_API_KEY")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 FROM_EMAIL = os.getenv("FROM_EMAIL", "noreply@vectoraec.app")
 CRON_API_KEY = os.getenv("CRON_API_KEY")
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
 
 if RESEND_API_KEY:
     resend.api_key = RESEND_API_KEY
@@ -261,8 +265,59 @@ def registrar(datos: schemas.UsuarioCreate, db: Session = Depends(get_db)):
 def login(datos: schemas.UsuarioLogin, db: Session = Depends(get_db)):
     email = datos.email.lower()
     usuario = db.query(models.Usuario).filter(models.Usuario.email == email).first()
-    if not usuario or not auth.verificar_password(datos.password, usuario.password_hash):
+    if not usuario:
         raise HTTPException(status_code=401, detail="Correo o contraseña incorrectos")
+    if not usuario.password_hash:
+        raise HTTPException(status_code=401, detail="Esta cuenta usa Google. Continúa con Google para iniciar sesión.")
+    if not auth.verificar_password(datos.password, usuario.password_hash):
+        raise HTTPException(status_code=401, detail="Correo o contraseña incorrectos")
+
+    token = auth.crear_token(usuario.id)
+    return schemas.Token(access_token=token, usuario=usuario)
+
+
+@app.post("/api/auth/google", response_model=schemas.Token)
+def login_google(datos: schemas.GoogleLogin, db: Session = Depends(get_db)):
+    """Valida el ID token emitido por Google y crea/inicia la cuenta de FinanzasU."""
+    if not GOOGLE_CLIENT_ID:
+        raise HTTPException(status_code=503, detail="El inicio de sesión con Google no está configurado")
+
+    try:
+        informacion = google_id_token.verify_oauth2_token(
+            datos.credential,
+            google_requests.Request(),
+            GOOGLE_CLIENT_ID,
+        )
+    except ValueError:
+        raise HTTPException(status_code=401, detail="La autenticación de Google no es válida o expiró")
+
+    email = str(informacion.get("email", "")).strip().lower()
+    nombre = str(informacion.get("name") or informacion.get("given_name") or "Usuario").strip()
+    google_sub = str(informacion.get("sub", "")).strip()
+    email_verificado = informacion.get("email_verified") is True
+
+    if not email or not google_sub or not email_verificado:
+        raise HTTPException(status_code=401, detail="Google no pudo verificar tu correo electrónico")
+
+    usuario = db.query(models.Usuario).filter(models.Usuario.email == email).first()
+
+    if usuario:
+        if usuario.google_id and usuario.google_id != google_sub:
+            raise HTTPException(status_code=409, detail="Esta cuenta está vinculada a otra identidad de Google")
+        usuario.google_id = google_sub
+        if not usuario.nombre.strip():
+            usuario.nombre = nombre[:80]
+    else:
+        usuario = models.Usuario(
+            nombre=nombre[:80] or "Usuario",
+            email=email,
+            password_hash=None,
+            google_id=google_sub,
+        )
+        db.add(usuario)
+
+    db.commit()
+    db.refresh(usuario)
 
     token = auth.crear_token(usuario.id)
     return schemas.Token(access_token=token, usuario=usuario)
@@ -274,6 +329,8 @@ def cambiar_password(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
+    if not usuario.password_hash:
+        raise HTTPException(status_code=400, detail="Esta cuenta no tiene una contraseña local. Usa 'Olvidé mi contraseña' para crear una.")
     if not auth.verificar_password(datos.password_actual, usuario.password_hash):
         raise HTTPException(status_code=400, detail="La contraseña actual no es correcta")
     if datos.password_actual == datos.password_nueva:

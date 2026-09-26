@@ -32,3 +32,5 @@ urllib3==2.8.0
 uvicorn==0.30.6
 watchfiles==1.2.0
 websockets==17.1
+
+google-auth==2.40.3

@@ -67,3 +67,20 @@ Cuando una recurrente crea una o más transacciones, el backend puede enviar un 
 Cada usuario puede crear y eliminar sus propias categorías de gastos e ingresos desde **Perfil → Mis categorías**. Las categorías predeterminadas siguen disponibles y las personalizadas se incluyen automáticamente en los formularios y recurrentes.
 
 Después de desplegar esta versión, ejecuta las migraciones de Alembic para crear `categorias_personalizadas`.
+
+
+## Inicio de sesión con Google
+
+FinanzasU permite iniciar sesión o crear una cuenta mediante Google Identity Services.
+
+### Backend
+Configura `GOOGLE_CLIENT_ID` en el `.env` del backend y ejecuta la migración con:
+
+```bash
+alembic upgrade head
+```
+
+### Frontend
+Configura `VITE_GOOGLE_CLIENT_ID` en el `.env` del frontend con el mismo Client ID de Google Cloud.
+
+Las cuentas existentes se vinculan por correo verificado de Google y conservan sus datos. Las cuentas creadas inicialmente con Google pueden establecer una contraseña usando el flujo de recuperación de contraseña.

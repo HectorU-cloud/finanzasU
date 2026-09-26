@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api, setAuthToken } from "./api.js";
 import { PiggyBank, Eye, EyeOff } from "lucide-react";
 
@@ -10,6 +10,60 @@ export default function AuthScreen({ onAutenticado, onSolicitarReset }) {
   const [cargando, setCargando] = useState(false);
   const [mostrarPassword, setMostrarPassword] = useState(false);
   const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
+  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+  const googleButtonRef = useRef(null);
+
+  useEffect(() => {
+    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+    if (!clientId || !googleButtonRef.current) return;
+
+    let cancelado = false;
+
+    const inicializarGoogle = () => {
+      if (cancelado || !window.google?.accounts?.id || !googleButtonRef.current) return;
+      googleButtonRef.current.innerHTML = "";
+      window.google.accounts.id.initialize({
+        client_id: clientId,
+        callback: async (response) => {
+          setError("");
+          setCargando(true);
+          try {
+            const datos = await api.loginGoogle(response.credential);
+            setAuthToken(datos.access_token);
+            onAutenticado(datos.usuario);
+          } catch (err) {
+            setError(err.message);
+          } finally {
+            setCargando(false);
+          }
+        },
+      });
+      window.google.accounts.id.renderButton(googleButtonRef.current, {
+        theme: "outline",
+        size: "large",
+        width: 320,
+        text: "continue_with",
+        shape: "pill",
+        logo_alignment: "left",
+      });
+    };
+
+    if (window.google?.accounts?.id) {
+      inicializarGoogle();
+    } else {
+      const script = document.createElement("script");
+      script.src = "https://accounts.google.com/gsi/client";
+      script.async = true;
+      script.defer = true;
+      script.onload = inicializarGoogle;
+      document.head.appendChild(script);
+    }
+
+    return () => {
+      cancelado = true;
+      if (googleButtonRef.current) googleButtonRef.current.innerHTML = "";
+    };
+  }, [onAutenticado]);
 
   function validar() {
     if (!form.email.trim() || !form.password) {
@@ -66,6 +120,21 @@ export default function AuthScreen({ onAutenticado, onSolicitarReset }) {
 
         {/* Card */}
         <div className="bg-white rounded-3xl shadow-xl p-6">
+          {/* Google */}
+          {googleClientId && (
+            <>
+              <div className="mb-5 flex justify-center">
+                <div ref={googleButtonRef} className="min-h-[40px]" aria-label="Continuar con Google" />
+              </div>
+
+              <div className="flex items-center gap-3 mb-5">
+                <div className="h-px bg-gray-200 flex-1" />
+                <span className="text-xs text-gray-400">o continúa con tu correo</span>
+                <div className="h-px bg-gray-200 flex-1" />
+              </div>
+            </>
+          )}
+
           {/* Tabs */}
           <div className="flex gap-4 mb-6 border-b border-gray-200">
             <button

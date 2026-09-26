@@ -44,6 +44,10 @@ class UsuarioCreate(BaseModel):
         return _validar_texto_no_vacio(v)
 
 
+class GoogleLogin(BaseModel):
+    credential: str = Field(min_length=1)
+
+
 class UsuarioLogin(BaseModel):
     email: EmailStr
     password: str = Field(min_length=1)
