@@ -129,7 +129,9 @@ export default function AuthScreen({ onAutenticado, onSolicitarReset }) {
 
               <div className="flex items-center gap-3 mb-5">
                 <div className="h-px bg-gray-200 flex-1" />
-                <span className="text-xs text-gray-400">o continúa con tu correo</span>
+                <span className="text-xs text-gray-400">
+                  {modo === "login" ? "o inicia sesión con tu correo" : "o regístrate con tu correo"}
+                </span>
                 <div className="h-px bg-gray-200 flex-1" />
               </div>
             </>
