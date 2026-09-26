@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { HandCoins, PartyPopper, X } from "lucide-react";
 import { api } from "./api.js";
 import { useToast } from "./ToastContext.jsx";
@@ -9,14 +9,30 @@ function todayISO() {
 }
 
 export default function AbonarDeudaModal({ deuda, onCerrar, onGuardado }) {
-  const [form, setForm] = useState({ monto: "", fecha: todayISO(), nota: "", cuenta_id: "",});
+  const [form, setForm] = useState({ monto: "", fecha: todayISO(), nota: "", cuenta_id: "" });
   const [error, setError] = useState("");
   const [cargando, setCargando] = useState(false);
   const [resultado, setResultado] = useState(null); // { deuda, quedo_saldada }
+  const [cuentas, setCuentas] = useState([]);
   const { showToast } = useToast();
 
   const saldoPendiente = Number(deuda.saldo_pendiente);
   const verbo = deuda.tipo === "debo" ? "Abonar a" : "Registrar pago de";
+
+  // ✅ Cargar cuentas al montar el modal (antes estaba mal ubicado dentro de handleSubmit)
+  useEffect(() => {
+    let cancelado = false;
+    api.getCuentas()
+      .then((d) => {
+        if (!cancelado) setCuentas(d || []);
+      })
+      .catch(() => {
+        if (!cancelado) setCuentas([]);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -40,7 +56,7 @@ export default function AbonarDeudaModal({ deuda, onCerrar, onGuardado }) {
         monto: montoNum,
         fecha: form.fecha,
         nota: form.nota || null,
-        cuenta_id: form.cuenta_id ? Number(form.cuenta_id) : null,  // <-- NUEVO
+        cuenta_id: form.cuenta_id ? Number(form.cuenta_id) : null,
       });
       setResultado(r);
       showToast(r.quedo_saldada ? "¡Deuda saldada! 🎉" : "Abono registrado ✓");
@@ -49,14 +65,6 @@ export default function AbonarDeudaModal({ deuda, onCerrar, onGuardado }) {
     } finally {
       setCargando(false);
     }
-
-    const [cuentas, setCuentas] = useState([]);
-
-  useEffect(() => {
-    api.getCuentas()
-      .then((d) => setCuentas(d || []))
-      .catch(() => setCuentas([]));
-  }, []);
   }
 
   if (resultado) {
@@ -171,7 +179,7 @@ export default function AbonarDeudaModal({ deuda, onCerrar, onGuardado }) {
             />
           </div>
 
-                    <div>
+          <div>
             <label className="block text-xs font-medium text-gray-500 mb-1">
               {deuda.tipo === "debo"
                 ? "¿De qué cuenta sale el dinero? (opcional)"
