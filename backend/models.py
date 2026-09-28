@@ -179,6 +179,7 @@ class Pote(Base):
     emoji = Column(String(10), nullable=False, default="🏺")
     meta = Column(Numeric(12, 2), nullable=False)
     saldo = Column(Numeric(12, 2), nullable=False, default=0)
+    eliminado = Column(Integer, nullable=False, default=0, index=True)  # <-- NUEVO
     creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     usuario = relationship("Usuario")

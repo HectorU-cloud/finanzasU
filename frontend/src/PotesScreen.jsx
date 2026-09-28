@@ -41,10 +41,24 @@ export default function PotesScreen({ onVolver }) {
 
   async function confirmarEliminar() {
     if (!poteAEliminar) return;
+    const poteBorrado = poteAEliminar;
     try {
-      await api.eliminarPote(poteAEliminar.id);
+      await api.eliminarPote(poteBorrado.id);
       setPoteAEliminar(null);
       await cargar();
+
+      showToast("Pote eliminado", "info", {
+        accion: "Deshacer",
+        onAccion: async () => {
+          try {
+            await api.restaurarPote(poteBorrado.id);
+            await cargar();
+            showToast("Pote restaurado ✓");
+          } catch {
+            showToast("No se pudo restaurar el pote", "error");
+          }
+        },
+      });
     } catch (err) {
       setError(err.message);
       setPoteAEliminar(null);

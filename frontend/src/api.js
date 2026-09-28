@@ -167,11 +167,14 @@ export const api = {
 
   // Pots (metas de ahorro)
   getPotes: () => request("/potes"),
+  getPotesEliminadas: () => request("/potes/eliminadas"),
   crearPote: (pote) =>
     request("/potes", { method: "POST", body: JSON.stringify(pote) }),
   actualizarPote: (id, cambios) =>
     request(`/potes/${id}`, { method: "PUT", body: JSON.stringify(cambios) }),
   eliminarPote: (id) => request(`/potes/${id}`, { method: "DELETE" }),
+  restaurarPote: (id) => request(`/potes/${id}/restaurar`, { method: "POST" }),
+  eliminarPoteDefinitivo: (id) => request(`/potes/${id}/definitivo`, { method: "DELETE" }),
   depositarPote: (id, datos) =>
     request(`/potes/${id}/depositar`, { method: "POST", body: JSON.stringify(datos) }),
   retirarPote: (id, datos) =>

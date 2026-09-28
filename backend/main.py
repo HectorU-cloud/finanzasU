@@ -1055,7 +1055,11 @@ def listar_categorias_ingreso(
 def _pote_del_usuario(db: Session, pote_id: int, usuario: models.Usuario) -> models.Pote:
     pote = (
         db.query(models.Pote)
-        .filter(models.Pote.id == pote_id, models.Pote.usuario_id == usuario.id)
+        .filter(
+            models.Pote.id == pote_id,
+            models.Pote.usuario_id == usuario.id,
+            models.Pote.eliminado == 0,
+        )
         .first()
     )
     if not pote:
@@ -1075,7 +1079,27 @@ def listar_potes(
 ):
     return (
         db.query(models.Pote)
-        .filter(models.Pote.usuario_id == usuario.id)
+        .filter(
+            models.Pote.usuario_id == usuario.id,
+            models.Pote.eliminado == 0,
+        )
+        .order_by(models.Pote.creado_en.desc())
+        .all()
+    )
+
+
+@app.get("/api/potes/eliminadas", response_model=list[schemas.PoteOut])
+def listar_potes_eliminadas(
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """Potes en la papelera."""
+    return (
+        db.query(models.Pote)
+        .filter(
+            models.Pote.usuario_id == usuario.id,
+            models.Pote.eliminado == 1,
+        )
         .order_by(models.Pote.creado_en.desc())
         .all()
     )
@@ -1134,7 +1158,49 @@ def eliminar_pote(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
+    """Soft delete: marca el pote como eliminado."""
     pote = _pote_del_usuario(db, pote_id, usuario)
+    pote.eliminado = 1
+    db.commit()
+
+
+@app.post("/api/potes/{pote_id}/restaurar", response_model=schemas.PoteOut)
+def restaurar_pote(
+    pote_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    pote = (
+        db.query(models.Pote)
+        .filter(
+            models.Pote.id == pote_id,
+            models.Pote.usuario_id == usuario.id,
+            models.Pote.eliminado == 1,
+        )
+        .first()
+    )
+    if not pote:
+        raise HTTPException(status_code=404, detail="Pote no encontrado en papelera")
+    pote.eliminado = 0
+    db.commit()
+    db.refresh(pote)
+    return pote
+
+
+@app.delete("/api/potes/{pote_id}/definitivo", status_code=204)
+def eliminar_pote_definitivo(
+    pote_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """Borrado físico real: solo desde la papelera."""
+    pote = (
+        db.query(models.Pote)
+        .filter(models.Pote.id == pote_id, models.Pote.usuario_id == usuario.id)
+        .first()
+    )
+    if not pote:
+        raise HTTPException(status_code=404, detail="Pote no encontrado")
     db.delete(pote)
     db.commit()
 
@@ -1156,6 +1222,7 @@ def depositar_pote(
         db.query(func.coalesce(func.sum(models.Pote.saldo), 0))
         .filter(models.Pote.cuenta_id == cuenta.id)
         .filter(models.Pote.id != pote.id)
+        .filter(models.Pote.eliminado == 0)
         .scalar()
     )
     saldo_disponible = saldo_cuenta - Decimal(total_en_potes)

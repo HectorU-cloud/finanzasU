@@ -586,7 +586,13 @@ class PoteOut(BaseModel):
     emoji: str
     meta: Decimal
     saldo: Decimal
+    eliminado: bool = False
     creado_en: datetime | None = None
+
+    @field_validator("eliminado", mode="before")
+    @classmethod
+    def _eliminado_bool(cls, v):
+        return bool(v)
 
 
 class MovimientoPoteCreate(BaseModel):
