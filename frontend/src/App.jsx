@@ -43,6 +43,7 @@ const CalendarioScreen = lazy(() => import("./CalendarioScreen.jsx"));
 const GruposScreen = lazy(() => import("./GruposScreen.jsx"));
 const BuscarScreen = lazy(() => import("./BuscarScreen.jsx"));
 const EgresoCuentaModal = lazy(() => import("./EgresoCuentaModal.jsx"));
+const PapeleraScreen = lazy(() => import("./PapeleraScreen.jsx"));
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -132,7 +133,7 @@ function AppContent() {
   const [modalTarjetas, setModalTarjetas] = useState(false);
   const [vistaTarjetas, setVistaTarjetas] = useState(false);
   const [origenDetalle, setOrigenDetalle] = useState(null);
-  
+  const [vistaPapelera, setVistaPapelera] = useState(false);
 
   const [tarjetas, setTarjetas] = useState([]);
   const [gastos, setGastos] = useState([]);
@@ -509,6 +510,18 @@ const [mostrandoSplash, setMostrandoSplash] = useState(false);
     return <SplashScreen usuario={usuario} onTerminar={() => setMostrandoSplash(false)} />;
   }
 
+  if (vistaPapelera && usuario) {
+    return (
+      <PapeleraScreen
+        onVolver={() => setVistaPapelera(false)}
+        onRestaurado={() => {
+          // Recargar datos del Home por si se restauró una deuda/pote/grupo
+          cargarDatos();
+        }}
+      />
+    );
+  }
+
   if (vistaTarjetas) {
         return (
       <div className="min-h-screen bg-cream pb-24">
@@ -624,6 +637,7 @@ const [mostrandoSplash, setMostrandoSplash] = useState(false);
             onCerrarSesion={handleLogout}
             onIrACalendario={() => setVista("calendario")}        // <-- NUEVA
             onBuscar={() => setVistaBuscar(true)}
+            onIrAPapelera={() => setVistaPapelera(true)}
           />
         )}
         {vista === "cuentas" && <CuentasScreen onCambiarVista={setVista} />}

@@ -263,6 +263,7 @@ class GrupoOut(BaseModel):
     creado_por_id: int
     limite_mensual: Decimal
     eliminado: bool = False
+    eliminado_en: datetime | None = None
     miembros: list["MiembroGrupoOut"] = []
 
     @field_validator("eliminado", mode="before")
@@ -593,6 +594,7 @@ class PoteOut(BaseModel):
     meta: Decimal
     saldo: Decimal
     eliminado: bool = False
+    eliminado_en: datetime | None = None
     creado_en: datetime | None = None
 
     @field_validator("eliminado", mode="before")
@@ -657,6 +659,7 @@ class NotaOut(BaseModel):
     contenido: str
     color: str = "rosa"
     eliminado: bool = False
+    eliminado_en: datetime | None = None
     creado_en: datetime | None = None
     actualizado_en: datetime | None = None
 
@@ -735,6 +738,7 @@ class DeudaOut(BaseModel):
     pagada: bool
     fecha_pagada: date | None
     eliminado: bool = False
+    eliminado_en: datetime | None = None
     creado_en: datetime | None = None
 
     @field_validator("pagada", mode="before")

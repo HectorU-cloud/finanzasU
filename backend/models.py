@@ -73,7 +73,8 @@ class Grupo(Base):
     creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     codigo_invitacion = Column(String(20), unique=True, index=True)
     limite_mensual = Column(Numeric(10, 2), nullable=False, default=350)
-    eliminado = Column(Integer, nullable=False, default=0, index=True)  # <-- NUEVO
+    eliminado = Column(Integer, nullable=False, default=0, index=True)
+    eliminado_en = Column(DateTime, nullable=True)  # <-- NUEVO
 
     creador = relationship("Usuario", foreign_keys=[creado_por_id])
     miembros = relationship("MiembroGrupo", back_populates="grupo", cascade="all, delete-orphan")
@@ -180,7 +181,8 @@ class Pote(Base):
     emoji = Column(String(10), nullable=False, default="🏺")
     meta = Column(Numeric(12, 2), nullable=False)
     saldo = Column(Numeric(12, 2), nullable=False, default=0)
-    eliminado = Column(Integer, nullable=False, default=0, index=True)  # <-- NUEVO
+    eliminado = Column(Integer, nullable=False, default=0, index=True)
+    eliminado_en = Column(DateTime, nullable=True)  # <-- NUEVO
     creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     usuario = relationship("Usuario")
@@ -224,7 +226,8 @@ class Deuda(Base):
     frecuencia_recordatorio_dias = Column(Integer, nullable=True)  # null = sin recordatorio
     pagada = Column(Integer, default=0)  # 0=activa, 1=saldada
     fecha_pagada = Column(Date, nullable=True)
-    eliminado = Column(Integer, nullable=False, default=0, index=True)  # <-- NUEVO
+    eliminado = Column(Integer, nullable=False, default=0, index=True)
+    eliminado_en = Column(DateTime, nullable=True)  # <-- NUEVO
     creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     usuario = relationship("Usuario")
@@ -252,7 +255,8 @@ class Nota(Base):
     usuario_id = Column(Integer, ForeignKey("usuarios.id"), nullable=False)
     contenido = Column(String(500), nullable=False, default="")
     color = Column(String(20), nullable=False, default="rosa")
-    eliminado = Column(Integer, nullable=False, default=0, index=True)  # <-- NUEVO
+    eliminado = Column(Integer, nullable=False, default=0, index=True)
+    eliminado_en = Column(DateTime, nullable=True)  # <-- NUEVO
     creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
     actualizado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc), onupdate=lambda: datetime.now(timezone.utc))
 

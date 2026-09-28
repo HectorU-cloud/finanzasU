@@ -189,6 +189,10 @@ export const api = {
   getCalendario: (anio, mes) =>
     request(`/calendario?anio=${anio}&mes=${mes}`),
 
+  // Papelera
+  getPapelera: () => request("/papelera"),
+  limpiarPapelera: () => request("/papelera/limpiar", { method: "DELETE" }),
+
 
   getTarjetas: () => request("/tarjetas"),
     getGastos: (anio, mes, categoria = null, tarjetaId = null) => {

@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, TrendingUp, TrendingDown, Wallet, Eye, EyeOff, ArrowRightLeft, PiggyBank, CreditCard, StickyNote, Trash2, HandCoins, Palette, PieChart, Calendar, Target, Sparkles, AlertCircle, User, LogOut, Menu, Search, } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, Wallet, Eye, EyeOff, ArrowRightLeft, PiggyBank, CreditCard, StickyNote, Trash2, HandCoins, Palette, PieChart, Calendar, Target, Sparkles, AlertCircle, User, LogOut, Menu, Inbox } from "lucide-react";
 import { api } from "./api.js";
 import AlertasBanner from "./AlertasBanner.jsx";
 import TarjetasScreen from "./TarjetasScreen.jsx";
@@ -130,6 +130,7 @@ export default function Home({
   onCerrarSesion,
   onIrACalendario,   // <-- NUEVA
   onBuscar,   // ← NUEVO
+  onIrAPapelera,
 }) {
   const [cuentas, setCuentas] = useState([]);
   const [cargandoCuentas, setCargandoCuentas] = useState(true);
@@ -306,6 +307,17 @@ export default function Home({
                 >
                   <User size={16} className="text-gray-500" />
                   Mi perfil
+                </button>
+
+                <button
+                  onClick={() => {
+                    setMenuUsuarioAbierto(false);
+                    onIrAPapelera?.();
+                  }}
+                  className="w-full flex items-center gap-3 px-4 py-3 text-left text-sm text-carbon hover:bg-gray-50 transition-colors"
+                >
+                  <Inbox size={16} className="text-gray-500" />
+                  Papelera
                 </button>
 
                 <button

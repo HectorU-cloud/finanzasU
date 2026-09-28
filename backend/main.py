@@ -1161,6 +1161,7 @@ def eliminar_pote(
     """Soft delete: marca el pote como eliminado."""
     pote = _pote_del_usuario(db, pote_id, usuario)
     pote.eliminado = 1
+    pote.eliminado_en = datetime.now(timezone.utc)
     db.commit()
 
 
@@ -1182,6 +1183,7 @@ def restaurar_pote(
     if not pote:
         raise HTTPException(status_code=404, detail="Pote no encontrado en papelera")
     pote.eliminado = 0
+    pote.eliminado_en = None
     db.commit()
     db.refresh(pote)
     return pote
@@ -2139,6 +2141,7 @@ def eliminar_grupo(
     if grupo.creado_por_id != usuario.id:
         raise HTTPException(status_code=403, detail="Solo quien creó el grupo puede eliminarlo")
     grupo.eliminado = 1
+    grupo.eliminado_en = datetime.now(timezone.utc)
     db.commit()
 
 
@@ -2161,6 +2164,7 @@ def restaurar_grupo(
     if not grupo:
         raise HTTPException(status_code=404, detail="Grupo no encontrado en papelera")
     grupo.eliminado = 0
+    grupo.eliminado_en = None
     db.commit()
     db.refresh(grupo)
     return grupo
@@ -2278,6 +2282,7 @@ def eliminar_nota(
     if not nota:
         raise HTTPException(status_code=404, detail="Nota no encontrada")
     nota.eliminado = 1
+    nota.eliminado_en = datetime.now(timezone.utc)
     db.commit()
 
 
@@ -2300,6 +2305,7 @@ def restaurar_nota(
     if not nota:
         raise HTTPException(status_code=404, detail="Nota no encontrada en papelera")
     nota.eliminado = 0
+    nota.eliminado_en = None
     db.commit()
     db.refresh(nota)
     return nota
@@ -2559,6 +2565,7 @@ def eliminar_deuda(
     """Soft delete: marca la deuda como eliminada. Los abonos se preservan."""
     deuda = _deuda_del_usuario(db, deuda_id, usuario)
     deuda.eliminado = 1
+    deuda.eliminado_en = datetime.now(timezone.utc)
     db.commit()
 
 
@@ -2580,6 +2587,7 @@ def restaurar_deuda(
     if not deuda:
         raise HTTPException(status_code=404, detail="Deuda no encontrada en papelera")
     deuda.eliminado = 0
+    deuda.eliminado_en = None
     db.commit()
     db.refresh(deuda)
     return deuda
@@ -4769,3 +4777,188 @@ def limpiar_demos(
 
     db.commit()
     return {"eliminados": len(demos), "horas_limite": horas}
+
+# ============================================================
+# PAPELERA UNIFICADA
+# ============================================================
+
+@app.get("/api/papelera")
+def listar_papelera(
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """
+    Devuelve todos los elementos eliminados (soft-deleted) del usuario,
+    unificados en una lista ordenada por fecha de eliminación descendente.
+    """
+    items = []
+
+    # === Notas ===
+    notas = (
+        db.query(models.Nota)
+        .filter(
+            models.Nota.usuario_id == usuario.id,
+            models.Nota.eliminado == 1,
+        )
+        .all()
+    )
+    for n in notas:
+        contenido_corto = (n.contenido or "").strip()[:80] or "Nota vacía"
+        items.append({
+            "tipo": "nota",
+            "id": n.id,
+            "titulo": contenido_corto,
+            "subtitulo": "Nota",
+            "color": n.color,
+            "eliminado_en": n.eliminado_en.isoformat() if n.eliminado_en else None,
+        })
+
+    # === Potes ===
+    potes = (
+        db.query(models.Pote)
+        .filter(
+            models.Pote.usuario_id == usuario.id,
+            models.Pote.eliminado == 1,
+        )
+        .all()
+    )
+    for p in potes:
+        items.append({
+            "tipo": "pote",
+            "id": p.id,
+            "titulo": f"{p.emoji} {p.nombre}",
+            "subtitulo": f"${float(p.saldo):.2f} de ${float(p.meta):.2f}",
+            "eliminado_en": p.eliminado_en.isoformat() if p.eliminado_en else None,
+        })
+
+    # === Deudas ===
+    deudas = (
+        db.query(models.Deuda)
+        .filter(
+            models.Deuda.usuario_id == usuario.id,
+            models.Deuda.eliminado == 1,
+        )
+        .all()
+    )
+    for d in deudas:
+        estado = "Saldada" if d.pagada else ("Le debes" if d.tipo == "debo" else "Te debe")
+        items.append({
+            "tipo": "deuda",
+            "id": d.id,
+            "titulo": d.persona,
+            "subtitulo": f"{estado} · ${float(d.saldo_pendiente):.2f}",
+            "eliminado_en": d.eliminado_en.isoformat() if d.eliminado_en else None,
+        })
+
+    # === Grupos ===
+    grupos = (
+        db.query(models.Grupo)
+        .filter(
+            models.Grupo.creado_por_id == usuario.id,
+            models.Grupo.eliminado == 1,
+        )
+        .all()
+    )
+    for g in grupos:
+        n_miembros = (
+            db.query(func.count(models.MiembroGrupo.id))
+            .filter(models.MiembroGrupo.grupo_id == g.id)
+            .scalar()
+        )
+        n_gastos = (
+            db.query(func.count(models.GastoCompartido.id))
+            .filter(models.GastoCompartido.grupo_id == g.id)
+            .scalar()
+        )
+        items.append({
+            "tipo": "grupo",
+            "id": g.id,
+            "titulo": g.nombre,
+            "subtitulo": f"{n_miembros} miembro{'s' if n_miembros != 1 else ''} · {n_gastos} gasto{'s' if n_gastos != 1 else ''}",
+            "eliminado_en": g.eliminado_en.isoformat() if g.eliminado_en else None,
+        })
+
+    # Ordenar: más reciente primero. Los sin fecha van al final.
+    items.sort(
+        key=lambda x: x.get("eliminado_en") or "",
+        reverse=True,
+    )
+
+    return {"items": items, "total": len(items)}
+
+@app.delete("/api/papelera/limpiar")
+def limpiar_papelera(
+    x_cron_key: str | None = Header(default=None),
+    dias: int = 30,
+    db: Session = Depends(get_db),
+):
+    """
+    Borra definitivamente los elementos eliminados hace más de N días.
+    Requiere el header X-Cron-Key.
+    """
+    if not CRON_API_KEY:
+        raise HTTPException(status_code=500, detail="CRON_API_KEY no configurada")
+    if x_cron_key != CRON_API_KEY:
+        raise HTTPException(status_code=403, detail="API key inválida")
+
+    limite = datetime.now(timezone.utc) - timedelta(days=dias)
+    eliminados = 0
+
+    # Notas
+    notas = (
+        db.query(models.Nota)
+        .filter(
+            models.Nota.eliminado == 1,
+            models.Nota.eliminado_en.isnot(None),
+            models.Nota.eliminado_en < limite,
+        )
+        .all()
+    )
+    for n in notas:
+        db.delete(n)
+        eliminados += 1
+
+    # Potes (borra también movimientos por cascade)
+    potes = (
+        db.query(models.Pote)
+        .filter(
+            models.Pote.eliminado == 1,
+            models.Pote.eliminado_en.isnot(None),
+            models.Pote.eliminado_en < limite,
+        )
+        .all()
+    )
+    for p in potes:
+        db.delete(p)
+        eliminados += 1
+
+    # Deudas (borra abonos por cascade)
+    deudas = (
+        db.query(models.Deuda)
+        .filter(
+            models.Deuda.eliminado == 1,
+            models.Deuda.eliminado_en.isnot(None),
+            models.Deuda.eliminado_en < limite,
+        )
+        .all()
+    )
+    for d in deudas:
+        db.delete(d)
+        eliminados += 1
+
+    # Grupos (borra miembros/gastos/divisiones por cascade)
+    grupos = (
+        db.query(models.Grupo)
+        .filter(
+            models.Grupo.eliminado == 1,
+            models.Grupo.eliminado_en.isnot(None),
+            models.Grupo.eliminado_en < limite,
+        )
+        .all()
+    )
+    for g in grupos:
+        db.delete(g)
+        eliminados += 1
+
+    db.commit()
+    return {"eliminados": eliminados, "dias_limite": dias}
