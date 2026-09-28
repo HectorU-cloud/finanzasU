@@ -6,6 +6,7 @@ import ConfirmModal from "./ConfirmModal.jsx";
 import EgresoCuentaModal from "./EgresoCuentaModal.jsx";
 import { SkeletonList } from "./Skeleton.jsx";
 import EmptyState from "./EmptyState.jsx";
+import { useToast } from "./ToastContext.jsx";
 
 const NOMBRES_MES = [
   "enero", "febrero", "marzo", "abril", "mayo", "junio",
@@ -23,6 +24,7 @@ export default function HistorialPagosScreen({ onVolver, ocultarHeader = false }
   const [egresoEditando, setEgresoEditando] = useState(null);
   const [modalEgreso, setModalEgreso] = useState(false);
   const [exportando, setExportando] = useState(false);
+  const { showToast } = useToast();
 
   async function cargar() {
     setCargando(true);
@@ -102,9 +104,15 @@ export default function HistorialPagosScreen({ onVolver, ocultarHeader = false }
     const desde = haceTresMeses.toISOString().slice(0, 10);
     const hasta = ahora.toISOString().slice(0, 10);
     setExportando(true);
-    await descargarArchivo(api.exportarPagos(desde, hasta));
+    try {
+    await descargarArchivo(api.exportarDeudas());
+    showToast("CSV descargado ✓");
+  } catch (err) {
+    showToast("No se pudo descargar: " + err.message, "error");
+  } finally {
     setExportando(false);
   }
+}
 
   return (
     <div className={ocultarHeader ? "" : "max-w-md mx-auto px-4 pb-28 pt-6"}>

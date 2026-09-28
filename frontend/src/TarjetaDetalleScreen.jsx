@@ -151,13 +151,19 @@ export default function TarjetaDetalleScreen({ tarjeta, onVolver, onCambio }) {
   }
 
   async function exportar() {
-    const ultimoDia = new Date(periodo.anio, periodo.mes, 0).getDate();
-    const desde = `${periodo.anio}-${String(periodo.mes).padStart(2, "0")}-01`;
-    const hasta = `${periodo.anio}-${String(periodo.mes).padStart(2, "0")}-${ultimoDia}`;
-    setExportando(true);
+  const ultimoDia = new Date(periodo.anio, periodo.mes, 0).getDate();
+  const desde = `${periodo.anio}-${String(periodo.mes).padStart(2, "0")}-01`;
+  const hasta = `${periodo.anio}-${String(periodo.mes).padStart(2, "0")}-${ultimoDia}`;
+  setExportando(true);
+  try {
     await descargarArchivo(api.exportarTarjeta(tarjeta.id, desde, hasta));
+    showToast("CSV descargado ✓");
+  } catch (err) {
+    showToast("No se pudo descargar: " + err.message, "error");
+  } finally {
     setExportando(false);
   }
+}
 
   async function handleDelete(id) {
     try {

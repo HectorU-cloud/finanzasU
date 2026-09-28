@@ -6,7 +6,7 @@ import IngresoModal from "./IngresoModal.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
 import { SkeletonList } from "./Skeleton.jsx";
 import EmptyState from "./EmptyState.jsx";
-
+import { useToast } from "./ToastContext.jsx";
 const NOMBRES_MES = [
   "enero", "febrero", "marzo", "abril", "mayo", "junio",
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
@@ -27,6 +27,7 @@ export default function IngresosScreen({ ocultarHeader = false }) {
   const [menuAbiertoId, setMenuAbiertoId] = useState(null);
   const [error, setError] = useState("");
   const [exportando, setExportando] = useState(false);
+  const { showToast } = useToast();
 
   async function cargar() {
     setCargando(true);
@@ -87,13 +88,19 @@ export default function IngresosScreen({ ocultarHeader = false }) {
   }
 
   async function exportar() {
-    const ultimoDia = new Date(periodo.anio, periodo.mes, 0).getDate();
-    const desde = `${periodo.anio}-${String(periodo.mes).padStart(2, "0")}-01`;
-    const hasta = `${periodo.anio}-${String(periodo.mes).padStart(2, "0")}-${ultimoDia}`;
-    setExportando(true);
+  const ultimoDia = new Date(periodo.anio, periodo.mes, 0).getDate();
+  const desde = `${periodo.anio}-${String(periodo.mes).padStart(2, "0")}-01`;
+  const hasta = `${periodo.anio}-${String(periodo.mes).padStart(2, "0")}-${ultimoDia}`;
+  setExportando(true);
+  try {
     await descargarArchivo(api.exportarIngresos(desde, hasta));
+    showToast("CSV descargado ✓");
+  } catch (err) {
+    showToast("No se pudo descargar: " + err.message, "error");
+  } finally {
     setExportando(false);
   }
+}
 
   return (
     <div className={ocultarHeader ? "" : "max-w-md mx-auto px-4 pb-28 pt-6"}>

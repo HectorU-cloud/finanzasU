@@ -4,6 +4,7 @@ import { descargarArchivo } from "./utils/descargas.js";
 import { api } from "./api.js";
 import { SkeletonList } from "./Skeleton.jsx";
 import EmptyState from "./EmptyState.jsx";
+import { useToast } from "./ToastContext.jsx";
 
 const ICONOS_TIPO = {
   ingreso: TrendingUp,
@@ -28,6 +29,7 @@ export default function CuentaDetalleScreen({ cuenta, onVolver }) {
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [exportando, setExportando] = useState(false);
+  const { showToast } = useToast();
 
   useEffect(() => {
     api.getMovimientosCuenta(cuenta.id)
@@ -37,12 +39,18 @@ export default function CuentaDetalleScreen({ cuenta, onVolver }) {
   }, [cuenta.id]);
 
   async function exportar() {
-    setExportando(true);
-    const desde = "2000-01-01";
-    const hasta = new Date().toISOString().slice(0, 10);
+  setExportando(true);
+  const desde = "2000-01-01";
+  const hasta = new Date().toISOString().slice(0, 10);
+  try {
     await descargarArchivo(api.exportarCuenta(cuenta.id, desde, hasta));
+    showToast("CSV descargado ✓");
+  } catch (err) {
+    showToast("No se pudo descargar: " + err.message, "error");
+  } finally {
     setExportando(false);
   }
+}
 
     return (
     <div className="fixed inset-0 z-40 bg-cream overflow-y-auto">

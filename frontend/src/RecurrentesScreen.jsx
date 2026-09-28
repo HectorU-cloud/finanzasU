@@ -3,6 +3,7 @@ import { ArrowLeft, Plus, Calendar, Trash2, Pause, Play, MoreVertical, RefreshCw
 import { api } from "./api.js";
 import ConfirmModal from "./ConfirmModal.jsx";
 import RecurrenteModal from "./RecurrenteModal.jsx";
+import { useToast } from "./ToastContext.jsx";
 
 export default function RecurrentesScreen({ onVolver }) {
   const [recurrentes, setRecurrentes] = useState([]);
@@ -13,6 +14,7 @@ export default function RecurrentesScreen({ onVolver }) {
   const [aEliminar, setAEliminar] = useState(null);
   const [menuAbierto, setMenuAbierto] = useState(null);
   const [procesando, setProcesando] = useState(false);
+  const { showToast } = useToast();
 
   async function cargar() {
     setCargando(true);
@@ -61,22 +63,23 @@ export default function RecurrentesScreen({ onVolver }) {
   }
 
   async function procesarAhora() {
-    setProcesando(true);
-    try {
-      const res = await api.procesarRecurrentes();
-      if (res.cantidad > 0) {
-        setError("");
-        alert(`✅ ${res.cantidad} transacción(es) procesada(s)`);
-        await cargar();
-      } else {
-        alert("No había transacciones para procesar hoy.");
-      }
-    } catch (err) {
-      setError(err.message);
-    } finally {
-      setProcesando(false);
+  setProcesando(true);
+  try {
+    const res = await api.procesarRecurrentes();
+    if (res.cantidad > 0) {
+      setError("");
+      showToast(`✅ ${res.cantidad} transacción(es) procesada(s)`);
+      await cargar();
+    } else {
+      showToast("No había transacciones para procesar hoy.", "info");
     }
+  } catch (err) {
+    setError(err.message);
+    showToast(err.message, "error");
+  } finally {
+    setProcesando(false);
   }
+}
 
   function tipoTexto(tipo) {
     if (tipo === "ingreso") return "Ingreso";

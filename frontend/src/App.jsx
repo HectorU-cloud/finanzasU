@@ -1,39 +1,44 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, lazy, Suspense } from "react";
 import {
   PiggyBank, Plus, Trash2, ChevronLeft, ChevronRight, Download, Pencil, MoreVertical,
 } from "lucide-react";
 import { api, hayTokenGuardado, setAuthToken } from "./api.js";
-import TarjetasPanel from "./TarjetasPanel.jsx";
-import GruposPanel from "./GruposPanel.jsx";
-import CardCarousel from "./CardCarousel.jsx";
+import { useToast } from "./ToastContext.jsx";
+
+// === Eager: pantallas críticas que se ven al arranque ===
 import AuthScreen from "./AuthScreen.jsx";
-import CambiarPasswordModal from "./CambiarPasswordModal.jsx";
-import ResumenCategorias from "./ResumenCategorias.jsx";
-import EditarGastoModal from "./EditarGastoModal.jsx";
-import ConfirmModal from "./ConfirmModal.jsx";
 import Home from "./Home.jsx";
 import BottomNav from "./BottomNav.jsx";
-import CuentasScreen from "./CuentasScreen.jsx";
-import IngresosScreen from "./IngresosScreen.jsx";
-import PagarTarjetaModal from "./PagarTarjetaModal.jsx";
-import HistorialPagosScreen from "./HistorialPagosScreen.jsx";
-import TarjetaDetalleScreen from "./TarjetaDetalleScreen.jsx";
-import PotesScreen from "./PotesScreen.jsx";
-import DeudasScreen from "./DeudasScreen.jsx";
-import SolicitarResetScreen from "./SolicitarResetScreen.jsx";
-import ResetPasswordScreen from "./ResetPasswordScreen.jsx";
-import TarjetasScreen from "./TarjetasScreen.jsx";
-import MovimientosScreen from "./MovimientosScreen.jsx";
-import PlanificarScreen from "./PlanificarScreen.jsx";
-import CuentaDetalleScreen from "./CuentaDetalleScreen.jsx";
-import ReportesScreen from "./ReportesScreen.jsx";
-import { useToast } from "./ToastContext.jsx";
-import OnboardingScreen from "./OnboardingScreen.jsx";
-import RecurrentesScreen from "./RecurrentesScreen.jsx";
-import CategoriasPanel from "./CategoriasPanel.jsx";
-import CalendarioScreen from "./CalendarioScreen.jsx";
 import SplashScreen from "./SplashScreen.jsx";
-import GruposScreen from "./GruposScreen.jsx";
+import ConfirmModal from "./ConfirmModal.jsx";
+import CargandoPantalla from "./CargandoPantalla.jsx";
+
+// === Lazy: pantallas y modales que se cargan bajo demanda ===
+const TarjetasPanel = lazy(() => import("./TarjetasPanel.jsx"));
+const GruposPanel = lazy(() => import("./GruposPanel.jsx"));
+const CardCarousel = lazy(() => import("./CardCarousel.jsx"));
+const CambiarPasswordModal = lazy(() => import("./CambiarPasswordModal.jsx"));
+const ResumenCategorias = lazy(() => import("./ResumenCategorias.jsx"));
+const EditarGastoModal = lazy(() => import("./EditarGastoModal.jsx"));
+const CuentasScreen = lazy(() => import("./CuentasScreen.jsx"));
+const IngresosScreen = lazy(() => import("./IngresosScreen.jsx"));
+const PagarTarjetaModal = lazy(() => import("./PagarTarjetaModal.jsx"));
+const HistorialPagosScreen = lazy(() => import("./HistorialPagosScreen.jsx"));
+const TarjetaDetalleScreen = lazy(() => import("./TarjetaDetalleScreen.jsx"));
+const PotesScreen = lazy(() => import("./PotesScreen.jsx"));
+const DeudasScreen = lazy(() => import("./DeudasScreen.jsx"));
+const SolicitarResetScreen = lazy(() => import("./SolicitarResetScreen.jsx"));
+const ResetPasswordScreen = lazy(() => import("./ResetPasswordScreen.jsx"));
+const TarjetasScreen = lazy(() => import("./TarjetasScreen.jsx"));
+const MovimientosScreen = lazy(() => import("./MovimientosScreen.jsx"));
+const PlanificarScreen = lazy(() => import("./PlanificarScreen.jsx"));
+const CuentaDetalleScreen = lazy(() => import("./CuentaDetalleScreen.jsx"));
+const ReportesScreen = lazy(() => import("./ReportesScreen.jsx"));
+const OnboardingScreen = lazy(() => import("./OnboardingScreen.jsx"));
+const RecurrentesScreen = lazy(() => import("./RecurrentesScreen.jsx"));
+const CategoriasPanel = lazy(() => import("./CategoriasPanel.jsx"));
+const CalendarioScreen = lazy(() => import("./CalendarioScreen.jsx"));
+const GruposScreen = lazy(() => import("./GruposScreen.jsx"));
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -72,6 +77,14 @@ function leerTokenResetDeUrl() {
 }
 
 export default function App() {
+  return (
+    <Suspense fallback={<CargandoPantalla />}>
+      <AppContent />
+    </Suspense>
+  );
+}
+
+export default function AppContent() {
   const [usuario, setUsuario] = useState(null);
   const [verificandoSesion, setVerificandoSesion] = useState(true);
   const [tema, setTema] = useState(() => {

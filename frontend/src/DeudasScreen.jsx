@@ -7,6 +7,7 @@ import AbonarDeudaModal from "./AbonarDeudaModal.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
 import { SkeletonList } from "./Skeleton.jsx";
 import EmptyState from "./EmptyState.jsx";
+import { useToast } from "./ToastContext.jsx";
 
 export default function DeudasScreen({ onVolver }) {
   const [tab, setTab] = useState("debo"); // "debo" | "me_deben" | "saldadas"
@@ -18,6 +19,7 @@ export default function DeudasScreen({ onVolver }) {
   const [deudaAAbonar, setDeudaAAbonar] = useState(null);
   const [deudaAEliminar, setDeudaAEliminar] = useState(null);
   const [exportando, setExportando] = useState(false);
+  const { showToast } = useToast();
 
   async function cargar() {
     setCargando(true);
@@ -32,11 +34,16 @@ export default function DeudasScreen({ onVolver }) {
   }
 
   async function exportar() {
-    setExportando(true);
+  setExportando(true);
+  try {
     await descargarArchivo(api.exportarDeudas());
+    showToast("CSV descargado ✓");
+  } catch (err) {
+    showToast("No se pudo descargar: " + err.message, "error");
+  } finally {
     setExportando(false);
   }
-
+}
   useEffect(() => {
     cargar();
   }, []);

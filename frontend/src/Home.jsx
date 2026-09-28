@@ -6,6 +6,7 @@ import TarjetasScreen from "./TarjetasScreen.jsx";
 import { calcularVencimiento } from "./utils/fechas.js";
 import { SkeletonLine, SkeletonList } from "./Skeleton.jsx";
 import EmptyState from "./EmptyState.jsx";
+import { useToast } from "./ToastContext.jsx";
 
 const TIPO_ICONOS = {
   efectivo: Wallet,
@@ -141,6 +142,7 @@ export default function Home({
   const [insights, setInsights] = useState([]);
   const [cargandoInsights, setCargandoInsights] = useState(true);
   const [menuUsuarioAbierto, setMenuUsuarioAbierto] = useState(false);
+  const { showToast } = useToast();
 
 
   useEffect(() => {
@@ -189,7 +191,7 @@ export default function Home({
       const nueva = await api.crearNota("", color);
       setNotas((prev) => [nueva, ...prev]);
     } catch (err) {
-      console.error(err);
+      showToast("No se pudo crear la nota", "error");
     }
   }
 
@@ -198,7 +200,7 @@ export default function Home({
       const actualizada = await api.actualizarNota(id, contenido, color);
       setNotas((prev) => prev.map((n) => (n.id === id ? actualizada : n)));
     } catch (err) {
-      console.error(err);
+      showToast("No se pudo actualizar la nota", "error");
     }
   }
 
@@ -207,7 +209,7 @@ export default function Home({
       await api.eliminarNota(id);
       setNotas((prev) => prev.filter((n) => n.id !== id));
     } catch (err) {
-      console.error(err);
+      showToast("No se pudo eliminar la nota", "error");
     }
   }
 
