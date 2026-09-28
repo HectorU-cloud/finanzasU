@@ -12,6 +12,7 @@ import BottomNav from "./BottomNav.jsx";
 import SplashScreen from "./SplashScreen.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
 import CargandoPantalla from "./CargandoPantalla.jsx";
+import SesionExpiradaScreen from "./SesionExpiradaScreen.jsx";
 
 // === Lazy: pantallas y modales que se cargan bajo demanda ===
 const TarjetasPanel = lazy(() => import("./TarjetasPanel.jsx"));
@@ -108,6 +109,7 @@ function AppContent() {
   const [periodo, setPeriodo] = useState({ anio: hoy.getFullYear(), mes: hoy.getMonth() + 1 });
   const esMesActual = periodo.anio === hoy.getFullYear() && periodo.mes === hoy.getMonth() + 1;
   const { showToast } = useToast();
+  const [sesionExpirada, setSesionExpirada] = useState(false);
 
   const [modalPassword, setModalPassword] = useState(false);
   const [gastoEditando, setGastoEditando] = useState(null);
@@ -154,13 +156,9 @@ function AppContent() {
   });
 
   // Splash: solo para usuarios que YA completaron el onboarding
-  const [mostrandoSplash, setMostrandoSplash] = useState(() => {
-    try {
-      return localStorage.getItem("finanzas_onboarding_completado") === "true";
-    } catch {
-      return false;
-    }
-  });
+  // El splash solo se muestra tras login explícito o tras completar el onboarding,
+// no al recargar la página con sesión activa.
+const [mostrandoSplash, setMostrandoSplash] = useState(false);
 
   function completarOnboarding() {
     try {
@@ -172,16 +170,21 @@ function AppContent() {
 
 
   useEffect(() => {
-    if (!hayTokenGuardado()) {
-      setVerificandoSesion(false);
-      return;
-    }
-    api
-      .yo()
-      .then(setUsuario)
-      .catch(() => setAuthToken(null))
-      .finally(() => setVerificandoSesion(false));
-  }, []);
+  if (!hayTokenGuardado()) {
+    setVerificandoSesion(false);
+    return;
+  }
+  api
+    .yo()
+    .then(setUsuario)
+    .catch((err) => {
+      setAuthToken(null);
+      if (err?.unauthorized) {
+        setSesionExpirada(true);
+      }
+    })
+    .finally(() => setVerificandoSesion(false));
+}, []);
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", tema);
@@ -219,9 +222,11 @@ function AppContent() {
   }, [periodo, filtroCategoria]); // eslint-disable-line react-hooks/exhaustive-deps
 
   function manejarError(err) {
-    setError(err.message);
-    if (err.unauthorized) handleLogout();
+  setError(err.message);
+  if (err.unauthorized) {
+    setSesionExpirada(true);
   }
+}
 
   useEffect(() => {
     if (!usuario) return;
@@ -418,17 +423,36 @@ function AppContent() {
     );
   }
 
+  if (sesionExpirada) {
+  return (
+    <SesionExpiradaScreen
+      onVolverALogin={() => {
+        setSesionExpirada(false);
+        setUsuario(null);
+        setAuthToken(null);
+      }}
+    />
+  );
+}
+
   if (!usuario) {
-    return (
-      <AuthScreen
-        onAutenticado={setUsuario}
-        onSolicitarReset={() => {
-          window.history.replaceState({}, "", "/");
-          setVistaAuth("solicitar-reset");
-        }}
-      />
-    );
-  }
+  return (
+    <AuthScreen
+      onAutenticado={(u) => {
+        setUsuario(u);
+        try {
+          if (localStorage.getItem("finanzas_onboarding_completado") === "true") {
+            setMostrandoSplash(true);
+          }
+        } catch {}
+      }}
+      onSolicitarReset={() => {
+        window.history.replaceState({}, "", "/");
+        setVistaAuth("solicitar-reset");
+      }}
+    />
+  );
+}
 
   if (mostrarOnboarding) {
     return (
