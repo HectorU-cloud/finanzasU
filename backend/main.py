@@ -4186,3 +4186,296 @@ def buscar(
     resultados.sort(key=lambda r: r.get("fecha") or "", reverse=True)
 
     return {"resultados": resultados[:50]}
+
+# ============================================================
+# MODO DEMO
+# ============================================================
+
+def _poblar_datos_demo(db: Session, usuario: models.Usuario) -> None:
+    """Crea datos de ejemplo realistas para una cuenta demo."""
+    hoy = date.today()
+
+    # === Cuenta ===
+    cuenta = models.Cuenta(
+        usuario_id=usuario.id,
+        nombre="Ahorros demo",
+        titular="Invitado Demo",
+        tipo="ahorros",
+        saldo_inicial=Decimal("800"),
+        fijada=1,
+        numero_cuenta="2025000001",
+    )
+    db.add(cuenta)
+    db.flush()
+
+    # === Tarjetas ===
+    visa = models.Tarjeta(
+        usuario_id=usuario.id,
+        nombre="Visa Gold",
+        tipo="credito",
+        dia_corte=15,
+        dia_pago=5,
+        red="Visa",
+        tema="visa-gold",
+    )
+    db.add(visa)
+
+    debito = models.Tarjeta(
+        usuario_id=usuario.id,
+        nombre="Produbanco",
+        tipo="debito",
+        red="Mastercard",
+        tema="mastercard-azul",
+        cuenta_id=cuenta.id,
+    )
+    db.add(debito)
+    db.flush()
+
+    # === Ingresos ===
+    for fecha, monto, desc, cat in [
+        (hoy - timedelta(days=20), Decimal("1200"), "Sueldo del mes", "Sueldo"),
+        (hoy - timedelta(days=12), Decimal("350"), "Proyecto freelance", "Freelance"),
+        (hoy - timedelta(days=5), Decimal("150"), "Bono por desempeño", "Bono"),
+    ]:
+        db.add(models.Ingreso(
+            usuario_id=usuario.id,
+            cuenta_id=cuenta.id,
+            fecha=fecha,
+            monto=monto,
+            descripcion=desc,
+            categoria=cat,
+        ))
+
+    # === Gastos de tarjeta de crédito (Visa Gold) ===
+    for fecha, monto, desc, cat in [
+        (hoy - timedelta(days=3),  Decimal("12.50"), "Almuerzo con cliente", "Comida"),
+        (hoy - timedelta(days=5),  Decimal("8.75"),  "Uber al centro",        "Transporte"),
+        (hoy - timedelta(days=7),  Decimal("45.00"), "Supermercado",           "Comida"),
+        (hoy - timedelta(days=9),  Decimal("15.99"), "Netflix + Spotify",      "Ocio"),
+        (hoy - timedelta(days=11), Decimal("85.00"), "Zapatos nuevos",         "Compras"),
+        (hoy - timedelta(days=14), Decimal("22.30"), "Cena con amigos",        "Comida"),
+        (hoy - timedelta(days=18), Decimal("12.00"), "Uber al aeropuerto",     "Transporte"),
+        (hoy - timedelta(days=22), Decimal("35.50"), "Corte de cabello",       "Otros"),
+        (hoy - timedelta(days=26), Decimal("78.00"), "Supermercado mensual",   "Comida"),
+        (hoy - timedelta(days=30), Decimal("9.99"),  "Suscripción iCloud",     "Servicios"),
+        (hoy - timedelta(days=35), Decimal("150.00"), "Ropa de invierno",      "Compras"),
+        (hoy - timedelta(days=42), Decimal("24.00"), "Gasolina",               "Transporte"),
+    ]:
+        db.add(models.Gasto(
+            tarjeta_id=visa.id,
+            fecha=fecha,
+            monto=monto,
+            descripcion=desc,
+            categoria=cat,
+        ))
+
+    # === Gastos de tarjeta de débito (Produbanco) ===
+    for fecha, monto, desc, cat in [
+        (hoy - timedelta(days=2),  Decimal("18.90"), "Farmacia",         "Salud"),
+        (hoy - timedelta(days=6),  Decimal("32.40"), "Supermercado",     "Comida"),
+        (hoy - timedelta(days=10), Decimal("7.50"),  "Café con leche",   "Comida"),
+        (hoy - timedelta(days=15), Decimal("45.00"), "Internet del mes", "Servicios"),
+        (hoy - timedelta(days=20), Decimal("25.60"), "Recarga celular",  "Servicios"),
+        (hoy - timedelta(days=28), Decimal("12.80"), "Almuerzo",         "Comida"),
+    ]:
+        db.add(models.Gasto(
+            tarjeta_id=debito.id,
+            fecha=fecha,
+            monto=monto,
+            descripcion=desc,
+            categoria=cat,
+        ))
+
+    # === Deudas ===
+    db.add(models.Deuda(
+        usuario_id=usuario.id,
+        persona="Juan",
+        tipo="debo",
+        descripcion="Préstamo para el cine",
+        monto_original=Decimal("50"),
+        saldo_pendiente=Decimal("50"),
+        pagada=0,
+    ))
+    db.add(models.Deuda(
+        usuario_id=usuario.id,
+        persona="María",
+        tipo="me_deben",
+        descripcion="Almuerzo compartido",
+        monto_original=Decimal("30"),
+        saldo_pendiente=Decimal("30"),
+        pagada=0,
+    ))
+
+    # === Pote ===
+    pote = models.Pote(
+        usuario_id=usuario.id,
+        cuenta_id=cuenta.id,
+        nombre="Viaje a la playa",
+        emoji="🏖️",
+        meta=Decimal("500"),
+        saldo=Decimal("180"),
+    )
+    db.add(pote)
+    db.flush()
+
+    db.add(models.MovimientoPote(
+        pote_id=pote.id,
+        monto=Decimal("180"),
+        descripcion="Ahorro inicial",
+        fecha=hoy - timedelta(days=30),
+    ))
+
+    # === Notas ===
+    for contenido, color in [
+        ("Recordar pagar la tarjeta antes del día 5", "amarillo"),
+        ("No gastar más de $50 en ocio este mes", "rosa"),
+        ("Meta: ahorrar $200 este mes 💪", "verde"),
+    ]:
+        db.add(models.Nota(
+            usuario_id=usuario.id,
+            contenido=contenido,
+            color=color,
+        ))
+
+    # === Recurrente: sueldo quincenal ===
+    recurrente = models.TransaccionRecurrente(
+        usuario_id=usuario.id,
+        nombre="Sueldo quincenal",
+        tipo="ingreso",
+        cuenta_id=cuenta.id,
+        monto_total=Decimal("1200"),
+        frecuencia="mensual",
+        categoria="Sueldo",
+        descripcion="Sueldo del trabajo",
+        fecha_inicio=hoy - timedelta(days=60),
+        activa=1,
+    )
+    db.add(recurrente)
+    db.flush()
+
+    db.add(models.RecurrentePago(
+        recurrente_id=recurrente.id,
+        dia_del_mes=15,
+        porcentaje=Decimal("50"),
+        etiqueta="Primera quincena",
+    ))
+    db.add(models.RecurrentePago(
+        recurrente_id=recurrente.id,
+        dia_del_mes=30,
+        porcentaje=Decimal("50"),
+        etiqueta="Segunda quincena",
+    ))
+
+
+def _borrar_usuario_demo(db: Session, usuario: models.Usuario) -> None:
+    """Borra en orden todos los datos de un usuario demo."""
+    # Recurrentes + sus pagos + registros
+    recs = db.query(models.TransaccionRecurrente).filter(
+        models.TransaccionRecurrente.usuario_id == usuario.id
+    ).all()
+    for r in recs:
+        db.query(models.RegistroRecurrente).filter(
+            models.RegistroRecurrente.recurrente_id == r.id
+        ).delete()
+        db.query(models.RecurrentePago).filter(
+            models.RecurrentePago.recurrente_id == r.id
+        ).delete()
+        db.delete(r)
+
+    # Deudas + abonos
+    deudas = db.query(models.Deuda).filter(models.Deuda.usuario_id == usuario.id).all()
+    for d in deudas:
+        db.query(models.AbonoDeuda).filter(models.AbonoDeuda.deuda_id == d.id).delete()
+        db.delete(d)
+
+    # Potes + movimientos
+    potes = db.query(models.Pote).filter(models.Pote.usuario_id == usuario.id).all()
+    for p in potes:
+        db.query(models.MovimientoPote).filter(models.MovimientoPote.pote_id == p.id).delete()
+        db.delete(p)
+
+    # Pagos de tarjeta (desvinculamos gastos primero)
+    pagos = db.query(models.PagoTarjeta).filter(models.PagoTarjeta.usuario_id == usuario.id).all()
+    for p in pagos:
+        db.query(models.Gasto).filter(models.Gasto.pago_id == p.id).update(
+            {models.Gasto.pago_id: None}
+        )
+        db.delete(p)
+
+    # Gastos (via tarjetas) y tarjetas
+    tarjetas = db.query(models.Tarjeta).filter(models.Tarjeta.usuario_id == usuario.id).all()
+    for t in tarjetas:
+        db.query(models.Gasto).filter(models.Gasto.tarjeta_id == t.id).delete()
+        db.delete(t)
+
+    # Ingresos, egresos, cuentas
+    db.query(models.Ingreso).filter(models.Ingreso.usuario_id == usuario.id).delete()
+    db.query(models.EgresoCuenta).filter(models.EgresoCuenta.usuario_id == usuario.id).delete()
+    db.query(models.Cuenta).filter(models.Cuenta.usuario_id == usuario.id).delete()
+
+    # Notas y categorías personalizadas
+    db.query(models.Nota).filter(models.Nota.usuario_id == usuario.id).delete()
+    db.query(models.CategoriaPersonalizada).filter(
+        models.CategoriaPersonalizada.usuario_id == usuario.id
+    ).delete()
+
+    # Password resets
+    db.query(models.PasswordReset).filter(
+        models.PasswordReset.usuario_id == usuario.id
+    ).delete()
+
+    # Finalmente el usuario
+    db.delete(usuario)
+
+
+@app.post("/api/auth/demo", response_model=schemas.Token)
+@limiter.limit("5/hour")
+def login_demo(request: Request, db: Session = Depends(get_db)):
+    """Crea una cuenta demo temporal con datos de ejemplo."""
+    sufijo = secrets_module.token_urlsafe(8).lower().replace("-", "").replace("_", "")[:12]
+    email = f"demo_{sufijo}@demo.local"
+
+    usuario = models.Usuario(
+        nombre="Invitado Demo",
+        email=email,
+        password_hash=None,
+        es_demo=1,
+    )
+    db.add(usuario)
+    db.flush()
+
+    _poblar_datos_demo(db, usuario)
+    db.commit()
+    db.refresh(usuario)
+
+    token = auth.crear_token(usuario.id)
+    return schemas.Token(access_token=token, usuario=usuario)
+
+
+@app.delete("/api/demo/limpiar")
+def limpiar_demos(
+    x_cron_key: str | None = Header(default=None),
+    horas: int = 24,
+    db: Session = Depends(get_db),
+):
+    """Borra usuarios demo creados hace más de N horas."""
+    if not CRON_API_KEY:
+        raise HTTPException(status_code=500, detail="CRON_API_KEY no configurada")
+    if x_cron_key != CRON_API_KEY:
+        raise HTTPException(status_code=403, detail="API key inválida")
+
+    limite = datetime.now(timezone.utc) - timedelta(hours=horas)
+    demos = (
+        db.query(models.Usuario)
+        .filter(
+            models.Usuario.es_demo == 1,
+            models.Usuario.creado_en < limite,
+        )
+        .all()
+    )
+
+    for u in demos:
+        _borrar_usuario_demo(db, u)
+
+    db.commit()
+    return {"eliminados": len(demos), "horas_limite": horas}

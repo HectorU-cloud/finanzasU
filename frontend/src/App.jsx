@@ -13,6 +13,7 @@ import SplashScreen from "./SplashScreen.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
 import CargandoPantalla from "./CargandoPantalla.jsx";
 import SesionExpiradaScreen from "./SesionExpiradaScreen.jsx";
+import BannerDemo from "./BannerDemo.jsx";
 
 // === Lazy: pantallas y modales que se cargan bajo demanda ===
 const TarjetasPanel = lazy(() => import("./TarjetasPanel.jsx"));
@@ -509,8 +510,17 @@ const [mostrandoSplash, setMostrandoSplash] = useState(false);
   }
 
   if (vistaTarjetas) {
-    return (
+        return (
       <div className="min-h-screen bg-cream pb-24">
+        {usuario?.es_demo && (
+          <BannerDemo
+            onCrearCuenta={() => {
+              handleLogout();
+              setVistaAuth("login");
+            }}
+            onCerrarSesion={handleLogout}
+          />
+        )}
         <TarjetasScreen
           tarjetas={resumen?.tarjetas}
           onVolver={() => setVistaTarjetas(false)}
@@ -583,8 +593,17 @@ const [mostrandoSplash, setMostrandoSplash] = useState(false);
   const VISTAS_CON_NAV = ["home", "cuentas", "movimientos", "planificar", "perfil", "potes", "grupos", "deudas", "reportes", "recurrentes", "calendario"];
 
   if (VISTAS_CON_NAV.includes(vista)) {
-    return (
+        return (
       <div className="min-h-screen bg-cream pb-24">
+        {usuario?.es_demo && (
+          <BannerDemo
+            onCrearCuenta={() => {
+              handleLogout();
+              setVistaAuth("login");
+            }}
+            onCerrarSesion={handleLogout}
+          />
+        )}
         {vista === "home" && (
           <Home
             usuario={usuario}

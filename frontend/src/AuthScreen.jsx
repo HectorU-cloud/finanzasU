@@ -12,6 +12,7 @@ export default function AuthScreen({ onAutenticado, onSolicitarReset }) {
   const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
   const googleButtonRef = useRef(null);
+    const [cargandoDemo, setCargandoDemo] = useState(false);
 
   useEffect(() => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
@@ -64,6 +65,20 @@ export default function AuthScreen({ onAutenticado, onSolicitarReset }) {
       if (googleButtonRef.current) googleButtonRef.current.innerHTML = "";
     };
   }, [onAutenticado]);
+
+  async function handleDemo() {
+    setError("");
+    setCargandoDemo(true);
+    try {
+      const datos = await api.loginDemo();
+      setAuthToken(datos.access_token);
+      onAutenticado(datos.usuario);
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setCargandoDemo(false);
+    }
+  }
 
   function validar() {
     if (!form.email.trim() || !form.password) {
@@ -251,6 +266,20 @@ export default function AuthScreen({ onAutenticado, onSolicitarReset }) {
             >
               {cargando ? "Un momento..." : modo === "registro" ? "Crear cuenta" : "Entrar"}
             </button>
+
+            <div className="pt-2 border-t border-gray-100 mt-2">
+              <button
+                type="button"
+                onClick={handleDemo}
+                disabled={cargando || cargandoDemo}
+                className="w-full py-3 rounded-xl border-2 border-dashed border-gray-300 text-gray-600 font-semibold hover:border-coral hover:text-coral transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
+              >
+                {cargandoDemo ? "Preparando demo..." : "🎮 Probar sin registrarme"}
+              </button>
+              <p className="text-[10px] text-gray-400 text-center mt-2">
+                Explora la app con datos de ejemplo. Se borra en 24h.
+              </p>
+            </div>
 
             {modo === "login" && onSolicitarReset && (
               <div className="text-center">

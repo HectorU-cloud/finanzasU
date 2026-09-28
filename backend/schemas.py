@@ -63,6 +63,12 @@ class UsuarioOut(BaseModel):
     id: int
     nombre: str
     email: str
+    es_demo: bool = False
+
+    @field_validator("es_demo", mode="before")
+    @classmethod
+    def _es_demo_bool(cls, v):
+        return bool(v)
 
 
 class Token(BaseModel):
