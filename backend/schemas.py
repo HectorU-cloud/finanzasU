@@ -262,7 +262,13 @@ class GrupoOut(BaseModel):
     codigo_invitacion: str
     creado_por_id: int
     limite_mensual: Decimal
+    eliminado: bool = False
     miembros: list["MiembroGrupoOut"] = []
+
+    @field_validator("eliminado", mode="before")
+    @classmethod
+    def _eliminado_bool(cls, v):
+        return bool(v)
 
 
 class MiembroGrupoOut(BaseModel):

@@ -1694,7 +1694,14 @@ def unirse_grupo(
     if not codigo:
         raise HTTPException(status_code=400, detail="Ingresa un código de invitación")
 
-    grupo = db.query(models.Grupo).filter(models.Grupo.codigo_invitacion == codigo).first()
+    grupo = (
+        db.query(models.Grupo)
+        .filter(
+            models.Grupo.codigo_invitacion == codigo,
+            models.Grupo.eliminado == 0,
+        )
+        .first()
+    )
     if not grupo:
         raise HTTPException(status_code=404, detail="Código inválido")
 
@@ -1721,18 +1728,56 @@ def listar_grupos(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
-    return db.query(models.Grupo).join(models.MiembroGrupo).filter(
-        models.MiembroGrupo.usuario_id == usuario.id
-    ).all()
+    return (
+        db.query(models.Grupo)
+        .join(models.MiembroGrupo)
+        .filter(
+            models.MiembroGrupo.usuario_id == usuario.id,
+            models.Grupo.eliminado == 0,
+        )
+        .all()
+    )
 
 
-def verificar_miembro(db: Session, grupo_id: int, usuario_id: int) -> models.MiembroGrupo:
+@app.get("/api/grupos/eliminadas", response_model=list[schemas.GrupoOut])
+def listar_grupos_eliminadas(
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """Grupos eliminados que el usuario creó (papelera)."""
+    return (
+        db.query(models.Grupo)
+        .filter(
+            models.Grupo.creado_por_id == usuario.id,
+            models.Grupo.eliminado == 1,
+        )
+        .order_by(models.Grupo.creado_en.desc())
+        .all()
+    )
+
+
+def verificar_miembro(
+    db: Session,
+    grupo_id: int,
+    usuario_id: int,
+    incluir_eliminados: bool = False,
+) -> models.MiembroGrupo:
+    """
+    Verifica que el usuario es miembro del grupo.
+    Si incluir_eliminados=False (default), también valida que el grupo no esté eliminado.
+    """
     miembro = db.query(models.MiembroGrupo).filter(
         models.MiembroGrupo.grupo_id == grupo_id,
         models.MiembroGrupo.usuario_id == usuario_id,
     ).first()
     if not miembro:
         raise HTTPException(status_code=403, detail="No eres miembro de este grupo")
+
+    if not incluir_eliminados:
+        grupo = db.query(models.Grupo).get(grupo_id)
+        if not grupo or grupo.eliminado == 1:
+            raise HTTPException(status_code=404, detail="Grupo no encontrado")
+
     return miembro
 
 
@@ -2050,7 +2095,7 @@ def salir_de_grupo(
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
     grupo = db.query(models.Grupo).get(grupo_id)
-    if not grupo:
+    if not grupo or grupo.eliminado == 1:
         raise HTTPException(status_code=404, detail="Grupo no encontrado")
 
     miembro = verificar_miembro(db, grupo_id, usuario.id)
@@ -2087,11 +2132,52 @@ def eliminar_grupo(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
+    """Soft delete: solo el creador puede eliminar. Todos los miembros pierden acceso."""
+    grupo = db.query(models.Grupo).get(grupo_id)
+    if not grupo or grupo.eliminado == 1:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado")
+    if grupo.creado_por_id != usuario.id:
+        raise HTTPException(status_code=403, detail="Solo quien creó el grupo puede eliminarlo")
+    grupo.eliminado = 1
+    db.commit()
+
+
+@app.post("/api/grupos/{grupo_id}/restaurar", response_model=schemas.GrupoOut)
+def restaurar_grupo(
+    grupo_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """Restaura un grupo eliminado. Solo el creador puede."""
+    grupo = (
+        db.query(models.Grupo)
+        .filter(
+            models.Grupo.id == grupo_id,
+            models.Grupo.creado_por_id == usuario.id,
+            models.Grupo.eliminado == 1,
+        )
+        .first()
+    )
+    if not grupo:
+        raise HTTPException(status_code=404, detail="Grupo no encontrado en papelera")
+    grupo.eliminado = 0
+    db.commit()
+    db.refresh(grupo)
+    return grupo
+
+
+@app.delete("/api/grupos/{grupo_id}/definitivo", status_code=204)
+def eliminar_grupo_definitivo(
+    grupo_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """Borrado físico real: borra el grupo y todos sus gastos/divisiones/miembros."""
     grupo = db.query(models.Grupo).get(grupo_id)
     if not grupo:
         raise HTTPException(status_code=404, detail="Grupo no encontrado")
     if grupo.creado_por_id != usuario.id:
-        raise HTTPException(status_code=403, detail="Solo quien creó el grupo puede eliminarlo")
+        raise HTTPException(status_code=403, detail="Solo quien creó el grupo puede eliminarlo definitivamente")
     db.delete(grupo)
     db.commit()
 

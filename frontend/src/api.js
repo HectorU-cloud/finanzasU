@@ -250,6 +250,9 @@ export const api = {
     request(`/divisiones/${divisionId}/pagar`, { method: "PATCH" }),
   salirDeGrupo: (grupoId) => request(`/grupos/${grupoId}/salir`, { method: "POST" }),
   eliminarGrupo: (grupoId) => request(`/grupos/${grupoId}`, { method: "DELETE" }),
+  getGruposEliminados: () => request("/grupos/eliminadas"),
+  restaurarGrupo: (id) => request(`/grupos/${id}/restaurar`, { method: "POST" }),
+  eliminarGrupoDefinitivo: (id) => request(`/grupos/${id}/definitivo`, { method: "DELETE" }),
   getReporteMensual: (anio, mes, meses = 6) =>
     request(`/reportes/mensual?anio=${anio}&mes=${mes}&meses=${meses}`),
   getInsights: () => request("/insights"),

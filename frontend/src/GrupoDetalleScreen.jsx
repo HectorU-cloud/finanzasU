@@ -7,6 +7,7 @@ import { api } from "./api.js";
 import ConfirmModal from "./ConfirmModal.jsx";
 import EditarGastoCompartidoModal from "./EditarGastoCompartidoModal.jsx";
 import { SkeletonList } from "./Skeleton.jsx";
+import { useToast } from "./ToastContext.jsx";
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -27,6 +28,7 @@ export default function GrupoDetalleScreen({ grupo, usuarioId, tarjetas = [], on
   const [gastoAEliminar, setGastoAEliminar] = useState(null);
   const [gastoEditando, setGastoEditando] = useState(null);
   const [formAbierto, setFormAbierto] = useState(false);
+  const { showToast } = useToast();
   const [form, setForm] = useState({
     fecha: todayISO(),
     monto: "",
@@ -163,7 +165,22 @@ export default function GrupoDetalleScreen({ grupo, usuarioId, tarjetas = [], on
 
   async function confirmarEliminar() {
     try {
-      await api.eliminarGrupo(grupo.id);
+      const grupoId = grupo.id;
+      await api.eliminarGrupo(grupoId);
+      setConfirmarAccion(null);
+
+      showToast("Grupo eliminado", "info", {
+        accion: "Deshacer",
+        onAccion: async () => {
+          try {
+            await api.restaurarGrupo(grupoId);
+            showToast("Grupo restaurado ✓");
+          } catch {
+            showToast("No se pudo restaurar el grupo", "error");
+          }
+        },
+      });
+
       onVolver();
     } catch (err) {
       setError(err.message);
