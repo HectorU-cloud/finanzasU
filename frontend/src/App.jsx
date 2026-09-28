@@ -653,6 +653,26 @@ const [mostrandoSplash, setMostrandoSplash] = useState(false);
             }}
           />
         )}
+
+        {vista === "planificar" && (
+          <PlanificarScreen
+            tabInicial={tabPlanificar}
+            onCambiarTab={setTabPlanificar}
+            onIrAPotes={() => {
+              setTabPlanificar("potes");
+              setVista("planificar");
+            }}
+            onIrAGrupos={() => {
+              setTabPlanificar("grupos");
+              setVista("grupos");
+            }}
+            onIrADeudas={() => {
+              setTabPlanificar("deudas");
+              setVista("deudas");
+            }}
+          />
+        )}
+
         {vista === "potes" && <PotesScreen onVolver={() => setVista("planificar")} />}
         {vista === "deudas" && <DeudasScreen onVolver={() => setVista("planificar")} />}
         {vista === "reportes" && (
