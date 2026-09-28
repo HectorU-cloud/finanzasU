@@ -34,3 +34,5 @@ watchfiles==1.2.0
 websockets==17.1
 
 google-auth==2.40.3
+slowapi==0.1.9
+limits==3.13.0

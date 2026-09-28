@@ -22,6 +22,9 @@ import models
 import schemas
 import zipfile
 from database import get_db
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
 
 
 LIMITE_MENSUAL = Decimal("350")
@@ -122,6 +125,10 @@ def enviar_email_recurrentes_procesadas(usuario: models.Usuario, fecha: date, pr
         return False
 
 app = FastAPI(title="API Finanzas Personales")
+# Rate limiting por IP
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 
 @app.exception_handler(RequestValidationError)
@@ -250,7 +257,8 @@ def _calcular_saldo_cuenta(db: Session, cuenta: models.Cuenta) -> Decimal:
 # ============================================================
 
 @app.post("/api/auth/registro", response_model=schemas.Token)
-def registrar(datos: schemas.UsuarioCreate, db: Session = Depends(get_db)):
+@limiter.limit("3/minute")
+def registrar(request: Request, datos: schemas.UsuarioCreate, db: Session = Depends(get_db)):
     email = datos.email.lower()
     existe = db.query(models.Usuario).filter(models.Usuario.email == email).first()
     if existe:
@@ -270,7 +278,8 @@ def registrar(datos: schemas.UsuarioCreate, db: Session = Depends(get_db)):
 
 
 @app.post("/api/auth/login", response_model=schemas.Token)
-def login(datos: schemas.UsuarioLogin, db: Session = Depends(get_db)):
+@limiter.limit("5/minute")
+def login(request: Request, datos: schemas.UsuarioLogin, db: Session = Depends(get_db)):
     email = datos.email.lower()
     usuario = db.query(models.Usuario).filter(models.Usuario.email == email).first()
     if not usuario:
@@ -285,7 +294,8 @@ def login(datos: schemas.UsuarioLogin, db: Session = Depends(get_db)):
 
 
 @app.post("/api/auth/google", response_model=schemas.Token)
-def login_google(datos: schemas.GoogleLogin, db: Session = Depends(get_db)):
+@limiter.limit("10/minute")
+def login_google(request: Request, datos: schemas.GoogleLogin, db: Session = Depends(get_db)):
     """Valida el ID token emitido por Google y crea/inicia la cuenta de FinanzasU."""
     if not GOOGLE_CLIENT_ID:
         raise HTTPException(status_code=503, detail="El inicio de sesión con Google no está configurado")
@@ -348,7 +358,8 @@ def cambiar_password(
 
 
 @app.post("/api/auth/solicitar-reset")
-def solicitar_reset(datos: schemas.SolicitarReset, db: Session = Depends(get_db)):
+@limiter.limit("3/hour")
+def solicitar_reset(request: Request, datos: schemas.SolicitarReset, db: Session = Depends(get_db)):
     email = datos.email.lower()
     usuario = db.query(models.Usuario).filter(models.Usuario.email == email).first()
 

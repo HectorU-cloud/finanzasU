@@ -84,7 +84,7 @@ export default function App() {
   );
 }
 
-export default function AppContent() {
+function AppContent() {
   const [usuario, setUsuario] = useState(null);
   const [verificandoSesion, setVerificandoSesion] = useState(true);
   const [tema, setTema] = useState(() => {
