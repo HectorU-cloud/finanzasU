@@ -11,32 +11,52 @@ export function useToast() {
 
 const MAX_TOASTS = 3;
 const DEBOUNCE_MS = 800;
+const DURACION_DEFAULT = 3000;
+const DURACION_CON_ACCION = 5000;
 
 export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([]);
-  const ultimosMensajes = useRef({}); // { mensaje: timestamp }
+  const ultimosMensajes = useRef({});
 
-  const showToast = useCallback((mensaje, tipo = "exito") => {
+  /**
+   * showToast(mensaje, tipo, opciones)
+   * - tipo: "exito" | "error" | "info"
+   * - opciones.accion: texto del botón (ej: "Deshacer")
+   * - opciones.onAccion: función a ejecutar al tocar el botón
+   * - opciones.duracion: ms que dura (default 3000, con acción 5000)
+   */
+  const showToast = useCallback((mensaje, tipo = "exito", opciones = {}) => {
     const ahora = Date.now();
     const ultimo = ultimosMensajes.current[mensaje] || 0;
+    const tieneAccion = Boolean(opciones.accion);
 
-    // Si el mismo mensaje se mostró hace menos de DEBOUNCE_MS, lo ignoramos
-    if (ahora - ultimo < DEBOUNCE_MS) {
+    // Si tiene acción, siempre se muestra (no debounce) para no perder el "Deshacer"
+    if (!tieneAccion && ahora - ultimo < DEBOUNCE_MS) {
       return;
     }
     ultimosMensajes.current[mensaje] = ahora;
 
     const id = `${ahora}-${Math.random()}`;
+    const duracion =
+      opciones.duracion ?? (tieneAccion ? DURACION_CON_ACCION : DURACION_DEFAULT);
 
     setToasts((prev) => {
-      // Limitar a MAX_TOASTS
-      const nuevos = [...prev, { id, mensaje, tipo }];
+      const nuevos = [
+        ...prev,
+        {
+          id,
+          mensaje,
+          tipo,
+          accion: opciones.accion,
+          onAccion: opciones.onAccion,
+        },
+      ];
       return nuevos.slice(-MAX_TOASTS);
     });
 
     setTimeout(() => {
       setToasts((prev) => prev.filter((t) => t.id !== id));
-    }, 3000);
+    }, duracion);
   }, []);
 
   const removeToast = useCallback((id) => {
@@ -73,13 +93,28 @@ function Toast({ toast, onRemove }) {
 
   const { bg, Icono } = estilos[toast.tipo] || estilos.exito;
 
+  function handleAccion(e) {
+    e.stopPropagation();
+    if (toast.onAccion) toast.onAccion();
+    onRemove(toast.id);
+  }
+
   return (
     <div
-      className={`${bg} text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 pointer-events-auto animate-toast max-w-md w-full cursor-pointer`}
-      onClick={() => onRemove(toast.id)}
+      className={`${bg} text-white px-4 py-3 rounded-2xl shadow-2xl flex items-center gap-3 pointer-events-auto animate-toast max-w-md w-full`}
     >
       <Icono size={18} className="shrink-0" />
       <span className="text-sm font-medium flex-1">{toast.mensaje}</span>
+
+      {toast.accion && (
+        <button
+          onClick={handleAccion}
+          className="shrink-0 text-xs font-bold uppercase tracking-wider bg-white/20 hover:bg-white/30 px-3 py-1 rounded-full transition-colors"
+        >
+          {toast.accion}
+        </button>
+      )}
+
       <button
         onClick={(e) => {
           e.stopPropagation();

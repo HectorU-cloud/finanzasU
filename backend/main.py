@@ -2040,7 +2040,27 @@ def listar_notas(
 ):
     return (
         db.query(models.Nota)
-        .filter(models.Nota.usuario_id == usuario.id)
+        .filter(
+            models.Nota.usuario_id == usuario.id,
+            models.Nota.eliminado == 0,
+        )
+        .order_by(models.Nota.actualizado_en.desc())
+        .all()
+    )
+
+
+@app.get("/api/notas/eliminadas", response_model=list[schemas.NotaOut])
+def listar_notas_eliminadas(
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """Notas en la papelera (soft-deleted)."""
+    return (
+        db.query(models.Nota)
+        .filter(
+            models.Nota.usuario_id == usuario.id,
+            models.Nota.eliminado == 1,
+        )
         .order_by(models.Nota.actualizado_en.desc())
         .all()
     )
@@ -2068,7 +2088,11 @@ def actualizar_nota(
 ):
     nota = (
         db.query(models.Nota)
-        .filter(models.Nota.id == nota_id, models.Nota.usuario_id == usuario.id)
+        .filter(
+            models.Nota.id == nota_id,
+            models.Nota.usuario_id == usuario.id,
+            models.Nota.eliminado == 0,
+        )
         .first()
     )
     if not nota:
@@ -2088,6 +2112,53 @@ def eliminar_nota(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
+    """Soft delete: marca la nota como eliminada (recuperable)."""
+    nota = (
+        db.query(models.Nota)
+        .filter(
+            models.Nota.id == nota_id,
+            models.Nota.usuario_id == usuario.id,
+            models.Nota.eliminado == 0,
+        )
+        .first()
+    )
+    if not nota:
+        raise HTTPException(status_code=404, detail="Nota no encontrada")
+    nota.eliminado = 1
+    db.commit()
+
+
+@app.post("/api/notas/{nota_id}/restaurar", response_model=schemas.NotaOut)
+def restaurar_nota(
+    nota_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """Restaura una nota que estaba en la papelera."""
+    nota = (
+        db.query(models.Nota)
+        .filter(
+            models.Nota.id == nota_id,
+            models.Nota.usuario_id == usuario.id,
+            models.Nota.eliminado == 1,
+        )
+        .first()
+    )
+    if not nota:
+        raise HTTPException(status_code=404, detail="Nota no encontrada en papelera")
+    nota.eliminado = 0
+    db.commit()
+    db.refresh(nota)
+    return nota
+
+
+@app.delete("/api/notas/{nota_id}/definitivo", status_code=204)
+def eliminar_nota_definitivo(
+    nota_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """Borrado físico real: solo desde la papelera."""
     nota = (
         db.query(models.Nota)
         .filter(models.Nota.id == nota_id, models.Nota.usuario_id == usuario.id)
@@ -2097,7 +2168,6 @@ def eliminar_nota(
         raise HTTPException(status_code=404, detail="Nota no encontrada")
     db.delete(nota)
     db.commit()
-
 
 # ============================================================
 # CATEGORÍAS Y RESÚMENES

@@ -138,6 +138,7 @@ export const api = {
 
   // Notas
   getNotas: () => request("/notas"),
+  getNotasEliminadas: () => request("/notas/eliminadas"),
   crearNota: (contenido, color = "rosa") =>
     request("/notas", { method: "POST", body: JSON.stringify({ contenido, color }) }),
   actualizarNota: (id, contenido, color = null) =>
@@ -146,6 +147,8 @@ export const api = {
       body: JSON.stringify(color ? { contenido, color } : { contenido }),
     }),
   eliminarNota: (id) => request(`/notas/${id}`, { method: "DELETE" }),
+  restaurarNota: (id) => request(`/notas/${id}/restaurar`, { method: "POST" }),
+  eliminarNotaDefinitivo: (id) => request(`/notas/${id}/definitivo`, { method: "DELETE" }),
 
   // Egresos directos de cuenta
   getEgresosCuenta: (anio, mes) => {

@@ -209,6 +209,26 @@ export default function Home({
     try {
       await api.eliminarNota(id);
       setNotas((prev) => prev.filter((n) => n.id !== id));
+
+      showToast("Nota eliminada", "info", {
+        accion: "Deshacer",
+        onAccion: async () => {
+          try {
+            const restaurada = await api.restaurarNota(id);
+            setNotas((prev) => {
+              const nuevas = [...prev, restaurada];
+              return nuevas.sort((a, b) => {
+                const fa = new Date(b.actualizado_en || b.creado_en || 0);
+                const ga = new Date(a.actualizado_en || a.creado_en || 0);
+                return fa - ga;
+              });
+            });
+            showToast("Nota restaurada ✓");
+          } catch {
+            showToast("No se pudo restaurar la nota", "error");
+          }
+        },
+      });
     } catch (err) {
       showToast("No se pudo eliminar la nota", "error");
     }

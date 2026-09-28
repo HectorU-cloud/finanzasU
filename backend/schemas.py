@@ -644,8 +644,14 @@ class NotaOut(BaseModel):
     id: int
     contenido: str
     color: str = "rosa"
+    eliminado: bool = False
     creado_en: datetime | None = None
     actualizado_en: datetime | None = None
+
+    @field_validator("eliminado", mode="before")
+    @classmethod
+    def _eliminado_bool(cls, v):
+        return bool(v)
 
 
 TIPOS_DEUDA = {"debo", "me_deben"}
