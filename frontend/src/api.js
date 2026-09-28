@@ -127,11 +127,14 @@ export const api = {
   // Deudas (debo / me deben)
   getDeudas: (incluirPagadas = false) =>
     request(`/deudas?incluir_pagadas=${incluirPagadas}`),
+  getDeudasEliminadas: () => request("/deudas/eliminadas"),
   crearDeuda: (deuda) =>
     request("/deudas", { method: "POST", body: JSON.stringify(deuda) }),
   actualizarDeuda: (id, cambios) =>
     request(`/deudas/${id}`, { method: "PUT", body: JSON.stringify(cambios) }),
   eliminarDeuda: (id) => request(`/deudas/${id}`, { method: "DELETE" }),
+  restaurarDeuda: (id) => request(`/deudas/${id}/restaurar`, { method: "POST" }),
+  eliminarDeudaDefinitivo: (id) => request(`/deudas/${id}/definitivo`, { method: "DELETE" }),
   abonarDeuda: (id, datos) =>
     request(`/deudas/${id}/abonar`, { method: "POST", body: JSON.stringify(datos) }),
   getAbonosDeuda: (id) => request(`/deudas/${id}/abonos`),

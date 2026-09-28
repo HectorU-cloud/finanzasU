@@ -223,6 +223,7 @@ class Deuda(Base):
     frecuencia_recordatorio_dias = Column(Integer, nullable=True)  # null = sin recordatorio
     pagada = Column(Integer, default=0)  # 0=activa, 1=saldada
     fecha_pagada = Column(Date, nullable=True)
+    eliminado = Column(Integer, nullable=False, default=0, index=True)  # <-- NUEVO
     creado_en = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     usuario = relationship("Usuario")

@@ -2377,7 +2377,11 @@ def resumen_por_categoria(
 def _deuda_del_usuario(db: Session, deuda_id: int, usuario: models.Usuario) -> models.Deuda:
     deuda = (
         db.query(models.Deuda)
-        .filter(models.Deuda.id == deuda_id, models.Deuda.usuario_id == usuario.id)
+        .filter(
+            models.Deuda.id == deuda_id,
+            models.Deuda.usuario_id == usuario.id,
+            models.Deuda.eliminado == 0,
+        )
         .first()
     )
     if not deuda:
@@ -2391,10 +2395,33 @@ def listar_deudas(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
-    query = db.query(models.Deuda).filter(models.Deuda.usuario_id == usuario.id)
+    query = (
+        db.query(models.Deuda)
+        .filter(
+            models.Deuda.usuario_id == usuario.id,
+            models.Deuda.eliminado == 0,
+        )
+    )
     if not incluir_pagadas:
         query = query.filter(models.Deuda.pagada == 0)
     return query.order_by(models.Deuda.creado_en.desc()).all()
+
+
+@app.get("/api/deudas/eliminadas", response_model=list[schemas.DeudaOut])
+def listar_deudas_eliminadas(
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """Deudas en la papelera."""
+    return (
+        db.query(models.Deuda)
+        .filter(
+            models.Deuda.usuario_id == usuario.id,
+            models.Deuda.eliminado == 1,
+        )
+        .order_by(models.Deuda.creado_en.desc())
+        .all()
+    )
 
 
 @app.post("/api/deudas", response_model=schemas.DeudaOut)
@@ -2443,7 +2470,49 @@ def eliminar_deuda(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
+    """Soft delete: marca la deuda como eliminada. Los abonos se preservan."""
     deuda = _deuda_del_usuario(db, deuda_id, usuario)
+    deuda.eliminado = 1
+    db.commit()
+
+
+@app.post("/api/deudas/{deuda_id}/restaurar", response_model=schemas.DeudaOut)
+def restaurar_deuda(
+    deuda_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    deuda = (
+        db.query(models.Deuda)
+        .filter(
+            models.Deuda.id == deuda_id,
+            models.Deuda.usuario_id == usuario.id,
+            models.Deuda.eliminado == 1,
+        )
+        .first()
+    )
+    if not deuda:
+        raise HTTPException(status_code=404, detail="Deuda no encontrada en papelera")
+    deuda.eliminado = 0
+    db.commit()
+    db.refresh(deuda)
+    return deuda
+
+
+@app.delete("/api/deudas/{deuda_id}/definitivo", status_code=204)
+def eliminar_deuda_definitivo(
+    deuda_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """Borrado físico real: borra también los abonos (cascade). Solo desde la papelera."""
+    deuda = (
+        db.query(models.Deuda)
+        .filter(models.Deuda.id == deuda_id, models.Deuda.usuario_id == usuario.id)
+        .first()
+    )
+    if not deuda:
+        raise HTTPException(status_code=404, detail="Deuda no encontrada")
     db.delete(deuda)
     db.commit()
 
@@ -2507,8 +2576,6 @@ def abonar_deuda(
     db.commit()
     db.refresh(deuda)
     return schemas.AbonarDeudaResultado(deuda=deuda, quedo_saldada=quedo_saldada)
-
-
 # ============================================================
 # EGRESOS DE CUENTA (GASTOS DIRECTOS)
 # ============================================================

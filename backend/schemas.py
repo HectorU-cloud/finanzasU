@@ -728,11 +728,17 @@ class DeudaOut(BaseModel):
     frecuencia_recordatorio_dias: int | None
     pagada: bool
     fecha_pagada: date | None
+    eliminado: bool = False
     creado_en: datetime | None = None
 
     @field_validator("pagada", mode="before")
     @classmethod
     def _pagada_bool(cls, v):
+        return bool(v)
+
+    @field_validator("eliminado", mode="before")
+    @classmethod
+    def _eliminado_bool(cls, v):
         return bool(v)
 
 

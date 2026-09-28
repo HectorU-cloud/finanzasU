@@ -50,10 +50,24 @@ export default function DeudasScreen({ onVolver }) {
 
   async function confirmarEliminar() {
     if (!deudaAEliminar) return;
+    const deudaBorrada = deudaAEliminar;
     try {
-      await api.eliminarDeuda(deudaAEliminar.id);
+      await api.eliminarDeuda(deudaBorrada.id);
       setDeudaAEliminar(null);
       await cargar();
+
+      showToast("Deuda eliminada", "info", {
+        accion: "Deshacer",
+        onAccion: async () => {
+          try {
+            await api.restaurarDeuda(deudaBorrada.id);
+            await cargar();
+            showToast("Deuda restaurada ✓");
+          } catch {
+            showToast("No se pudo restaurar la deuda", "error");
+          }
+        },
+      });
     } catch (err) {
       setError(err.message);
       setDeudaAEliminar(null);
