@@ -14,7 +14,7 @@ from fastapi import FastAPI, Depends, HTTPException, Request, Header
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.exceptions import RequestValidationError
-from sqlalchemy import extract, func
+from sqlalchemy import extract, func, or_
 from sqlalchemy.orm import Session
 
 import auth
@@ -3964,3 +3964,225 @@ def obtener_calendario(
         total_gastos=abs(total_gas_mes),
         balance=total_ing_mes + total_gas_mes,
     )
+
+# ============================================================
+# BÚSQUEDA GLOBAL
+# ============================================================
+
+@app.get("/api/buscar")
+def buscar(
+    q: str,
+    limite: int = 8,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """
+    Busca en gastos, ingresos, egresos directos, pagos de tarjeta,
+    deudas, notas y potes. Devuelve resultados agrupables por 'tipo'.
+    """
+    termino = q.strip()
+    if len(termino) < 2:
+        return {"resultados": []}
+
+    patron = f"%{termino}%"
+    resultados = []
+
+    # === 1. Gastos (tarjetas) ===
+    gastos = (
+        db.query(models.Gasto)
+        .join(models.Tarjeta)
+        .filter(
+            models.Tarjeta.usuario_id == usuario.id,
+            or_(
+                models.Gasto.descripcion.ilike(patron),
+                models.Gasto.categoria.ilike(patron),
+            ),
+        )
+        .order_by(models.Gasto.fecha.desc())
+        .limit(limite)
+        .all()
+    )
+    for g in gastos:
+        tarjeta_nombre = g.tarjeta.nombre if g.tarjeta else "Sin tarjeta"
+        resultados.append({
+            "tipo": "gasto",
+            "id": g.id,
+            "titulo": g.descripcion or g.categoria or "Gasto",
+            "subtitulo": f"{g.fecha.isoformat()} · {tarjeta_nombre}",
+            "monto": float(g.monto),
+            "signo": "-",
+            "fecha": g.fecha.isoformat(),
+            "tarjeta_id": g.tarjeta_id,      # ← NUEVO
+            "mes": g.fecha.month,            # ← NUEVO
+            "anio": g.fecha.year,            # ← NUEVO
+        })
+
+    # === 2. Ingresos ===
+    ingresos = (
+        db.query(models.Ingreso)
+        .filter(
+            models.Ingreso.usuario_id == usuario.id,
+            or_(
+                models.Ingreso.descripcion.ilike(patron),
+                models.Ingreso.categoria.ilike(patron),
+            ),
+        )
+        .order_by(models.Ingreso.fecha.desc())
+        .limit(limite)
+        .all()
+    )
+    for i in ingresos:
+        cuenta = db.query(models.Cuenta).get(i.cuenta_id)
+        resultados.append({
+            "tipo": "ingreso",
+            "id": i.id,
+            "titulo": i.descripcion or i.categoria or "Ingreso",
+            "subtitulo": f"{i.fecha.isoformat()} · {cuenta.nombre if cuenta else 'Sin cuenta'}",
+            "monto": float(i.monto),
+            "signo": "+",
+            "fecha": i.fecha.isoformat(),
+            "mes": i.fecha.month,            # ← NUEVO
+            "anio": i.fecha.year,            # ← NUEVO
+        })
+
+    # === 3. Egresos directos de cuenta ===
+    egresos = (
+        db.query(models.EgresoCuenta)
+        .filter(
+            models.EgresoCuenta.usuario_id == usuario.id,
+            or_(
+                models.EgresoCuenta.descripcion.ilike(patron),
+                models.EgresoCuenta.categoria.ilike(patron),
+            ),
+        )
+        .order_by(models.EgresoCuenta.fecha.desc())
+        .limit(limite)
+        .all()
+    )
+    for e in egresos:
+        cuenta = db.query(models.Cuenta).get(e.cuenta_id)
+        resultados.append({
+            "tipo": "egreso",
+            "id": e.id,
+            "titulo": e.descripcion or e.categoria or "Gasto directo",
+            "subtitulo": f"{e.fecha.isoformat()} · {cuenta.nombre if cuenta else 'Sin cuenta'}",
+            "monto": float(e.monto),
+            "signo": "-",
+            "fecha": e.fecha.isoformat(),
+            "mes": e.fecha.month,            # ← NUEVO
+            "anio": e.fecha.year,            # ← NUEVO
+            "cuenta_id": e.cuenta_id,        # ← NUEVO
+        })
+
+    # === 4. Pagos de tarjeta (buscando por nombre de tarjeta) ===
+    tarjetas_usuario = (
+        db.query(models.Tarjeta)
+        .filter(models.Tarjeta.usuario_id == usuario.id)
+        .all()
+    )
+    tarjetas_por_id = {t.id: t for t in tarjetas_usuario}
+    termino_lower = termino.lower()
+    ids_tarjetas_match = [t.id for t in tarjetas_usuario if termino_lower in (t.nombre or "").lower()]
+    if ids_tarjetas_match:
+        pagos = (
+            db.query(models.PagoTarjeta)
+            .filter(
+                models.PagoTarjeta.usuario_id == usuario.id,
+                models.PagoTarjeta.tarjeta_id.in_(ids_tarjetas_match),
+            )
+            .order_by(models.PagoTarjeta.fecha_pago.desc())
+            .limit(limite)
+            .all()
+        )
+        for p in pagos:
+            tarjeta = tarjetas_por_id.get(p.tarjeta_id)
+            resultados.append({
+                "tipo": "pago_tarjeta",
+                "id": p.id,
+                "titulo": f"Pago a {tarjeta.nombre if tarjeta else 'tarjeta'}",
+                "subtitulo": f"{p.fecha_pago.isoformat()} · cierre {p.mes_cerrado}/{p.anio_cerrado}",
+                "monto": float(p.monto),
+                "signo": "-",
+                "fecha": p.fecha_pago.isoformat(),
+                "mes": p.fecha_pago.month,      # ← NUEVO
+                "anio": p.fecha_pago.year,      # ← NUEVO
+            })
+
+    # === 5. Deudas ===
+    deudas = (
+        db.query(models.Deuda)
+        .filter(
+            models.Deuda.usuario_id == usuario.id,
+            or_(
+                models.Deuda.persona.ilike(patron),
+                models.Deuda.descripcion.ilike(patron),
+            ),
+        )
+        .order_by(models.Deuda.creado_en.desc())
+        .limit(limite)
+        .all()
+    )
+    for d in deudas:
+        if d.pagada:
+            estado = "Saldada"
+        elif d.tipo == "debo":
+            estado = "Le debes"
+        else:
+            estado = "Te debe"
+        desc = f"{estado}" + (f" · {d.descripcion}" if d.descripcion else "")
+        fecha_str = d.creado_en.date().isoformat() if d.creado_en else ""
+        resultados.append({
+            "tipo": "deuda",
+            "id": d.id,
+            "titulo": d.persona,
+            "subtitulo": desc,
+            "monto": float(d.saldo_pendiente),
+            "signo": "",
+            "fecha": fecha_str,
+        })
+
+    # === 6. Notas ===
+    notas = (
+        db.query(models.Nota)
+        .filter(
+            models.Nota.usuario_id == usuario.id,
+            models.Nota.contenido.ilike(patron),
+        )
+        .order_by(models.Nota.actualizado_en.desc())
+        .limit(limite)
+        .all()
+    )
+    for n in notas:
+        contenido_corto = (n.contenido or "").strip()[:80] or "Nota vacía"
+        fecha_str = n.actualizado_en.date().isoformat() if n.actualizado_en else ""
+        resultados.append({
+            "tipo": "nota",
+            "id": n.id,
+            "titulo": contenido_corto,
+            "subtitulo": "Nota",
+            "fecha": fecha_str,
+        })
+
+    # === 7. Potes ===
+    potes = (
+        db.query(models.Pote)
+        .filter(
+            models.Pote.usuario_id == usuario.id,
+            models.Pote.nombre.ilike(patron),
+        )
+        .limit(limite)
+        .all()
+    )
+    for p in potes:
+        resultados.append({
+            "tipo": "pote",
+            "id": p.id,
+            "titulo": f"{p.emoji} {p.nombre}",
+            "subtitulo": f"${float(p.saldo):.2f} de ${float(p.meta):.2f}",
+            "fecha": "",
+        })
+
+    # Ordenar todos por fecha descendente (los sin fecha van al final)
+    resultados.sort(key=lambda r: r.get("fecha") or "", reverse=True)
+
+    return {"resultados": resultados[:50]}

@@ -41,7 +41,10 @@ const GRADIENTES = {
 
 export default function TarjetaDetalleScreen({ tarjeta, onVolver, onCambio }) {
   const hoy = new Date();
-  const [periodo, setPeriodo] = useState({ anio: hoy.getFullYear(), mes: hoy.getMonth() + 1 });
+  const [periodo, setPeriodo] = useState({
+    anio: tarjeta._anioInicial ?? hoy.getFullYear(),
+    mes: tarjeta._mesInicial ?? hoy.getMonth() + 1,
+  });
   const [gastos, setGastos] = useState([]);
   const [estado, setEstado] = useState(null);
   const [categorias, setCategorias] = useState([]);

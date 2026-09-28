@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
-import { Receipt, Trash2, ArrowLeft, Plus, CreditCard, Download } from "lucide-react";
+import { Receipt, Trash2, ArrowLeft, Download } from "lucide-react";
 import { descargarArchivo } from "./utils/descargas.js";
 import { api } from "./api.js";
+import { useToast } from "./ToastContext.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
-import EgresoCuentaModal from "./EgresoCuentaModal.jsx";
 import { SkeletonList } from "./Skeleton.jsx";
 import EmptyState from "./EmptyState.jsx";
-import { useToast } from "./ToastContext.jsx";
 
 const NOMBRES_MES = [
   "enero", "febrero", "marzo", "abril", "mayo", "junio",
@@ -15,28 +14,23 @@ const NOMBRES_MES = [
 
 export default function HistorialPagosScreen({ onVolver, ocultarHeader = false }) {
   const [pagos, setPagos] = useState([]);
-  const [egresos, setEgresos] = useState([]);
   const [tarjetas, setTarjetas] = useState([]);
   const [cuentas, setCuentas] = useState([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState("");
   const [pagoAEliminar, setPagoAEliminar] = useState(null);
-  const [egresoEditando, setEgresoEditando] = useState(null);
-  const [modalEgreso, setModalEgreso] = useState(false);
   const [exportando, setExportando] = useState(false);
   const { showToast } = useToast();
 
   async function cargar() {
     setCargando(true);
     try {
-      const [pagosData, egresosData, tarjetasData, cuentasData] = await Promise.all([
+      const [pagosData, tarjetasData, cuentasData] = await Promise.all([
         api.getPagosTarjeta(),
-        api.getEgresosCuenta(),
         api.getTarjetas(),
         api.getCuentas(),
       ]);
       setPagos(pagosData || []);
-      setEgresos(egresosData || []);
       setTarjetas(tarjetasData || []);
       setCuentas(cuentasData || []);
     } catch (err) {
@@ -58,9 +52,9 @@ export default function HistorialPagosScreen({ onVolver, ocultarHeader = false }
     return cuentas.find((c) => c.id === id)?.nombre || "—";
   }
 
-  // Unificamos y ordenamos por fecha
-  const movimientos = [
-    ...pagos.map((p) => ({
+  // Solo pagos de tarjeta
+  const movimientos = pagos
+    .map((p) => ({
       tipo: "tarjeta",
       id: `p-${p.id}`,
       fecha: p.fecha_pago,
@@ -68,30 +62,18 @@ export default function HistorialPagosScreen({ onVolver, ocultarHeader = false }
       titulo: `Pago a ${nombreTarjeta(p.tarjeta_id)}`,
       subtitulo: `${NOMBRES_MES[p.mes_cerrado - 1]} ${p.anio_cerrado} · desde ${nombreCuenta(p.cuenta_id)}`,
       data: p,
-    })),
-    ...egresos.map((e) => ({
-      tipo: "egreso",
-      id: `e-${e.id}`,
-      fecha: e.fecha,
-      monto: Number(e.monto),
-      titulo: e.descripcion || e.categoria || "Gasto directo",
-      subtitulo: `${nombreCuenta(e.cuenta_id)}${e.categoria ? ` · ${e.categoria}` : ""}`,
-      data: e,
-    })),
-  ].sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
+    }))
+    .sort((a, b) => (a.fecha < b.fecha ? 1 : -1));
 
   const totalPagado = movimientos.reduce((acc, m) => acc + m.monto, 0);
 
   async function confirmarEliminar() {
     if (!pagoAEliminar) return;
     try {
-      if (pagoAEliminar.tipo === "tarjeta") {
-        await api.eliminarPagoTarjeta(pagoAEliminar.data.id);
-      } else {
-        await api.eliminarEgresoCuenta(pagoAEliminar.data.id);
-      }
+      await api.eliminarPagoTarjeta(pagoAEliminar.data.id);
       setPagoAEliminar(null);
       await cargar();
+      showToast("Pago eliminado", "info");
     } catch (err) {
       setError(err.message);
       setPagoAEliminar(null);
@@ -105,14 +87,14 @@ export default function HistorialPagosScreen({ onVolver, ocultarHeader = false }
     const hasta = ahora.toISOString().slice(0, 10);
     setExportando(true);
     try {
-    await descargarArchivo(api.exportarDeudas());
-    showToast("CSV descargado ✓");
-  } catch (err) {
-    showToast("No se pudo descargar: " + err.message, "error");
-  } finally {
-    setExportando(false);
+      await descargarArchivo(api.exportarPagos(desde, hasta));
+      showToast("CSV descargado ✓");
+    } catch (err) {
+      showToast("No se pudo descargar: " + err.message, "error");
+    } finally {
+      setExportando(false);
+    }
   }
-}
 
   return (
     <div className={ocultarHeader ? "" : "max-w-md mx-auto px-4 pb-28 pt-6"}>
@@ -137,19 +119,7 @@ export default function HistorialPagosScreen({ onVolver, ocultarHeader = false }
         </header>
       )}
 
-      {/* Botón agregar gasto directo */}
-      <button
-        onClick={() => {
-          setEgresoEditando(null);
-          setModalEgreso(true);
-        }}
-        className="w-full mb-4 py-3 rounded-2xl bg-coral text-white font-semibold text-sm flex items-center justify-center gap-2 hover:bg-coral-dark transition-colors"
-      >
-        <Plus size={16} /> Registrar gasto directo
-      </button>
-
-      {/* Botón Descargar CSV */} 
-
+      {/* Botón Descargar CSV */}
       <button
         onClick={exportar}
         disabled={exportando}
@@ -160,12 +130,12 @@ export default function HistorialPagosScreen({ onVolver, ocultarHeader = false }
       </button>
 
       {cargando ? (
-      <SkeletonList count={3} variant="card" />
+        <SkeletonList count={3} variant="card" />
       ) : movimientos.length === 0 ? (
         <EmptyState
           icon={Receipt}
           titulo="Aún no hay pagos"
-          mensaje="Cuando pagues una tarjeta o registres un gasto directo, aparecerá aquí."
+          mensaje="Cuando pagues una tarjeta, aparecerá aquí."
           colorIcono="coral"
         />
       ) : (
@@ -173,14 +143,8 @@ export default function HistorialPagosScreen({ onVolver, ocultarHeader = false }
           {movimientos.map((m) => (
             <div key={m.id} className="bg-white rounded-2xl p-4 shadow-sm">
               <div className="flex items-start gap-3">
-                <div
-                  className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${
-                    m.tipo === "tarjeta"
-                      ? "bg-coral/10 text-coral"
-                      : "bg-amber-100 text-amber-700"
-                  }`}
-                >
-                  {m.tipo === "tarjeta" ? <Receipt size={18} /> : <CreditCard size={18} />}
+                <div className="w-11 h-11 rounded-xl flex items-center justify-center shrink-0 bg-coral/10 text-coral">
+                  <Receipt size={18} />
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-semibold text-carbon text-sm truncate">{m.titulo}</p>
@@ -190,18 +154,6 @@ export default function HistorialPagosScreen({ onVolver, ocultarHeader = false }
                 <div className="text-right flex flex-col items-end gap-2">
                   <p className="font-bold text-carbon">-${m.monto.toFixed(2)}</p>
                   <div className="flex gap-1">
-                    {m.tipo === "egreso" && (
-                      <button
-                        onClick={() => {
-                          setEgresoEditando(m.data);
-                          setModalEgreso(true);
-                        }}
-                        className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-gray-100 hover:text-carbon"
-                        title="Editar"
-                      >
-                        ✎
-                      </button>
-                    )}
                     <button
                       onClick={() => setPagoAEliminar(m)}
                       className="w-7 h-7 rounded-lg flex items-center justify-center text-gray-400 hover:bg-red-50 hover:text-red-500"
@@ -225,30 +177,11 @@ export default function HistorialPagosScreen({ onVolver, ocultarHeader = false }
 
       {pagoAEliminar && (
         <ConfirmModal
-          titulo={pagoAEliminar.tipo === "tarjeta" ? "Eliminar pago" : "Eliminar gasto directo"}
-          mensaje={
-            pagoAEliminar.tipo === "tarjeta"
-              ? `¿Eliminar el pago de $${pagoAEliminar.monto.toFixed(2)} a ${pagoAEliminar.titulo.replace("Pago a ", "")}? Los gastos volverán a quedar pendientes.`
-              : `¿Eliminar el gasto de $${pagoAEliminar.monto.toFixed(2)} (${pagoAEliminar.titulo})? El dinero volverá a la cuenta.`
-          }
+          titulo="Eliminar pago"
+          mensaje={`¿Eliminar el pago de $${pagoAEliminar.monto.toFixed(2)} a ${pagoAEliminar.titulo.replace("Pago a ", "")}? Los gastos volverán a quedar pendientes.`}
           textoConfirmar="Sí, eliminar"
           onConfirmar={confirmarEliminar}
           onCancelar={() => setPagoAEliminar(null)}
-        />
-      )}
-
-      {modalEgreso && (
-        <EgresoCuentaModal
-          egreso={egresoEditando}
-          onCerrar={() => {
-            setModalEgreso(false);
-            setEgresoEditando(null);
-          }}
-          onGuardado={() => {
-            setModalEgreso(false);
-            setEgresoEditando(null);
-            cargar();
-          }}
         />
       )}
     </div>

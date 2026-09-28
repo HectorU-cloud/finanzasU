@@ -40,6 +40,8 @@ const RecurrentesScreen = lazy(() => import("./RecurrentesScreen.jsx"));
 const CategoriasPanel = lazy(() => import("./CategoriasPanel.jsx"));
 const CalendarioScreen = lazy(() => import("./CalendarioScreen.jsx"));
 const GruposScreen = lazy(() => import("./GruposScreen.jsx"));
+const BuscarScreen = lazy(() => import("./BuscarScreen.jsx"));
+const EgresoCuentaModal = lazy(() => import("./EgresoCuentaModal.jsx"));
 
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
@@ -117,9 +119,19 @@ function AppContent() {
   const [enviando, setEnviando] = useState(false);
   const [panelTarjetasAbierto, setPanelTarjetasAbierto] = useState(false);
   const [vista, setVista] = useState("home");
+  const [vistaBuscar, setVistaBuscar] = useState(false);
+  const [movimientosNav, setMovimientosNav] = useState({
+    tab: "ingresos",
+    anio: null,
+    mes: null,
+    nonce: 0,
+  });
+  const [egresoEditando, setEgresoEditando] = useState(null);
+  const [modalEgresoAbierto, setModalEgresoAbierto] = useState(false);
   const [modalTarjetas, setModalTarjetas] = useState(false);
   const [vistaTarjetas, setVistaTarjetas] = useState(false);
   const [origenDetalle, setOrigenDetalle] = useState(null);
+  
 
   const [tarjetas, setTarjetas] = useState([]);
   const [gastos, setGastos] = useState([]);
@@ -435,6 +447,34 @@ const [mostrandoSplash, setMostrandoSplash] = useState(false);
   );
 }
 
+  if (vistaBuscar && usuario) {
+  return (
+    <BuscarScreen
+      onVolver={() => setVistaBuscar(false)}
+      onNavegar={(r) => {
+        setVistaBuscar(false);
+
+        if (r.tipo === "deuda") return setVista("deudas");
+        if (r.tipo === "nota") return setVista("home");
+        if (r.tipo === "pote") return setVista("planificar");
+
+        // Movimientos: decidir el tab según el tipo
+        let tab = "pagos";
+        if (r.tipo === "gasto" || r.tipo === "egreso") tab = "gastos";
+        else if (r.tipo === "ingreso") tab = "ingresos";
+
+        setMovimientosNav((prev) => ({
+          tab,
+          anio: r.anio ?? null,
+          mes: r.mes ?? null,
+          nonce: prev.nonce + 1,
+        }));
+        setVista("movimientos");
+      }}
+    />
+  );
+}
+
   if (!usuario) {
   return (
     <AuthScreen
@@ -482,6 +522,21 @@ const [mostrandoSplash, setMostrandoSplash] = useState(false);
             setTarjetaDetalle(t);
           }}
         />
+
+        {modalEgresoAbierto && (
+          <EgresoCuentaModal
+            egreso={egresoEditando}
+            onCerrar={() => {
+              setModalEgresoAbierto(false);
+              setEgresoEditando(null);
+            }}
+            onGuardado={() => {
+              setModalEgresoAbierto(false);
+              setEgresoEditando(null);
+              setMovimientosNav((p) => ({ ...p, nonce: p.nonce + 1 }));
+            }}
+          />
+        )}
 
         {modalTarjetas && (
           <div
@@ -549,28 +604,33 @@ const [mostrandoSplash, setMostrandoSplash] = useState(false);
             onIrAPerfil={() => setVista("perfil")}                // <-- NUEVA
             onCerrarSesion={handleLogout}
             onIrACalendario={() => setVista("calendario")}        // <-- NUEVA
+            onBuscar={() => setVistaBuscar(true)}
           />
         )}
         {vista === "cuentas" && <CuentasScreen onCambiarVista={setVista} />}
         
         {/* NUEVO: Pantalla que unifica Ingresos y Pagos */}
-        {vista === "movimientos" && <MovimientosScreen />}
-        
-                {vista === "planificar" && (
-          <PlanificarScreen
-            tabInicial={tabPlanificar}
-            onCambiarTab={setTabPlanificar}
-            onIrAPotes={() => {
-              setTabPlanificar("potes");
-              setVista("planificar");
+        {vista === "movimientos" && (
+          <MovimientosScreen
+            key={movimientosNav.nonce}
+            tarjetas={tarjetas}
+            tabInicial={movimientosNav.tab}
+            anioInicial={movimientosNav.anio}
+            mesInicial={movimientosNav.mes}
+            onAbrirTarjeta={(tarjetaId, anio, mes) => {
+              const tarjeta = tarjetas.find((t) => t.id === tarjetaId);
+              if (tarjeta) {
+                setOrigenDetalle(null);
+                setTarjetaDetalle({ ...tarjeta, _anioInicial: anio, _mesInicial: mes });
+              }
             }}
-            onIrAGrupos={() => {
-              setTabPlanificar("grupos");
-              setVista("grupos");
+            onEditarEgreso={(egreso) => {
+              setEgresoEditando(egreso);
+              setModalEgresoAbierto(true);
             }}
-            onIrADeudas={() => {
-              setTabPlanificar("deudas");
-              setVista("deudas");
+            onNuevoEgreso={() => {
+              setEgresoEditando(null);
+              setModalEgresoAbierto(true);
             }}
           />
         )}

@@ -218,6 +218,7 @@ export const api = {
     request(`/grupos/unirse?codigo=${encodeURIComponent(codigo)}`, { method: "POST" }),
   getGastosGrupo: (grupoId) => request(`/grupos/${grupoId}/gastos`),
   getAlertas: () => request("/alertas"),
+  buscar: (q) => request(`/buscar?q=${encodeURIComponent(q)}`),
   eliminarGastoCompartido: (grupoId, gastoId) =>
     request(`/grupos/${grupoId}/gastos/${gastoId}`, { method: "DELETE" }),
   actualizarGastoCompartido: (grupoId, gastoId, cambios) =>

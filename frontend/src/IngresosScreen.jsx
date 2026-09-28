@@ -12,11 +12,15 @@ const NOMBRES_MES = [
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ];
 
-export default function IngresosScreen({ ocultarHeader = false }) {
+export default function IngresosScreen({
+  ocultarHeader = false,
+  anioInicial = null,
+  mesInicial = null,
+}) {
   const hoy = new Date();
   const [periodo, setPeriodo] = useState({
-    anio: hoy.getFullYear(),
-    mes: hoy.getMonth() + 1,
+    anio: anioInicial ?? hoy.getFullYear(),
+    mes: mesInicial ?? hoy.getMonth() + 1,
   });
   const [ingresos, setIngresos] = useState([]);
   const [cuentas, setCuentas] = useState([]);

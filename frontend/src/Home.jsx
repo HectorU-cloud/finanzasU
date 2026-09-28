@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Plus, TrendingUp, TrendingDown, Wallet, Eye, EyeOff, ArrowRightLeft, PiggyBank, CreditCard, StickyNote, Trash2, HandCoins, Palette, PieChart, Calendar, Target, Sparkles, AlertCircle, User, LogOut, Menu } from "lucide-react";
+import { Plus, TrendingUp, TrendingDown, Wallet, Eye, EyeOff, ArrowRightLeft, PiggyBank, CreditCard, StickyNote, Trash2, HandCoins, Palette, PieChart, Calendar, Target, Sparkles, AlertCircle, User, LogOut, Menu, Search, } from "lucide-react";
 import { api } from "./api.js";
 import AlertasBanner from "./AlertasBanner.jsx";
 import TarjetasScreen from "./TarjetasScreen.jsx";
@@ -129,6 +129,7 @@ export default function Home({
   onIrAPerfil,
   onCerrarSesion,
   onIrACalendario,   // <-- NUEVA
+  onBuscar,   // ← NUEVO
 }) {
   const [cuentas, setCuentas] = useState([]);
   const [cargandoCuentas, setCargandoCuentas] = useState(true);
@@ -233,13 +234,21 @@ export default function Home({
       <header className="flex items-center justify-between mb-5">
         <h1 className="text-3xl font-bold text-carbon">{formatearFecha()}</h1>
         <div className="flex items-center gap-3">
-          <button
-            onClick={onIrAReportes}
-            className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-coral/10 hover:text-coral transition-colors"
-            title="Ver reportes"
-          >
-            <TrendingUp size={18} />
-          </button>
+  <button
+    onClick={onBuscar}
+    className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-coral/10 hover:text-coral transition-colors"
+    title="Buscar"
+  >
+    <Search size={18} />
+  </button>
+
+  <button
+    onClick={onIrAReportes}
+    className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center text-gray-500 hover:bg-coral/10 hover:text-coral transition-colors"
+    title="Ver reportes"
+  >
+    <TrendingUp size={18} />
+  </button>
 
           {/* Avatar con menú desplegable */}
           <div className="relative menu-usuario">
