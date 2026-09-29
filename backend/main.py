@@ -685,6 +685,125 @@ def movimientos_cuenta(
     movimientos.sort(key=lambda m: m.fecha, reverse=True)
     return movimientos
 
+@app.get("/api/cuentas/{cuenta_id}/dependencias")
+def dependencias_cuenta(
+    cuenta_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """
+    Devuelve un resumen de todo lo que depende de esta cuenta.
+    Se usa antes de eliminarla para mostrar el modal de advertencia.
+    """
+    cuenta = (
+        db.query(models.Cuenta)
+        .filter(models.Cuenta.id == cuenta_id, models.Cuenta.usuario_id == usuario.id)
+        .first()
+    )
+    if not cuenta:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+
+    # Ingresos
+    ingresos = (
+        db.query(
+            func.count(models.Ingreso.id),
+            func.coalesce(func.sum(models.Ingreso.monto), 0),
+        )
+        .filter(models.Ingreso.cuenta_id == cuenta_id)
+        .first()
+    )
+
+    # Pagos de tarjeta
+    pagos = (
+        db.query(
+            func.count(models.PagoTarjeta.id),
+            func.coalesce(func.sum(models.PagoTarjeta.monto), 0),
+        )
+        .filter(models.PagoTarjeta.cuenta_id == cuenta_id)
+        .first()
+    )
+
+    # Egresos directos
+    egresos = (
+        db.query(
+            func.count(models.EgresoCuenta.id),
+            func.coalesce(func.sum(models.EgresoCuenta.monto), 0),
+        )
+        .filter(models.EgresoCuenta.cuenta_id == cuenta_id)
+        .first()
+    )
+
+    # Potes
+    potes = (
+        db.query(
+            func.count(models.Pote.id),
+            func.coalesce(func.sum(models.Pote.saldo), 0),
+        )
+        .filter(
+            models.Pote.cuenta_id == cuenta_id,
+            models.Pote.eliminado == 0,
+        )
+        .first()
+    )
+
+    # Tarjetas de débito
+    tarjetas_debito = (
+        db.query(models.Tarjeta)
+        .filter(
+            models.Tarjeta.cuenta_id == cuenta_id,
+            models.Tarjeta.tipo == "debito",
+        )
+        .all()
+    )
+
+    # Abonos de deuda
+    abonos = (
+        db.query(
+            func.count(models.AbonoDeuda.id),
+            func.coalesce(func.sum(models.AbonoDeuda.monto), 0),
+        )
+        .filter(models.AbonoDeuda.cuenta_id == cuenta_id)
+        .first()
+    )
+
+    # Recurrentes asociadas
+    recurrentes = (
+        db.query(models.TransaccionRecurrente)
+        .filter(
+            models.TransaccionRecurrente.cuenta_id == cuenta_id,
+            models.TransaccionRecurrente.activa == 1,
+        )
+        .all()
+    )
+
+    return {
+        "cuenta": {
+            "id": cuenta.id,
+            "nombre": cuenta.nombre,
+        },
+        "ingresos": {"cantidad": ingresos[0], "total": float(ingresos[1])},
+        "pagos_tarjeta": {"cantidad": pagos[0], "total": float(pagos[1])},
+        "egresos_directos": {"cantidad": egresos[0], "total": float(egresos[1])},
+        "potes": {"cantidad": potes[0], "total_ahorrado": float(potes[1])},
+        "tarjetas_debito": {
+            "cantidad": len(tarjetas_debito),
+            "nombres": [t.nombre for t in tarjetas_debito],
+        },
+        "abonos_deuda": {"cantidad": abonos[0], "total": float(abonos[1])},
+        "recurrentes": {
+            "cantidad": len(recurrentes),
+            "nombres": [r.nombre for r in recurrentes],
+        },
+        "tiene_dependencias": any([
+            ingresos[0] > 0,
+            pagos[0] > 0,
+            egresos[0] > 0,
+            potes[0] > 0,
+            len(tarjetas_debito) > 0,
+            abonos[0] > 0,
+            len(recurrentes) > 0,
+        ]),
+    }
 
 # ============================================================
 # PAGOS DE TARJETAS
