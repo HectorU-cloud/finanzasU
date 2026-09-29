@@ -11,7 +11,7 @@ export default function MovimientosScreen({
   onAbrirTarjeta,
   onEditarEgreso,
   onNuevoEgreso,
-  onIrATaretas,
+  onIrATarjetas,
 }) {
   const [tabActiva, setTabActiva] = useState(tabInicial);
 
