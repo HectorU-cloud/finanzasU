@@ -45,4 +45,16 @@ export default defineConfig({
       "/api": "http://localhost:8000",
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          "react-vendor": ["react", "react-dom"],
+          "lucide": ["lucide-react"],
+          "icons": ["react-icons"],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 600,
+  },
 });
