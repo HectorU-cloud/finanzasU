@@ -524,6 +524,11 @@ def eliminar_cuenta(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
+    """
+    Elimina una cuenta.
+    - Si está vacía → la marca como eliminada (soft delete, recuperable 30 días).
+    - Si tiene dependencias → error 409 para que el frontend abra el modal detallado.
+    """
     cuenta = (
         db.query(models.Cuenta)
         .filter(models.Cuenta.id == cuenta_id, models.Cuenta.usuario_id == usuario.id)
@@ -532,27 +537,128 @@ def eliminar_cuenta(
     if not cuenta:
         raise HTTPException(status_code=404, detail="Cuenta no encontrada")
 
-    if db.query(models.Ingreso).filter(models.Ingreso.cuenta_id == cuenta_id).first():
+    # ¿Tiene dependencias?
+    tiene_deps = (
+        db.query(models.Ingreso).filter(models.Ingreso.cuenta_id == cuenta_id).first()
+        or db.query(models.PagoTarjeta).filter(models.PagoTarjeta.cuenta_id == cuenta_id).first()
+        or db.query(models.EgresoCuenta).filter(models.EgresoCuenta.cuenta_id == cuenta_id).first()
+        or db.query(models.Tarjeta).filter(models.Tarjeta.cuenta_id == cuenta_id).first()
+        or db.query(models.Pote).filter(
+            models.Pote.cuenta_id == cuenta_id,
+            models.Pote.eliminado == 0,
+        ).first()
+        or db.query(models.AbonoDeuda).filter(models.AbonoDeuda.cuenta_id == cuenta_id).first()
+        or db.query(models.TransaccionRecurrente).filter(
+            models.TransaccionRecurrente.cuenta_id == cuenta_id,
+            models.TransaccionRecurrente.activa == 1,
+        ).first()
+    )
+
+    if tiene_deps:
         raise HTTPException(
-            status_code=400,
-            detail=f"No puedes eliminar '{cuenta.nombre}' porque tiene ingresos registrados. Elimina primero los ingresos o muévelos a otra cuenta.",
+            status_code=409,
+            detail="Esta cuenta tiene movimientos asociados. Confirma la eliminación definitiva.",
         )
 
-    if db.query(models.PagoTarjeta).filter(models.PagoTarjeta.cuenta_id == cuenta_id).first():
-        raise HTTPException(
-            status_code=400,
-            detail=f"No puedes eliminar '{cuenta.nombre}' porque tiene pagos de tarjeta registrados. Elimínalos primero desde la sección Pagos.",
-        )
-
-    if db.query(models.Tarjeta).filter(models.Tarjeta.cuenta_id == cuenta_id).first():
-        raise HTTPException(
-            status_code=400,
-            detail=f"No puedes eliminar '{cuenta.nombre}' porque tiene tarjetas de débito asociadas.",
-        )
-
+    # Cuenta vacía → borrado físico simple (no la metemos en la papelera
+    # porque no tiene nada que restaurar y no queremos añadir la columna eliminado a cuentas)
     db.delete(cuenta)
     db.commit()
 
+@app.delete("/api/cuentas/{cuenta_id}/eliminar-todo", status_code=204)
+def eliminar_cuenta_todo(
+    cuenta_id: int,
+    payload: schemas.EliminarCuentaPayload,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """
+    Elimina PERMANENTEMENTE la cuenta y TODOS sus datos asociados.
+    Requiere confirmar el nombre exacto en el body: {"confirmar_nombre": "..."}
+    """
+    cuenta = (
+        db.query(models.Cuenta)
+        .filter(models.Cuenta.id == cuenta_id, models.Cuenta.usuario_id == usuario.id)
+        .first()
+    )
+    if not cuenta:
+        raise HTTPException(status_code=404, detail="Cuenta no encontrada")
+
+    # Validar el nombre exacto
+    if payload.confirmar_nombre.strip() != cuenta.nombre.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="El nombre no coincide. Escribe exactamente el nombre de la cuenta.",
+        )
+
+    # ============ Orden de borrado (respetar FKs) ============
+
+    # 1. Recurrentes asociadas (+ sus registros/pagos)
+    recs = (
+        db.query(models.TransaccionRecurrente)
+        .filter(models.TransaccionRecurrente.cuenta_id == cuenta_id)
+        .all()
+    )
+    for r in recs:
+        db.query(models.RegistroRecurrente).filter(
+            models.RegistroRecurrente.recurrente_id == r.id
+        ).delete()
+        db.query(models.RecurrentePago).filter(
+            models.RecurrentePago.recurrente_id == r.id
+        ).delete()
+        db.delete(r)
+
+    # 2. Pagos de tarjeta hechos desde esta cuenta
+    #    → primero desvinculamos los gastos (vuelven a quedar pendientes)
+    pagos = (
+        db.query(models.PagoTarjeta)
+        .filter(models.PagoTarjeta.cuenta_id == cuenta_id)
+        .all()
+    )
+    for p in pagos:
+        db.query(models.Gasto).filter(models.Gasto.pago_id == p.id).update(
+            {models.Gasto.pago_id: None}
+        )
+        db.delete(p)
+
+    # 3. Potes + movimientos
+    potes = db.query(models.Pote).filter(models.Pote.cuenta_id == cuenta_id).all()
+    for p in potes:
+        db.query(models.MovimientoPote).filter(
+            models.MovimientoPote.pote_id == p.id
+        ).delete()
+        db.delete(p)
+
+    # 4. Tarjetas de débito asociadas (+ sus gastos)
+    tarjetas_debito = (
+        db.query(models.Tarjeta)
+        .filter(
+            models.Tarjeta.cuenta_id == cuenta_id,
+            models.Tarjeta.tipo == "debito",
+        )
+        .all()
+    )
+    for t in tarjetas_debito:
+        db.query(models.Gasto).filter(models.Gasto.tarjeta_id == t.id).delete()
+        db.delete(t)
+
+    # 5. Ingresos
+    db.query(models.Ingreso).filter(models.Ingreso.cuenta_id == cuenta_id).delete()
+
+    # 6. Egresos directos
+    db.query(models.EgresoCuenta).filter(
+        models.EgresoCuenta.cuenta_id == cuenta_id
+    ).delete()
+
+    # 7. Abonos de deuda: no se borran, solo se desvinculan (cuenta_id = NULL)
+    #    porque el abono es un hecho histórico que ya bajó el saldo de la deuda.
+    db.query(models.AbonoDeuda).filter(
+        models.AbonoDeuda.cuenta_id == cuenta_id
+    ).update({models.AbonoDeuda.cuenta_id: None})
+
+    # 8. Finalmente, la cuenta
+    db.delete(cuenta)
+    db.commit()
 
 @app.get("/api/cuentas/resumen-total")
 def resumen_total_cuentas(
