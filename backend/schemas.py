@@ -921,3 +921,6 @@ class CalendarioMes(BaseModel):
     total_ingresos: Decimal
     total_gastos: Decimal
     balance: Decimal
+
+class EliminarCuentaPayload(BaseModel):
+    confirmar_nombre: str = Field(min_length=1, max_length=80)
