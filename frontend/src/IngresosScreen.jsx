@@ -149,6 +149,17 @@ export default function IngresosScreen({
         </button>
       </div>
 
+      {/* Botón registrar ingreso */}
+      <button
+        onClick={() => {
+          setIngresoEditando(null);
+          setModalAbierto(true);
+        }}
+        className="w-full mb-3 py-3 rounded-2xl bg-emerald-600 text-white font-semibold text-sm flex items-center justify-center gap-2 hover:bg-emerald-700 transition-colors"
+      >
+        <Plus size={16} /> Registrar ingreso
+      </button>
+
       {/* Botón Descargar CSV */}
       <button
         onClick={exportar}
