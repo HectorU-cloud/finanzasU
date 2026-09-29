@@ -924,3 +924,7 @@ class CalendarioMes(BaseModel):
 
 class EliminarCuentaPayload(BaseModel):
     confirmar_nombre: str = Field(min_length=1, max_length=80)
+
+
+class EliminarTarjetaPayload(BaseModel):
+    confirmar_nombre: str = Field(min_length=1, max_length=50)
