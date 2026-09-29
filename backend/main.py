@@ -1628,9 +1628,162 @@ def eliminar_tarjeta(
     db: Session = Depends(get_db),
     usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
 ):
+    """
+    Elimina una tarjeta.
+    - Si está vacía → la borra físicamente (no la metemos en papelera).
+    - Si tiene dependencias → error 409 para que el frontend abra el modal detallado.
+    """
     tarjeta = tarjeta_del_usuario(db, tarjeta_id, usuario)
+
+    tiene_deps = (
+        db.query(models.Gasto).filter(models.Gasto.tarjeta_id == tarjeta_id).first()
+        or db.query(models.PagoTarjeta).filter(models.PagoTarjeta.tarjeta_id == tarjeta_id).first()
+        or db.query(models.GastoCompartido).filter(models.GastoCompartido.tarjeta_id == tarjeta_id).first()
+        or db.query(models.TransaccionRecurrente).filter(
+            models.TransaccionRecurrente.tarjeta_id == tarjeta_id,
+            models.TransaccionRecurrente.activa == 1,
+        ).first()
+    )
+
+    if tiene_deps:
+        raise HTTPException(
+            status_code=409,
+            detail="Esta tarjeta tiene movimientos asociados. Confirma la eliminación definitiva.",
+        )
+
     db.delete(tarjeta)
     db.commit()
+
+
+@app.delete("/api/tarjetas/{tarjeta_id}/eliminar-todo", status_code=204)
+def eliminar_tarjeta_todo(
+    tarjeta_id: int,
+    payload: schemas.EliminarTarjetaPayload,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """
+    Elimina PERMANENTEMENTE la tarjeta y TODOS sus datos asociados.
+    Requiere confirmar el nombre exacto en el body.
+    """
+    tarjeta = tarjeta_del_usuario(db, tarjeta_id, usuario)
+
+    if payload.confirmar_nombre.strip() != tarjeta.nombre.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="El nombre no coincide. Escribe exactamente el nombre de la tarjeta.",
+        )
+
+    # ============ Orden de borrado (respetar FKs) ============
+
+    # 1. Recurrentes asociadas (+ sus registros/pagos)
+    recs = (
+        db.query(models.TransaccionRecurrente)
+        .filter(models.TransaccionRecurrente.tarjeta_id == tarjeta_id)
+        .all()
+    )
+    for r in recs:
+        db.query(models.RegistroRecurrente).filter(
+            models.RegistroRecurrente.recurrente_id == r.id
+        ).delete()
+        db.query(models.RecurrentePago).filter(
+            models.RecurrentePago.recurrente_id == r.id
+        ).delete()
+        db.delete(r)
+
+    # 2. Pagos de tarjeta → primero desvinculamos gastos, luego borramos pagos
+    pagos = (
+        db.query(models.PagoTarjeta)
+        .filter(models.PagoTarjeta.tarjeta_id == tarjeta_id)
+        .all()
+    )
+    for p in pagos:
+        db.query(models.Gasto).filter(models.Gasto.pago_id == p.id).update(
+            {models.Gasto.pago_id: None}
+        )
+        db.delete(p)
+
+    # 3. Gastos compartidos (divisiones se borran por cascade)
+    db.query(models.GastoCompartido).filter(
+        models.GastoCompartido.tarjeta_id == tarjeta_id
+    ).update({models.GastoCompartido.tarjeta_id: None})
+
+    # 4. Gastos (crédito o débito)
+    db.query(models.Gasto).filter(models.Gasto.tarjeta_id == tarjeta_id).delete()
+
+    # 5. Finalmente, la tarjeta
+    db.delete(tarjeta)
+    db.commit()
+
+@app.get("/api/tarjetas/{tarjeta_id}/dependencias")
+def dependencias_tarjeta(
+    tarjeta_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    """Resumen de todo lo que depende de esta tarjeta."""
+    tarjeta = tarjeta_del_usuario(db, tarjeta_id, usuario)
+
+    # Gastos
+    gastos = (
+        db.query(
+            func.count(models.Gasto.id),
+            func.coalesce(func.sum(models.Gasto.monto), 0),
+        )
+        .filter(models.Gasto.tarjeta_id == tarjeta_id)
+        .first()
+    )
+
+    # Pagos de tarjeta (solo crédito)
+    pagos = (
+        db.query(
+            func.count(models.PagoTarjeta.id),
+            func.coalesce(func.sum(models.PagoTarjeta.monto), 0),
+        )
+        .filter(models.PagoTarjeta.tarjeta_id == tarjeta_id)
+        .first()
+    )
+
+    # Gastos compartidos
+    compartidos = (
+        db.query(
+            func.count(models.GastoCompartido.id),
+            func.coalesce(func.sum(models.GastoCompartido.monto), 0),
+        )
+        .filter(models.GastoCompartido.tarjeta_id == tarjeta_id)
+        .first()
+    )
+
+    # Recurrentes
+    recurrentes = (
+        db.query(models.TransaccionRecurrente)
+        .filter(
+            models.TransaccionRecurrente.tarjeta_id == tarjeta_id,
+            models.TransaccionRecurrente.activa == 1,
+        )
+        .all()
+    )
+
+    return {
+        "tarjeta": {
+            "id": tarjeta.id,
+            "nombre": tarjeta.nombre,
+            "tipo": tarjeta.tipo,
+        },
+        "gastos": {"cantidad": gastos[0], "total": float(gastos[1])},
+        "pagos_tarjeta": {"cantidad": pagos[0], "total": float(pagos[1])},
+        "gastos_compartidos": {"cantidad": compartidos[0], "total": float(compartidos[1])},
+        "recurrentes": {
+            "cantidad": len(recurrentes),
+            "nombres": [r.nombre for r in recurrentes],
+        },
+        "tiene_dependencias": any([
+            gastos[0] > 0,
+            pagos[0] > 0,
+            compartidos[0] > 0,
+            len(recurrentes) > 0,
+        ]),
+    }
 
 
 # ============================================================
