@@ -546,21 +546,6 @@ const [mostrandoSplash, setMostrandoSplash] = useState(false);
           }}
         />
 
-        {modalEgresoAbierto && (
-          <EgresoCuentaModal
-            egreso={egresoEditando}
-            onCerrar={() => {
-              setModalEgresoAbierto(false);
-              setEgresoEditando(null);
-            }}
-            onGuardado={() => {
-              setModalEgresoAbierto(false);
-              setEgresoEditando(null);
-              setMovimientosNav((p) => ({ ...p, nonce: p.nonce + 1 }));
-            }}
-          />
-        )}
-
         {modalTarjetas && (
           <div
             className="fixed inset-0 z-50 bg-black/40 flex items-end sm:items-center justify-center p-0 sm:p-4"
@@ -852,6 +837,21 @@ const [mostrandoSplash, setMostrandoSplash] = useState(false);
               />
             </div>
           </div>
+        )}
+
+        {modalEgresoAbierto && (
+          <EgresoCuentaModal
+            egreso={egresoEditando}
+            onCerrar={() => {
+              setModalEgresoAbierto(false);
+              setEgresoEditando(null);
+            }}
+            onGuardado={() => {
+              setModalEgresoAbierto(false);
+              setEgresoEditando(null);
+              setMovimientosNav((p) => ({ ...p, nonce: p.nonce + 1 }));
+            }}
+          />
         )}
 
         <BottomNav
