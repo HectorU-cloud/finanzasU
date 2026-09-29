@@ -12,7 +12,7 @@ const NOMBRES_MES = [
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ];
 
-export default function HistorialPagosScreen({ onVolver, ocultarHeader = false }) {
+export default function HistorialPagosScreen({ onVolver, ocultarHeader = false, OnIrATarjetas }) {
   const [pagos, setPagos] = useState([]);
   const [tarjetas, setTarjetas] = useState([]);
   const [cuentas, setCuentas] = useState([]);
@@ -136,6 +136,8 @@ export default function HistorialPagosScreen({ onVolver, ocultarHeader = false }
           icon={Receipt}
           titulo="Aún no hay pagos"
           mensaje="Cuando pagues una tarjeta, aparecerá aquí."
+          accion="Ver mis tarjetas"
+          onAccion={onIrATarjetas}
           colorIcono="coral"
         />
       ) : (
