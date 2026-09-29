@@ -117,11 +117,17 @@ export const api = {
   getCategoriasIngreso: () => request("/categorias-ingreso"),
   getCuentas: () => request("/cuentas"),
   getMovimientosCuenta: (cuentaId) => request(`/cuentas/${cuentaId}/movimientos`),
+  getDependenciasCuenta: (cuentaId) => request(`/cuentas/${cuentaId}/dependencias`),
   crearCuenta: (cuenta) =>
     request("/cuentas", { method: "POST", body: JSON.stringify(cuenta) }),
   actualizarCuenta: (id, cambios) =>
     request(`/cuentas/${id}`, { method: "PUT", body: JSON.stringify(cambios) }),
   eliminarCuenta: (id) => request(`/cuentas/${id}`, { method: "DELETE" }),
+  eliminarCuentaTodo: (id, confirmarNombre) =>
+    request(`/cuentas/${id}/eliminar-todo`, {
+      method: "DELETE",
+      body: JSON.stringify({ confirmar_nombre: confirmarNombre }),
+    }),
   getResumenTotalCuentas: () => request("/cuentas/resumen-total"),
 
   // Deudas (debo / me deben)
