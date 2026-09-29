@@ -11,6 +11,7 @@ export default function MovimientosScreen({
   onAbrirTarjeta,
   onEditarEgreso,
   onNuevoEgreso,
+  onIrATaretas,
 }) {
   const [tabActiva, setTabActiva] = useState(tabInicial);
 
@@ -60,7 +61,7 @@ export default function MovimientosScreen({
             onNuevoEgreso={onNuevoEgreso}
           />
         )}
-        {tabActiva === "pagos" && <HistorialPagosScreen ocultarHeader={true} />}
+        {tabActiva === "pagos" && <HistorialPagosScreen ocultarHeader={true} onIrATarjetas={onIrATarjetas} />}
       </div>
     </div>
   );
