@@ -3,6 +3,7 @@ import { Wallet, TrendingUp, Plus, MoreVertical, Pencil, Trash2 } from "lucide-r
 import { api } from "./api.js";
 import CuentaModal from "./CuentaModal.jsx";
 import ConfirmModal from "./ConfirmModal.jsx";
+import EliminarCuentaModal from "./EliminarCuentaModal.jsx";
 import CuentaDetalleScreen from "./CuentaDetalleScreen.jsx";
 import { SkeletonList } from "./Skeleton.jsx";
 import EmptyState from "./EmptyState.jsx";
@@ -61,16 +62,9 @@ export default function CuentasScreen({ onCambiarVista }) {
 
   const total = cuentas.reduce((acc, c) => acc + Number(c.saldo_inicial || 0), 0);
 
-  async function confirmarEliminar() {
-    if (!cuentaAEliminar) return;
-    try {
-      await api.eliminarCuenta(cuentaAEliminar.id);
-      setCuentaAEliminar(null);
-      await cargar();
-    } catch (err) {
-      setError(err.message);
-      setCuentaAEliminar(null);
-    }
+  async function alEliminarCuenta() {
+    setCuentaAEliminar(null);
+    await cargar();
   }
 
   // Si hay una cuenta seleccionada, muestra el detalle
@@ -223,12 +217,10 @@ export default function CuentasScreen({ onCambiarVista }) {
       )}
 
       {cuentaAEliminar && (
-        <ConfirmModal
-          titulo="Eliminar cuenta"
-          mensaje={`¿Eliminar "${cuentaAEliminar.nombre}"? Esta acción no se puede deshacer.`}
-          textoConfirmar="Sí, eliminar"
-          onConfirmar={confirmarEliminar}
-          onCancelar={() => setCuentaAEliminar(null)}
+        <EliminarCuentaModal
+          cuenta={cuentaAEliminar}
+          onCerrar={() => setCuentaAEliminar(null)}
+          onEliminada={alEliminarCuenta}
         />
       )}
     </div>
