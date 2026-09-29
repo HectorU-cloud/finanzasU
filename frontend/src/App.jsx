@@ -665,6 +665,7 @@ const [mostrandoSplash, setMostrandoSplash] = useState(false);
               setEgresoEditando(null);
               setModalEgresoAbierto(true);
             }}
+            onIrATarjetas={() => setVistaTarjetas(true)}
           />
         )}
 
