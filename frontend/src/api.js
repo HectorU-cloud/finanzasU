@@ -231,6 +231,12 @@ export const api = {
   actualizarTarjeta: (id, cambios) =>
     request(`/tarjetas/${id}`, { method: "PUT", body: JSON.stringify(cambios) }),
   eliminarTarjeta: (id) => request(`/tarjetas/${id}`, { method: "DELETE" }),
+  getDependenciasTarjeta: (id) => request(`/tarjetas/${id}/dependencias`),
+  eliminarTarjetaTodo: (id, confirmarNombre) =>
+    request(`/tarjetas/${id}/eliminar-todo`, {
+      method: "DELETE",
+      body: JSON.stringify({ confirmar_nombre: confirmarNombre }),
+    }),
 
   getGrupos: () => request("/grupos"),
   crearGrupo: (nombre) => request("/grupos", { method: "POST", body: JSON.stringify({ nombre }) }),
