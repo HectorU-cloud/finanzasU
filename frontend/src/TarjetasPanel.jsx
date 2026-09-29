@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { ChevronDown, CreditCard, Pencil, Trash2, Check, X, Plus, MoreVertical } from "lucide-react";
 import { api } from "./api.js";
 import ConfirmModal from "./ConfirmModal.jsx";
+import EliminarTarjetaModal from "./EliminarTarjetaModal.jsx";
 import CardNetworkLogo from "./CardNetworkLogo.jsx";
 
 const TEMAS = [
@@ -107,16 +108,9 @@ export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onTogg
     }
   }
 
-  async function confirmarEliminar() {
-    if (!tarjetaAEliminar) return;
-    try {
-      await api.eliminarTarjeta(tarjetaAEliminar.id);
-      setTarjetaAEliminar(null);
-      onChange();
-    } catch (err) {
-      setError(err.message);
-      setTarjetaAEliminar(null);
-    }
+  async function alEliminarTarjeta() {
+    setTarjetaAEliminar(null);
+    onChange();
   }
 
   async function agregar(e) {
@@ -403,12 +397,10 @@ export default function TarjetasPanel({ tarjetas = [], onChange, abierto, onTogg
       )}
 
       {tarjetaAEliminar && (
-        <ConfirmModal
-          titulo="Eliminar tarjeta"
-          mensaje={`¿Eliminar "${tarjetaAEliminar.nombre}"? Esto también borra todos sus gastos registrados. Esta acción no se puede deshacer.`}
-          textoConfirmar="Sí, eliminar"
-          onConfirmar={confirmarEliminar}
-          onCancelar={() => setTarjetaAEliminar(null)}
+        <EliminarTarjetaModal
+          tarjeta={tarjetaAEliminar}
+          onCerrar={() => setTarjetaAEliminar(null)}
+          onEliminada={alEliminarTarjeta}
         />
       )}
     </div>
