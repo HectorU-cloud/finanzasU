@@ -12,7 +12,7 @@ const NOMBRES_MES = [
   "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
 ];
 
-export default function HistorialPagosScreen({ onVolver, ocultarHeader = false, OnIrATarjetas }) {
+export default function HistorialPagosScreen({ onVolver, ocultarHeader = false, onIrATarjetas }) {
   const [pagos, setPagos] = useState([]);
   const [tarjetas, setTarjetas] = useState([]);
   const [cuentas, setCuentas] = useState([]);
