@@ -975,6 +975,20 @@ def estado_pago_tarjeta(
         porcentaje_pagado=estado["porcentaje"],
     )
 
+@app.get("/api/tarjetas/{tarjeta_id}/deuda-total")
+def deuda_total_tarjeta(
+    tarjeta_id: int,
+    db: Session = Depends(get_db),
+    usuario: models.Usuario = Depends(auth.obtener_usuario_actual),
+):
+    tarjeta = tarjeta_del_usuario(db, tarjeta_id, usuario)
+    total = (
+        db.query(func.coalesce(func.sum(models.Gasto.monto), 0))
+        .filter(models.Gasto.tarjeta_id == tarjeta.id)
+        .filter(models.Gasto.pago_id.is_(None))
+        .scalar()
+    )
+    return {"pendiente_total": float(total)}
 
 @app.get("/api/alertas", response_model=list[schemas.Alerta])
 def obtener_alertas(
@@ -1003,25 +1017,39 @@ def obtener_alertas(
                 mensaje=f"{t.nombre} cierra {texto_dias}",
             ))
 
-        pendiente_atrasado = (
+                # Calculamos el total de gastos históricos vs el total pagado
+        total_gastos_hist = (
             db.query(func.coalesce(func.sum(models.Gasto.monto), 0))
-            .filter(
-                models.Gasto.tarjeta_id == t.id,
-                models.Gasto.pago_id.is_(None),
-                models.Gasto.fecha < primer_dia_mes_actual,
-            )
+            .filter(models.Gasto.tarjeta_id == t.id)
             .scalar()
         )
-        pendiente_atrasado = Decimal(pendiente_atrasado)
-        if pendiente_atrasado > 0:
-            alertas.append(schemas.Alerta(
-                tipo="pago_atrasado",
-                tarjeta_id=t.id,
-                tarjeta_nombre=t.nombre,
-                dias=None,
-                monto=pendiente_atrasado,
-                mensaje=f"{t.nombre} tiene ${pendiente_atrasado:.2f} pendiente de meses anteriores",
-            ))
+        total_pagado_hist = (
+            db.query(func.coalesce(func.sum(models.PagoTarjeta.monto), 0))
+            .filter(models.PagoTarjeta.tarjeta_id == t.id)
+            .scalar()
+        )
+        
+        # Solo evaluamos deuda atrasada si realmente le debe dinero a la tarjeta
+        if Decimal(total_pagado_hist) < Decimal(total_gastos_hist):
+            pendiente_atrasado = (
+                db.query(func.coalesce(func.sum(models.Gasto.monto), 0))
+                .filter(
+                    models.Gasto.tarjeta_id == t.id,
+                    models.Gasto.pago_id.is_(None),
+                    models.Gasto.fecha < primer_dia_mes_actual,
+                )
+                .scalar()
+            )
+            pendiente_atrasado = Decimal(pendiente_atrasado)
+            if pendiente_atrasado > 0:
+                alertas.append(schemas.Alerta(
+                    tipo="pago_atrasado",
+                    tarjeta_id=t.id,
+                    tarjeta_nombre=t.nombre,
+                    dias=None,
+                    monto=pendiente_atrasado,
+                    mensaje=f"{t.nombre} tiene ${pendiente_atrasado:.2f} pendiente de meses anteriores",
+                ))
 
     deudas = db.query(models.Deuda).filter(models.Deuda.usuario_id == usuario.id, models.Deuda.pagada == 0).all()
     for d in deudas:
@@ -1096,18 +1124,24 @@ def crear_pago_tarjeta(
     db.add(nuevo_pago)
     db.flush()
 
-    nuevo_total_pagado = estado["total_pagado"] + datos.monto
-    if nuevo_total_pagado >= estado["total_gastos"]:
-        gastos_pendientes = (
-            db.query(models.Gasto)
-            .filter(models.Gasto.tarjeta_id == tarjeta.id)
-            .filter(extract("year", models.Gasto.fecha) == datos.anio)
-            .filter(extract("month", models.Gasto.fecha) == datos.mes)
-            .filter(models.Gasto.pago_id.is_(None))
-            .all()
-        )
-        for g in gastos_pendientes:
+        # Buscamos TODOS los gastos pendientes de esta tarjeta (sin importar el mes)
+    # ordenados del más antiguo al más nuevo
+    gastos_pendientes = (
+        db.query(models.Gasto)
+        .filter(models.Gasto.tarjeta_id == tarjeta.id)
+        .filter(models.Gasto.pago_id.is_(None))
+        .order_by(models.Gasto.fecha.asc())
+        .all()
+    )
+    
+    # Vamos saldando las deudas más viejas con el monto que pagó el usuario
+    monto_restante = datos.monto
+    for g in gastos_pendientes:
+        if monto_restante >= g.monto:
             g.pago_id = nuevo_pago.id
+            monto_restante -= g.monto
+        else:
+            break # Si no alcanza para cubrir el gasto completo, dejamos de asignar
 
     db.commit()
     db.refresh(nuevo_pago)

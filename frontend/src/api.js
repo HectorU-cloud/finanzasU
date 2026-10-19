@@ -79,6 +79,7 @@ export const api = {
   // Pagos de tarjeta
   getEstadoPagoTarjeta: (tarjetaId, anio, mes) =>
     request(`/tarjetas/${tarjetaId}/estado-pago?anio=${anio}&mes=${mes}`),
+  getDeudaTotalTarjeta: (tarjetaId) => request(`/tarjetas/${tarjetaId}/deuda-total`),
   crearPagoTarjeta: (datos) =>
     request("/pagos-tarjeta", { method: "POST", body: JSON.stringify(datos) }),
   getPagosTarjeta: () => request("/pagos-tarjeta"),

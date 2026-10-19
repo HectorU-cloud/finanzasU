@@ -28,10 +28,14 @@ export default function PagarTarjetaModal({ tarjeta, onCerrar, onPagado, onIrAHi
   useEffect(() => {
     async function cargar() {
       try {
-        const [cuentasData, estadoData] = await Promise.all([
-          api.getCuentas(),
-          api.getEstadoPagoTarjeta(tarjeta.id, hoy.getFullYear(), hoy.getMonth() + 1),
-        ]);
+        const [cuentasData, estadoData, deudaTotalData] = await Promise.all([
+        api.getCuentas(),
+        api.getEstadoPagoTarjeta(tarjeta.id, hoy.getFullYear(), hoy.getMonth() + 1),
+        api.getDeudaTotalTarjeta(tarjeta.id),
+      ]);
+
+// Reemplazamos el "pendiente" del mes actual con la deuda total histórica
+estadoData.pendiente = deudaTotalData.pendiente_total;
         setCuentas(cuentasData || []);
         setEstado(estadoData);
         setForm((f) => ({
