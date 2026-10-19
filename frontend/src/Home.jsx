@@ -250,7 +250,7 @@ export default function Home({
     .reduce((acc, d) => acc + Number(d.saldo_pendiente), 0);
 
   return (
-    <div className="max-w-md mx-auto px-4 pb-24 pt-6">
+    <div className="max-w-md mx-auto px-4 pb-24" style={{ paddingTop: 'calc(1.5rem + var(--safe-top))' }}>
       {/* Header con fecha y avatar */}
       <header className="flex items-center justify-between mb-5">
         <h1 className="text-3xl font-bold text-carbon">{formatearFecha()}</h1>

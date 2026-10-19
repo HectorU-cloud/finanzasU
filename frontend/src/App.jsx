@@ -524,7 +524,7 @@ const [mostrandoSplash, setMostrandoSplash] = useState(false);
 
   if (vistaTarjetas) {
         return (
-      <div className="min-h-screen bg-cream pb-24">
+      <div className="min-h-screen bg-cream pb-24" style={{ paddingTop: 'var(--safe-top)' }}>
         {usuario?.es_demo && (
           <BannerDemo
             onCrearCuenta={() => {
@@ -592,7 +592,7 @@ const [mostrandoSplash, setMostrandoSplash] = useState(false);
 
   if (VISTAS_CON_NAV.includes(vista)) {
         return (
-      <div className="min-h-screen bg-cream pb-24">
+      <div className="min-h-screen bg-cream pb-24" style={{ paddingTop: 'var(--safe-top)' }}>
         {usuario?.es_demo && (
           <BannerDemo
             onCrearCuenta={() => {

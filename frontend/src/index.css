@@ -1,4 +1,10 @@
 @tailwind base;
+@supports (padding: env(safe-area-inset-top)) {
+  :root {
+    --safe-top: env(safe-area-inset-top, 0px);
+    --safe-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
 @tailwind components;
 @tailwind utilities;
 :root {
@@ -2047,4 +2053,14 @@ input:-webkit-autofill:active {
 /* BarChart icon en widget oscuro - un poco más visible */
 [data-theme="dark"] .text-coral {
   color: #ff7b6b !important;
+}
+/* --- SOLUCIÓN SAFE AREA PARA PANTALLAS --- */
+/* Esto aplica el margen superior dinámico automáticamente a todas las pantallas */
+.max-w-md.pt-6 {
+  padding-top: calc(1.5rem + var(--safe-top)) !important;
+}
+
+/* Para pantallas que usan fixed inset-0 (como Buscar, Papelera, TarjetaDetalle) */
+.fixed.inset-0 > .max-w-md {
+  padding-top: calc(1.5rem + var(--safe-top)) !important;
 }

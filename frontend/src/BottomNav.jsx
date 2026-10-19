@@ -11,7 +11,7 @@ const TABS = [
 export default function BottomNav({ vista, onCambiar }) {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-40">
-      <div className="max-w-md mx-auto px-2 pb-3">
+      <div className="max-w-md mx-auto px-2" style={{ paddingBottom: 'calc(0.75rem + var(--safe-bottom))' }}>
         <div className="bg-carbon/95 backdrop-blur-md rounded-2xl shadow-2xl flex justify-around items-center py-2 px-1">
           {TABS.map((tab) => {
             const Icono = tab.icono;
