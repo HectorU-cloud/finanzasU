@@ -1060,8 +1060,6 @@ def crear_pago_tarjeta(
     tarjeta = tarjeta_del_usuario(db, datos.tarjeta_id, usuario)
     if tarjeta.tipo == "debito":
         raise HTTPException(status_code=400, detail="Las tarjetas de débito no se pagan")
-
-    _validar_categoria_usuario(db, usuario, datos.categoria, "ingreso")
     cuenta = (
         db.query(models.Cuenta)
         .filter(models.Cuenta.id == datos.cuenta_id, models.Cuenta.usuario_id == usuario.id)
